@@ -32,6 +32,7 @@ El proyecto ha sido refactorizado para seguir los principios de la Arquitectura 
 ## 🚀 Instalación
 
 ### Opción A: Docker (Recomendado)
+Imagen Docker hub: https://hub.docker.com/repository/docker/felixmurcia/cine-platform/general
 
 Esta opción levanta la aplicación y una instancia de PocketBase automáticamente, evitando conflictos de dependencias.
 
