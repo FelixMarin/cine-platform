@@ -29,9 +29,9 @@ services:
     image: ghcr.io/muchobien/pocketbase:latest
     container_name: pocketbase
     restart: unless-stopped
-    # Mapea puerto host 8070 -> contenedor 8090
+    # Mapea puerto host 8071 -> contenedor 8090 (evita conflicto con 8070 local)
     ports:
-      - "8070:8090"
+      - "8071:8090"
     volumes:
       - pb_data:/pb_data
     command:

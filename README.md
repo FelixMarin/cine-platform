@@ -1,6 +1,6 @@
 # Cine Platform
 
-Plataforma unificada que combina streaming de películas/series y optimización de videos en una sola aplicación con autenticación compartida.
+Plataforma unificada que combina streaming de películas/series y optimización de videos, refactorizada bajo **Arquitectura Hexagonal** y totalmente **Dockerizada**.
 
 ## 🎯 Características
 
@@ -9,15 +9,45 @@ Plataforma unificada que combina streaming de películas/series y optimización 
 - **Autenticación Unificada**: Login único con PocketBase para todas las funcionalidades
 - **Panel de Administración**: Gestión avanzada para usuarios con rol admin
 - **Procesamiento en Tiempo Real**: Monitoreo del estado de optimización de videos
+- **Despliegue con Docker**: Entorno aislado y reproducible con Docker Compose
+
+## 🏗️ Arquitectura Hexagonal
+
+El proyecto ha sido refactorizado para seguir los principios de la Arquitectura Hexagonal (Ports & Adapters), desacoplando la lógica de negocio de los detalles de implementación:
+
+- **Dominio**: Lógica central de la aplicación.
+- **Adaptadores (Infrastructure)**:
+  - **Auth**: Adaptador para PocketBase (`PocketBaseAuthAdapter`).
+  - **Media**: Repositorio de sistema de archivos (`FileSystemMediaRepository`).
+  - **Optimizer**: Adaptador para FFmpeg (`FFmpegOptimizerAdapter`).
+  - **Web**: Adaptador HTTP con Flask (`modules.routes`).
 
 ## 📋 Requisitos Previos
 
-- Python 3.8+
-- FFmpeg instalado en el sistema
-- PocketBase corriendo en `http://127.0.0.1:8070` (configurable)
-- Virtual environment con dependencias instaladas
+- **Docker y Docker Compose** (Recomendado)
+- Python 3.8+ (Para ejecución local manual)
+- FFmpeg instalado en el sistema (Para ejecución local manual)
+- PocketBase (Incluido automáticamente en Docker)
 
 ## 🚀 Instalación
+
+### Opción A: Docker (Recomendado)
+
+Esta opción levanta la aplicación y una instancia de PocketBase automáticamente, evitando conflictos de dependencias.
+
+1. **Configurar volúmenes**:
+   Verifica en `docker-compose.yml` que la ruta de tus películas coincida con tu sistema (por defecto `/media/d/audiovisual`).
+
+2. **Iniciar servicios**:
+   ```bash
+   docker compose up -d --build
+   ```
+
+3. **Acceder**:
+   - **Cine Platform**: `http://localhost:5000`
+   - **PocketBase (Docker)**: `http://localhost:8071/_/` (Puerto modificado para evitar conflictos con instancias locales).
+
+### Opción B: Ejecución Manual (Local)
 
 1. **Clonar o navegar al directorio del proyecto**:
    ```bash
@@ -153,8 +183,14 @@ cine-platform/
 ├── server.py              # Servidor Flask unificado
 ├── .env                   # Configuración (no versionado)
 ├── requirements.txt       # Dependencias Python
+├── Dockerfile             # Definición de imagen Docker
+├── docker-compose.yml     # Orquestación de servicios
 ├── pb_client.py          # Cliente PocketBase
-├── modules/
+├── modules/              # Módulos (Arquitectura Hexagonal)
+│   ├── adapter.py       # Adaptador de Optimización
+│   ├── auth.py          # Adaptador de Autenticación
+│   ├── media.py         # Adaptador de Medios
+│   ├── routes.py        # Adaptador Web (Rutas)
 │   └── logging/
 │       └── logging_config.py
 ├── static/               # Assets frontend
