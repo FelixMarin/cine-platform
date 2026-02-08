@@ -15,7 +15,7 @@ pydantic==2.11.7
 # --- Procesamiento & GPU (Ray) ---
 ray==2.42.1
 ffmpeg==1.4
-protobuf==6.32.0
+protobuf==5.26.1
 grpcio==1.74.0
 
 # --- Hardware (Jetson specific) ---
@@ -29,3 +29,6 @@ colorama==0.4.6
 aiohttp==3.12.15
 
 python-dotenv==1.2.1
+
+coloredlogs==15.0.1
+flatbuffers==24.3.25
