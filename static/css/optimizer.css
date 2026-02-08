@@ -1,0 +1,142 @@
+body {
+  background-color: #f8f9fa;
+  font-family: 'Inter', sans-serif;
+}
+
+h1, h4, h5 {
+  font-weight: 600;
+}
+
+/* Pasos del pipeline */
+.pipeline-step {
+  display: inline-block;
+  padding: 10px 20px;
+  margin: 5px;
+  color: white;
+  font-weight: 500;
+  min-width: 180px;
+  text-align: center;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+  transition: all 0.3s ease-in-out;
+  margin-left: 4%;
+}
+.pipeline-step.inactive {
+  background-color: #b0b0b0;
+  opacity: 0.6;
+}
+.pipeline-step.active {
+  background: linear-gradient(135deg, #007bff, #00bfff);
+  transform: scale(1.05);
+  box-shadow: 0 4px 10px rgba(0,123,255,0.4);
+}
+.pipeline-step.completed {
+  background: linear-gradient(135deg, #28a745, #5cd65c);
+}
+.pipeline-step.completed::after {
+  content: " ✓";
+  font-weight: bold;
+}
+
+/* Tabla */
+.table th {
+  background-color: #343a40;
+  color: white;
+}
+
+/* Estados */
+.status-success {
+  color: #28a745;
+  font-weight: bold;
+}
+.status-error {
+  color: #dc3545;
+  font-weight: bold;
+}
+
+/* Botón custom de archivo */
+.custom-file-upload {
+  background: linear-gradient(135deg, #4e8ef7, #1c5adf);
+  color: white;
+  padding: 10px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: 0.3s;
+  display: inline-block;
+  margin-right: 8px;
+}
+.custom-file-upload:hover {
+  background: linear-gradient(135deg, #1c5adf, #4e8ef7);
+}
+
+/* Botón de subir */
+#upload-btn {
+  background: #00b894;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 16px;
+  color: #fff;
+  font-weight: 500;
+  transition: background 0.3s;
+}
+#upload-btn:hover {
+  background: #019874;
+}
+
+/* Spinner */
+.spinner {
+  width: 18px;
+  height: 18px;
+  border: 3px solid #f3f3f3;
+  border-top: 3px solid #4e8ef7;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  display: inline-block;
+  vertical-align: middle;
+  margin-right: 6px;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Barra de progreso personalizada */
+.progress-bar {
+  background: #e9ecef;
+  border-radius: 4px;
+  overflow: hidden;
+  display: inline-block;
+  vertical-align: middle;
+  width: 150px;
+  margin-left: 8px;
+}
+.progress-bar div {
+  height: 6px;
+  background: linear-gradient(135deg, #007bff, #00bfff);
+  width: 0%;
+  transition: width 0.3s ease;
+}
+
+/* Icono de estado */
+#statusIcon {
+  transition: transform 0.3s ease;
+}
+#statusIcon:hover {
+  transform: rotate(15deg) scale(1.2);
+}
+
+/* Línea del log */
+#logLine {
+  font-family: monospace;
+  font-size: 0.95em;
+  color: #333;
+}
+
+#estado-procesamiento td {
+  font-weight: 500;
+  color: #343a40;
+}
+
+#video-preview {
+  border: 1px solid #ddd;
+  background-color: #000;
+}

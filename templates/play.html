@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reproducción</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            margin: 0; 
+            padding: 0; 
+            background-color: #121212; 
+            color: #ffffff; 
+        }
+        .container { 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            padding: 20px; 
+        }
+        h1 {
+            font-size: 24px;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+        .underline {
+            width: 80%;
+            height: 2px;
+            background: linear-gradient(to right, #444, #1e1e1e);
+            margin-bottom: 20px;
+        }
+        video { 
+            max-width: 100%; 
+            height: auto; 
+            margin-top: 20px; 
+            border: 1px solid #444; 
+        }
+        a { 
+            color: #ffffff; 
+            text-decoration: none; 
+            margin-top: 20px; 
+        }
+        a:hover { 
+            text-decoration: underline; 
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Reproduciendo: {{ sanitized_name }}</h1>
+        <div class="underline"></div>
+        <video controls>
+            <source src="/stream/{{ filename }}" type="video/mp4">
+            Tu navegador no soporta este formato. <a href="/download/{{ filename }}">Descargar aquí</a>.
+        </video>
+    </div>
+</body>
+</html>

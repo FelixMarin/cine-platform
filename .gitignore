@@ -1,0 +1,45 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Environment variables
+.env
+.env.local
+
+# Logs
+logs/*
+*.log
+
+# Video processing folders
+uploads/*
+temp/*
+outputs/*
+
+# State files
+state.json
+state_base.json
+
+# Thumbnails (generated dynamically)
+thumbnails/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# PocketBase
+pb_data/

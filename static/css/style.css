@@ -1,0 +1,132 @@
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: #121212;
+    color: #ffffff;
+}
+.dark-mode {
+    background-color: #121212;
+    color: #ffffff;
+}
+.tabs {
+    display: flex;
+    justify-content: center;
+    background-color: #1e1e1e;
+    border-bottom: 2px solid #444;
+    margin-bottom: 20px;
+}
+.tab {
+    flex: 1;
+    text-align: center;
+    padding: 10px;
+    cursor: pointer;
+    font-size: 18px;
+    background-color: #1e1e1e;
+    border-right: 1px solid #444;
+}
+.tab:last-child {
+    border-right: none;
+}
+.tab.active {
+    background-color: #333;
+    color: #fff;
+}
+.container {
+    padding: 20px;
+}
+.section {
+    display: block;
+}
+.section.active {
+    display: block;
+}
+.card-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 10px;
+    justify-items: center;
+}
+.card {
+    width: 200px;
+    border: 1px solid #444;
+    border-radius: 5px;
+    overflow: hidden;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    background-color: #1e1e1e;
+}
+.card img {
+    width: 100%;
+    height: 150px;
+    object-fit: cover;
+}
+.card a {
+    display: block;
+    text-decoration: none;
+    color: #fff;
+    padding: 10px;
+    text-align: center;
+}
+.card a:hover {
+    background: #333;
+}
+.tab-link {
+    flex: 1;
+    text-align: center;
+    padding: 15px 0;
+    cursor: pointer;
+    color: #fff;
+    background-color: #1e1e1e;
+    text-decoration: none;
+    font-weight: bold;
+}
+.tab-link:hover {
+    background-color: #333;
+}
+.tab-link.active {
+    border-bottom: 2px solid #fff;
+}
+.tab-content {
+    display: none;
+    padding: 20px;
+}
+/* Collapsible Series Styles */
+.collapsible-header {
+    background-color: #2c2c2c;
+    color: #fff;
+    padding: 15px;
+    margin: 10px 0 2px 0;
+    cursor: pointer;
+    border-radius: 5px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: background-color 0.3s;
+}
+
+.collapsible-header:hover {
+    background-color: #3d3d3d;
+}
+
+.collapsible-header::after {
+    content: '\25BC'; /* Down arrow */
+    font-size: 12px;
+    transition: transform 0.3s;
+}
+
+.collapsible-header.active::after {
+    transform: rotate(-180deg);
+}
+
+.collapsible-content {
+    display: none;
+    padding: 10px;
+    border: 1px solid #333;
+    border-top: none;
+    border-radius: 0 0 5px 5px;
+    background-color: #1a1a1a;
+}
+
+.collapsible-content.active {
+    display: grid; /* Back to grid when active */
+}
