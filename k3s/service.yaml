@@ -9,5 +9,5 @@ spec:
     app: cine-platform
   ports:
     - port: 80
-      targetPort: 8000
+      targetPort: 5000
       nodePort: 30080

@@ -18,4 +18,4 @@ spec:
           image: felixmurcia/cine-platform:latest
           imagePullPolicy: IfNotPresent
           ports:
-            - containerPort: 8000
+            - containerPort: 5000
