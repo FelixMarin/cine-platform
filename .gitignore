@@ -43,3 +43,6 @@ Thumbs.db
 
 # PocketBase
 pb_data/
+
+# K3s
+k3s/cine-secret.yaml

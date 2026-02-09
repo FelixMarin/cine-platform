@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pocketbase
+  namespace: cine
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pocketbase
+  template:
+    metadata:
+      labels:
+        app: pocketbase
+    spec:
+      containers:
+        - name: pocketbase
+          image: ghcr.io/muchobien/pocketbase:latest
+          args: ["serve", "--http=0.0.0.0:8070"]
+          ports:
+            - containerPort: 8070
+          volumeMounts:
+            - name: pb-data
+              mountPath: /pb_data
+      volumes:
+        - name: pb-data
+          persistentVolumeClaim:
+            claimName: pocketbase-pvc

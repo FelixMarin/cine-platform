@@ -1,0 +1,102 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cine-platform
+  namespace: cine
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cine-platform
+  template:
+    metadata:
+      labels:
+        app: cine-platform
+    spec:
+      containers:
+        - name: cine-platform
+          image: felixmurcia/cine-platform:latest
+          ports:
+            - containerPort: 5000
+
+          env:
+            - name: SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: cine-secret
+                  key: SECRET_KEY
+
+            - name: POCKETBASE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: cine-config
+                  key: POCKETBASE_URL
+
+            - name: MOVIES_FOLDER
+              value: "/data/movies"
+
+            - name: FLASK_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: cine-config
+                  key: FLASK_HOST
+
+            - name: FLASK_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: cine-config
+                  key: FLASK_PORT
+
+            - name: UPLOAD_FOLDER
+              value: "/app/uploads"
+
+            - name: TEMP_FOLDER
+              value: "/app/temp"
+
+            - name: OUTPUT_FOLDER
+              value: "/app/outputs"
+
+            - name: LOG_FOLDER
+              value: "/app/logs"
+
+          volumeMounts:
+            - name: uploads
+              mountPath: /app/uploads
+
+            - name: temp
+              mountPath: /app/temp
+
+            - name: outputs
+              mountPath: /app/outputs
+
+            - name: logs
+              mountPath: /app/logs
+
+            - name: movies
+              mountPath: /data/movies
+
+      volumes:
+        - name: uploads
+          hostPath:
+            path: /home/jetson/cine/uploads
+            type: DirectoryOrCreate
+
+        - name: temp
+          hostPath:
+            path: /home/jetson/cine/temp
+            type: DirectoryOrCreate
+
+        - name: outputs
+          hostPath:
+            path: /home/jetson/cine/outputs
+            type: DirectoryOrCreate
+
+        - name: logs
+          hostPath:
+            path: /home/jetson/cine/logs
+            type: DirectoryOrCreate
+
+        - name: movies
+          hostPath:
+            path: /media/d/audiovisual
+            type: Directory
