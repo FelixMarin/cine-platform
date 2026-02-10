@@ -39,9 +39,9 @@ jobs:
           path: htmlcov/
 
       - name: Generate coverage badge
-        uses: tj-actions/coverage-badge-py@v2
-        with:
-          output: coverage-badge.svg
+        run: |
+          pip install coverage-badge
+          coverage-badge -o coverage-badge.svg -f
 
       - name: Upload coverage badge
         uses: actions/upload-artifact@v4
