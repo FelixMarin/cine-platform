@@ -20,14 +20,28 @@ class FileSystemMediaRepository(IMediaRepository):
                 "-vf", "scale=320:-1",
                 thumbnail_path
             ], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        except subprocess.CalledProcessError as e:
+        except Exception as e:
             logger.error(f"Error al generar miniatura para {video_path}: {e}")
 
     def _clean_filename(self, filename):
         name = os.path.splitext(filename)[0]
-        name = name.replace("-optimized", "").replace("_optimized", "").replace("-serie", "")
+
+        # Eliminar sufijos comunes
+        for suffix in ["-optimized", "_optimized", "-serie"]:
+            if name.lower().endswith(suffix):
+                name = name[: -len(suffix)]
+
+        # Reemplazar separadores por espacios
         name = name.replace("-", " ").replace("_", " ").replace(".", " ")
-        return name.title()
+
+        # Capitalizar sin romper códigos tipo S01e01
+        def smart_cap(word):
+            # Si contiene números, solo capitaliza la primera letra
+            if any(c.isdigit() for c in word):
+                return word[0].upper() + word[1:]
+            return word.capitalize()
+
+        return " ".join(smart_cap(w) for w in name.split())
 
     def list_content(self):
         movies = []

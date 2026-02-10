@@ -1,3 +1,4 @@
+![Coverage](assets/coverage-badge.svg)
 # Cine Platform
 
 ---
