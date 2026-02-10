@@ -8,7 +8,9 @@ logger = setup_logging("media-adapter")
 class FileSystemMediaRepository(IMediaRepository):
     def __init__(self, movies_folder):
         self.movies_folder = movies_folder
+        logger.info(f"Movies folder: {self.movies_folder}")
         self.thumbnails_folder = os.path.join(movies_folder, "thumbnails")
+        logger.info(f"Thumbnails folder: {self.thumbnails_folder}")
         if not os.path.exists(self.thumbnails_folder):
             os.makedirs(self.thumbnails_folder)
 
