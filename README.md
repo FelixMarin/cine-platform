@@ -1,5 +1,11 @@
 # Cine Platform
 
+---
+
+![Screen](https://raw.githubusercontent.com/FelixMarin/cine-platform/refs/heads/main/screen1.jpg)
+
+---
+
 Plataforma unificada que combina streaming de películas/series y optimización de videos, refactorizada bajo **Arquitectura Hexagonal** y totalmente **Dockerizada**.
 
 ## 🎯 Características
