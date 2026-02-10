@@ -11,6 +11,31 @@ from .pipeline import PipelineSteps
 
 logger = setup_logging("optimizer-adapter")
 
+def mover_a_audiovisual(ruta_output):
+    destino_dir = "/data/movies/mkv"
+
+    # Comprobar si el volumen está disponible
+    if not os.path.exists(destino_dir):
+        logger.error("No se ha podido copiar el vídeo: la carpeta /data/movies/mkv no está disponible")
+        return False
+
+    try:
+        os.makedirs(destino_dir, exist_ok=True)
+        nombre_archivo = os.path.basename(ruta_output)
+        destino = os.path.join(destino_dir, nombre_archivo)
+
+        shutil.copy2(ruta_output, destino)
+        logger.info(f"Vídeo copiado correctamente a {destino}")
+
+        os.remove(ruta_output)
+        logger.info(f"Archivo eliminado de outputs: {ruta_output}")
+
+        return True
+
+    except Exception as e:
+        logger.error(f"Error copiando el archivo a /data/movies/mkv: {e}")
+        return False
+
 class FFmpegOptimizerAdapter(IOptimizerService):
     def __init__(self, upload_folder, temp_folder, output_folder):
         self.upload_folder = upload_folder
@@ -71,7 +96,10 @@ class FFmpegOptimizerAdapter(IOptimizerService):
                 raise ValueError("Discrepancia de duración")
 
             shutil.move(temp_optimized, final_output)
-            
+
+            # Intentar mover a /media/d/audiovisual
+            mover_a_audiovisual(final_output)
+
             # Cleanup
             for p in [temp_original, repaired, reduced]:
                 if os.path.exists(p): os.remove(p)

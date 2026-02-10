@@ -1,6 +1,7 @@
 # ============================================
 #  Tiltfile para desarrollo de cine-platform (k3s)
 # ============================================
+allow_k8s_contexts('cine')
 
 IMAGE_NAME = "cine-platform-dev"
 
@@ -15,7 +16,7 @@ docker_build(
     ],
 )
 
-k8s_yaml("cine-deployment-dev.yaml")
+k8s_yaml("./k3s/cine-deployment-dev.yaml")
 
 k8s_resource(
     "cine-platform",

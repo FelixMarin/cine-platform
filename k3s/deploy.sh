@@ -32,6 +32,22 @@ kubectl set image deployment/$DEPLOYMENT \
   -n $NAMESPACE
 
 echo "======================================"
+echo "  🧹 Eliminando imágenes antiguas de cine-platform"
+echo "======================================"
+
+# Obtener todas las imágenes locales de cine-platform excepto la más reciente
+IMAGES_TO_DELETE=$(docker images felixmurcia/cine-platform --format "{{.Repository}}:{{.Tag}} {{.CreatedAt}}" \
+  | sort -k2 -r \
+  | tail -n +2 \
+  | awk '{print $1}')
+
+# Borrar cada imagen antigua
+for IMG in $IMAGES_TO_DELETE; do
+  echo "🗑️  Eliminando imagen antigua: $IMG"
+  docker rmi -f "$IMG" || true
+done
+
+echo "======================================"
 echo "  🔄 Forzando rollout"
 echo "======================================"
 
