@@ -97,7 +97,7 @@ class FFmpegOptimizerAdapter(IOptimizerService):
 
             shutil.move(temp_optimized, final_output)
 
-            # Intentar mover a /media/d/audiovisual
+            # Intentar mover a MOVIES_FOLDER
             mover_a_audiovisual(final_output)
 
             # Cleanup

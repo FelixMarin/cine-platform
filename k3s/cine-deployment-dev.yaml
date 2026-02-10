@@ -17,7 +17,7 @@ spec:
         - name: cine-platform
           image: cine-platform-dev
           command: ["python3"]
-          args: ["app.py", "--reload"]   # Flask autoreload
+          args: ["app.py", "--reload"]
 
           ports:
             - containerPort: 5000
@@ -36,7 +36,10 @@ spec:
                   key: POCKETBASE_URL
 
             - name: MOVIES_FOLDER
-              value: "/data/movies"
+              valueFrom:
+                configMapKeyRef:
+                  name: cine-config
+                  key: MOVIES_FOLDER
 
             - name: UPLOAD_FOLDER
               value: "/app/uploads"

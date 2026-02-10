@@ -28,7 +28,7 @@ def create_app():
     auth_service = PocketBaseAuthAdapter(base_url=os.getenv("POCKETBASE_URL", "http://127.0.0.1:8070"))
     
     # 2. Media
-    movies_folder = os.getenv("MOVIES_FOLDER", r"/media/d/audiovisual")
+    movies_folder = os.getenv("MOVIES_FOLDER")
     media_service = FileSystemMediaRepository(movies_folder=movies_folder)
     
     # 3. Optimizer

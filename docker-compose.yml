@@ -5,23 +5,30 @@ services:
     build: .
     container_name: cine-platform
     restart: unless-stopped
+
+    # Carga automática de variables desde .env
+    env_file:
+      - .env
+
     ports:
       - "5000:5000"
+
     environment:
       - FLASK_HOST=0.0.0.0
       - FLASK_PORT=5000
-      # Conexión interna a PocketBase (nombre del servicio:puerto interno)
       - POCKETBASE_URL=http://pocketbase:8090
-      - MOVIES_FOLDER=/data/movies
+      - MOVIES_FOLDER=${MOVIES_FOLDER}
       - SECRET_KEY=${SECRET_KEY:-clave_secreta_por_defecto_docker}
+
     volumes:
       - ./uploads:/app/uploads
       - ./temp:/app/temp
       - ./outputs:/app/outputs
       - ./logs:/app/logs
-      # Mapeo de la carpeta real de películas. 
-      # IMPORTANTE: Se requiere permiso de escritura para generar thumbnails.
-      - /media/d/audiovisual:/data/movies
+
+      # Ruta dinámica: se toma del .env
+      - ${MOVIES_FOLDER}:/data/movies
+
     depends_on:
       - pocketbase
 
@@ -29,11 +36,13 @@ services:
     image: ghcr.io/muchobien/pocketbase:latest
     container_name: pocketbase
     restart: unless-stopped
-    # Mapea puerto host 8071 -> contenedor 8090 (evita conflicto con 8070 local)
+
     ports:
       - "8071:8090"
+
     volumes:
       - pb_data:/pb_data
+
     command:
       - --http=0.0.0.0:8090
 

@@ -5,9 +5,15 @@ metadata:
   namespace: cine
 data:
   POCKETBASE_URL: "http://pocketbase.cine.svc.cluster.local:8070"
-  MOVIES_FOLDER: "/media/d/audiovisual"
+
+  # Ruta interna dentro del contenedor
+  MOVIES_FOLDER: "/data/movies"
+
   FLASK_HOST: "0.0.0.0"
   FLASK_PORT: "5000"
-  UPLOAD_FOLDER: "./uploads"
-  TEMP_FOLDER: "./temp"
-  OUTPUT_FOLDER: "./outputs"
+
+  # Estas rutas internas no cambian
+  UPLOAD_FOLDER: "/app/uploads"
+  TEMP_FOLDER: "/app/temp"
+  OUTPUT_FOLDER: "/app/outputs"
+  LOG_FOLDER: "/app/logs"

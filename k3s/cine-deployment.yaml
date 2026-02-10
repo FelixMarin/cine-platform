@@ -33,7 +33,10 @@ spec:
                   key: POCKETBASE_URL
 
             - name: MOVIES_FOLDER
-              value: "/data/movies"
+              valueFrom:
+                configMapKeyRef:
+                  name: cine-config
+                  key: MOVIES_FOLDER
 
             - name: FLASK_HOST
               valueFrom:

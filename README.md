@@ -44,7 +44,7 @@ Imagen Docker hub: https://hub.docker.com/repository/docker/felixmurcia/cine-pla
 Esta opción levanta la aplicación y una instancia de PocketBase automáticamente, evitando conflictos de dependencias.
 
 1. **Configurar volúmenes**:
-   Verifica en `docker-compose.yml` que la ruta de tus películas coincida con tu sistema (por defecto `/media/d/audiovisual`).
+   Verifica en `docker-compose.yml` que la ruta de tus películas coincida con tu sistema (por defecto `MOVIES_FOLDER`).
 
 2. **Iniciar servicios**:
    ```bash
@@ -86,7 +86,7 @@ FLASK_PORT=5000
 POCKETBASE_URL=http://127.0.0.1:8070
 
 # Movie Streaming
-MOVIES_FOLDER=/media/d/audiovisual
+MOVIES_FOLDER=/path/to/movies
 
 # Video Optimization
 UPLOAD_FOLDER=./uploads
