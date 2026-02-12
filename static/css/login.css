@@ -1,0 +1,154 @@
+/* Fondo general */
+body {
+    font-family: sans-serif;
+    background: #1a1a1a;
+    color: white;
+    margin: 0;
+    padding: 16px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    min-height: 100dvh;
+    box-sizing: border-box;
+}
+
+/* Caja del login */
+.login-box {
+    background: #333;
+    padding: 40px 30px;  /* Mucho más grande */
+    border-radius: 24px;
+    width: 100%;
+    max-width: 500px;
+    margin: auto;
+    box-sizing: border-box;
+    box-shadow: 0 15px 35px rgba(0,0,0,0.6);
+}
+
+/* Título */
+.login-box h2 {
+    margin-top: 0;
+    margin-bottom: 35px;
+    text-align: center;
+    font-size: 2.4rem;  /* Mucho más grande */
+    font-weight: 600;
+    letter-spacing: 1px;
+}
+
+/* Inputs */
+.login-box input {
+    margin-bottom: 20px;
+    padding: 18px;  /* Mucho más grande */
+    font-size: 1.3rem;  /* Mucho más grande */
+    width: 100%;
+    border-radius: 16px;
+    border: none;
+    box-sizing: border-box;
+    background: #222;
+    color: white;
+    outline: none;
+}
+
+/* Botón */
+.login-box button {
+    padding: 18px;  /* Mucho más grande */
+    background: #e50914;
+    color: white;
+    border: none;
+    cursor: pointer;
+    font-size: 1.4rem;  /* Mucho más grande */
+    font-weight: 600;
+    border-radius: 16px;
+    width: 100%;
+    margin-top: 10px;
+}
+
+/* Error */
+.error-msg {
+    color: #ff4d4d;
+    margin-bottom: 20px;
+    text-align: center;
+    font-size: 1.1rem;  /* Más grande */
+    font-weight: 500;
+}
+
+/* ===== SOLUCIÓN PARA MÓVIL ===== */
+/* Detectar móviles por el ancho */
+@media (max-width: 768px) {
+    body {
+        padding: 12px;
+    }
+    
+    .login-box {
+        padding: 45px 30px;  /* Aún más padding */
+        max-width: 100%;
+        border-radius: 28px;
+    }
+    
+    .login-box h2 {
+        font-size: 2.6rem;  /* MUY grande en móvil */
+        margin-bottom: 40px;
+    }
+    
+    .login-box input {
+        padding: 20px;  /* Máximo tamaño táctil */
+        font-size: 1.4rem;
+        margin-bottom: 22px;
+        border-radius: 20px;
+    }
+    
+    .login-box button {
+        padding: 20px;  /* Máximo tamaño táctil */
+        font-size: 1.6rem;
+        border-radius: 20px;
+        margin-top: 15px;
+    }
+    
+    .error-msg {
+        font-size: 1.2rem;
+        margin-bottom: 25px;
+    }
+}
+
+/* Para móviles muy pequeños */
+@media (max-width: 380px) {
+    .login-box {
+        padding: 35px 25px;
+    }
+    
+    .login-box h2 {
+        font-size: 2.2rem;
+    }
+    
+    .login-box input {
+        padding: 16px;
+        font-size: 1.2rem;
+    }
+    
+    .login-box button {
+        padding: 16px;
+        font-size: 1.4rem;
+    }
+}
+
+/* Para tablets en vertical */
+@media (min-width: 769px) and (max-width: 1024px) {
+    .login-box {
+        max-width: 600px;
+        padding: 50px 40px;
+    }
+    
+    .login-box h2 {
+        font-size: 2.8rem;
+    }
+    
+    .login-box input {
+        padding: 22px;
+        font-size: 1.5rem;
+    }
+    
+    .login-box button {
+        padding: 22px;
+        font-size: 1.7rem;
+    }
+}
