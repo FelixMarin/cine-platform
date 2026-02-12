@@ -2,17 +2,15 @@
 
 ## 1. Requisitos previos
 
-Antes de empezar, la persona necesita:
+La persona necesita:
 
 - **Docker Desktop** instalado  
 - Acceso al repositorio GitHub del proyecto  
-- Acceso a las imágenes Docker (GHCR o Docker Hub)
+- Acceso a las imágenes Docker (si se usan desde un registry)
 
 ---
 
 ## 2. Descargar el proyecto desde GitHub
-
-En cualquier terminal:
 
 ```bash
 git clone https://github.com/felixmurcia/cine-platform.git
@@ -23,42 +21,24 @@ Esto deja el código en local.
 
 ---
 
-## 3. Levantar PocketBase (base de datos + auth)
+## 3. Configurar variables de entorno
 
-PocketBase es obligatorio para que cine‑platform funcione.
+Crear un archivo `.env` en la raíz del proyecto:
 
-Ejecutar:
-
-```bash
-docker run -d \
-  --name pocketbase \
-  -p 8090:8090 \
-  ghcr.io/muchobien/pocketbase:latest
+```env
+SECRET_KEY=clave_super_secreta
+MOVIES_FOLDER=/data/movies
+FLASK_HOST=0.0.0.0
+FLASK_PORT=5000
 ```
 
-Esto deja PocketBase accesible en:
-
-```
-http://localhost:8090/_/
-```
-
-### 3.1. Crear usuario administrador
-
-1. Abrir navegador  
-2. Ir a: `http://localhost:8090/_/`  
-3. Crear usuario admin  
-4. (Opcional) Crear colecciones necesarias si el proyecto las requiere
+Estas variables son las que usa cine‑platform actualmente.
 
 ---
 
-## 4. Levantar cine‑platform
+## 4. Levantar cine‑platform en Docker Desktop
 
-cine‑platform necesita saber dónde está PocketBase.  
-En Docker Desktop, la forma correcta es:
-
-```
-http://host.docker.internal:8090
-```
+La aplicación expone el puerto **5000** y no depende de ningún servicio externo.
 
 Ejecutar:
 
@@ -66,27 +46,35 @@ Ejecutar:
 docker run -d \
   --name cine-platform \
   -p 5000:5000 \
-  -e POCKETBASE_URL=http://host.docker.internal:8090 \
-  ghcr.io/felixmurcia/cine-platform:v1.0.0
+  -e SECRET_KEY=clave_super_secreta \
+  -e MOVIES_FOLDER=/data/movies \
+  -v $(pwd)/uploads:/app/uploads \
+  -v $(pwd)/temp:/app/temp \
+  -v $(pwd)/outputs:/app/outputs \
+  -v $(pwd)/logs:/app/logs \
+  -v /ruta/a/tus/peliculas:/data/movies \
+  felixmurcia/cine-platform:latest
 ```
+
+Ajusta la ruta de películas según tu máquina.
 
 ---
 
 ## 5. Acceder a la aplicación
 
-Abrir:
+Abrir en el navegador:
 
 ```
 http://localhost:5000
 ```
 
-Y logearse con el usuario creado en PocketBase.
+La autenticación se realiza mediante tu servidor OAuth2, no hay dependencias locales adicionales.
 
 ---
 
 # 🧪 Comprobaciones si algo falla
 
-### 1. Ver si PocketBase está corriendo
+### 1. Ver si el contenedor está corriendo
 
 ```bash
 docker ps
@@ -95,34 +83,26 @@ docker ps
 Debe aparecer:
 
 ```
-pocketbase   0.0.0.0:8090->8090/tcp
+cine-platform   0.0.0.0:5000->5000/tcp
 ```
 
-### 2. Ver si cine‑platform tiene la variable correcta
+### 2. Ver variables de entorno dentro del contenedor
 
 ```bash
-docker exec -it cine-platform env | grep POCKET
+docker exec -it cine-platform env
 ```
 
-Debe mostrar:
-
-```
-POCKETBASE_URL=http://host.docker.internal:8090
-```
-
-### 3. Ver logs de cine‑platform
+### 3. Ver logs de la aplicación
 
 ```bash
 docker logs cine-platform
 ```
 
-Si no puede conectar a PocketBase, lo verás ahí.
-
 ---
 
-# ⭐ BONUS: docker-compose (opcional pero recomendado)
+# ⭐ BONUS: docker-compose (opcional)
 
-Para que todo arranque con un solo comando, añade este archivo al repo:
+Puedes levantar cine‑platform con un solo comando usando este archivo:
 
 `docker-compose.yml`:
 
@@ -130,30 +110,22 @@ Para que todo arranque con un solo comando, añade este archivo al repo:
 version: "3.9"
 
 services:
-  pocketbase:
-    image: ghcr.io/muchobien/pocketbase:latest
-    ports:
-      - "8090:8090"
-    volumes:
-      - pb_data:/pb_data
-
   cine-platform:
-    image: ghcr.io/felixmurcia/cine-platform:v1.0.0
+    image: felixmurcia/cine-platform:latest
     ports:
       - "5000:5000"
-    environment:
-      - POCKETBASE_URL=http://pocketbase:8090
-    depends_on:
-      - pocketbase
-
-volumes:
-  pb_data:
+    env_file:
+      - .env
+    volumes:
+      - ./uploads:/app/uploads
+      - ./temp:/app/temp
+      - ./outputs:/app/outputs
+      - ./logs:/app/logs
+      - /ruta/a/tus/peliculas:/data/movies
 ```
 
-Entonces solo necesitan:
+Entonces solo necesitas:
 
 ```bash
 docker compose up
 ```
-
-y todo funciona automáticamente.

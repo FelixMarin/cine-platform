@@ -4,8 +4,6 @@ metadata:
   name: cine-config
   namespace: cine
 data:
-  POCKETBASE_URL: "http://pocketbase.cine.svc.cluster.local:8070"
-
   # Ruta interna dentro del contenedor
   MOVIES_FOLDER: "/data/movies"
 

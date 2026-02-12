@@ -1,11 +1,13 @@
 import os
-from flask import Blueprint, render_template, request, redirect, url_for, session, jsonify, Response, send_from_directory, current_app
+import jwt
+from flask import Blueprint, render_template, request, redirect, url_for, session, jsonify, Response, send_from_directory
 
 def create_blueprints(auth_service, media_service, optimizer_service):
     bp = Blueprint('main', __name__)
 
+    # --- Helpers ---
     def is_logged_in():
-        return "pb_token" in session
+        return session.get("logged_in") is True
 
     def is_admin():
         return session.get('user_role') == 'admin'
@@ -14,16 +16,24 @@ def create_blueprints(auth_service, media_service, optimizer_service):
     @bp.route('/login', methods=['GET', 'POST'])
     def login():
         if request.method == 'POST':
-            # El formulario usa "email", pero OAuth2 usa "username"
             username = request.form.get('email')
             password = request.form.get('password')
 
             success, info = auth_service.login(username, password)
 
             if success:
-                session['pb_token'] = auth_service.token
-                session['user_email'] = info.get('username', username)
-                session['user_role'] = info.get('role', 'user')
+                token = auth_service.token
+
+                # Decodificar JWT sin verificar firma
+                decoded = jwt.decode(token, options={"verify_signature": False})
+
+                # Guardar solo lo necesario en la sesión (NO el JWT)
+                session['logged_in'] = True
+                session['user_email'] = decoded.get("user_name", username)
+
+                authorities = decoded.get("authorities", [])
+                session['user_role'] = "admin" if "ROLE_ADMIN" in authorities else "user"
+
                 return redirect(url_for('main.index'))
 
             return render_template("login.html", error="Credenciales incorrectas")

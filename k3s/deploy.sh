@@ -24,6 +24,15 @@ echo "======================================"
 docker push $FULL_IMAGE
 
 echo "======================================"
+echo "  📦 Aplicando YAMLs de producción"
+echo "======================================"
+
+kubectl apply -f k3s/cine-config.yaml
+kubectl apply -f k3s/cine-secret.yaml
+kubectl apply -f k3s/cine-deployment.yaml
+kubectl apply -f k3s/cine-service.yaml
+
+echo "======================================"
 echo "  📝 Actualizando Deployment en Kubernetes"
 echo "======================================"
 

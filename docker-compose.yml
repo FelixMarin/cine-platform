@@ -1,50 +1,20 @@
-version: '3.8'
-
 services:
   cine-platform:
     build: .
     container_name: cine-platform
     restart: unless-stopped
-
-    # Carga automática de variables desde .env
     env_file:
       - .env
-
     ports:
       - "5000:5000"
-
     environment:
       - FLASK_HOST=0.0.0.0
       - FLASK_PORT=5000
-      - POCKETBASE_URL=http://pocketbase:8090
       - MOVIES_FOLDER=${MOVIES_FOLDER}
-      - SECRET_KEY=${SECRET_KEY:-clave_secreta_por_defecto_docker}
-
+      - SECRET_KEY=${SECRET_KEY}
     volumes:
       - ./uploads:/app/uploads
       - ./temp:/app/temp
       - ./outputs:/app/outputs
       - ./logs:/app/logs
-
-      # Ruta dinámica: se toma del .env
       - ${MOVIES_FOLDER}:/data/movies
-
-    depends_on:
-      - pocketbase
-
-  pocketbase:
-    image: ghcr.io/muchobien/pocketbase:latest
-    container_name: pocketbase
-    restart: unless-stopped
-
-    ports:
-      - "8071:8090"
-
-    volumes:
-      - pb_data:/pb_data
-
-    command:
-      - --http=0.0.0.0:8090
-
-volumes:
-  pb_data:

@@ -26,12 +26,6 @@ spec:
                   name: cine-secret
                   key: SECRET_KEY
 
-            - name: POCKETBASE_URL
-              valueFrom:
-                configMapKeyRef:
-                  name: cine-config
-                  key: POCKETBASE_URL
-
             - name: MOVIES_FOLDER
               valueFrom:
                 configMapKeyRef:
