@@ -85,8 +85,34 @@ app = create_app()
 
 
 if __name__ == "__main__":
-    host = os.environ["FLASK_HOST"]
-    port = int(os.environ["FLASK_PORT"])
+    host = os.environ.get("FLASK_HOST", "0.0.0.0")
+    port = int(os.environ.get("FLASK_PORT", 5000))
 
-    logger.info(f"=== Iniciando Cine Platform en {host}:{port} ===")
-    app.run(host=host, port=port, debug=False)
+    cert_file = os.environ.get("SSL_CERT_FILE")
+    key_file = os.environ.get("SSL_KEY_FILE")
+
+    # Comprobación robusta de certificados
+    use_ssl = (
+        cert_file
+        and key_file
+        and os.path.exists(cert_file)
+        and os.path.exists(key_file)
+    )
+
+    if use_ssl:
+        logger.info(f"=== Iniciando Cine Platform en {host}:{port} con HTTPS ===")
+        app.run(
+            host=host,
+            port=port,
+            debug=False,
+            ssl_context=(cert_file, key_file)
+        )
+    else:
+        logger.info(f"=== Iniciando Cine Platform en {host}:{port} sin HTTPS (certificados no encontrados) ===")
+        app.run(
+            host=host,
+            port=port,
+            debug=False
+        )
+
+

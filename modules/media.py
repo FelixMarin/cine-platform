@@ -3,7 +3,7 @@ import subprocess
 from modules.core import IMediaRepository
 from modules.logging.logging_config import setup_logging
 
-logger = setup_logging(os.environ["LOG_FOLDER"])
+logger = setup_logging(os.environ.get("LOG_FOLDER"))
 
 class FileSystemMediaRepository(IMediaRepository):
     def __init__(self, movies_folder):

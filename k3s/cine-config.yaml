@@ -8,7 +8,7 @@ data:
   # 🌍 Flask
   # ============================
   FLASK_HOST: "0.0.0.0"
-  FLASK_PORT: "5000"
+  FLASK_PORT: "9443"
 
   # ============================
   # 🍪 Cookies y Sesiones (NO sensibles)

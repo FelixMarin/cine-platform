@@ -10,7 +10,7 @@ from .ffmpeg import FFmpegHandler
 from .pipeline import PipelineSteps
 
 # Logging usando la carpeta definida en entorno
-logger = setup_logging(os.environ["LOG_FOLDER"])
+logger = setup_logging(os.environ.get("LOG_FOLDER"))
 
 
 def mover_a_audiovisual(ruta_output):

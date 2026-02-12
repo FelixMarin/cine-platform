@@ -3,7 +3,7 @@ import base64
 import requests
 from modules.logging.logging_config import setup_logging
 
-logger = setup_logging(os.environ["LOG_FOLDER"])
+logger = setup_logging(os.environ.get("LOG_FOLDER"))
 
 
 class OAuth2Client:

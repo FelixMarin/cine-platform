@@ -17,9 +17,24 @@ spec:
         - name: cine-platform
           image: felixmurcia/cine-platform:latest
           ports:
-            - containerPort: 5000
+            - containerPort: 9443
 
           env:
+            # ============================
+            # 🔐 SSL variables
+            # ============================
+            - name: SSL_CERT_FILE
+              valueFrom:
+                secretKeyRef:
+                  name: cine-secret
+                  key: SSL_CERT_FILE
+
+            - name: SSL_KEY_FILE
+              valueFrom:
+                secretKeyRef:
+                  name: cine-secret
+                  key: SSL_KEY_FILE
+
             # ============================
             # 🔐 Secret variables
             # ============================
@@ -168,6 +183,10 @@ spec:
             - name: movies
               mountPath: /data/movies
 
+            - name: certs
+              mountPath: /certs
+              readOnly: true
+
       volumes:
         - name: uploads
           hostPath:
@@ -193,3 +212,7 @@ spec:
           hostPath:
             path: /media/d/audiovisual
             type: Directory
+        
+        - name: certs
+          hostPath:
+            path: /var/lib/tailscale/certs

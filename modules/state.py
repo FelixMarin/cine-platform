@@ -3,7 +3,7 @@ import os
 from modules.core import OptimizationState
 from modules.logging.logging_config import setup_logging
 
-logger = setup_logging(os.environ["LOG_FOLDER"])
+logger = setup_logging(os.environ.get("LOG_FOLDER"))
 
 class StateManager:
     def __init__(self, state_file="state.json"):
