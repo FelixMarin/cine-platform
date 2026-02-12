@@ -33,6 +33,8 @@ $(document).ready(function () {
         });
     });
 
+    let currentUpload = null;
+
     // --- Subida de archivo real ---
     $('#upload-form').on('submit', function (e) {
         e.preventDefault();
@@ -43,6 +45,7 @@ $(document).ready(function () {
         }
 
         $('#upload-status').fadeIn();
+        $('#cancel-upload-btn').hide();
         $('#status-text').text('Subiendo...');
         $('.progress-bar div').css('width', '0%');
         $('#upload-percent').text('0%');
@@ -58,6 +61,7 @@ $(document).ready(function () {
             contentType: false,
             xhr: function () {
                 let xhr = $.ajaxSettings.xhr();
+                currentUpload = xhr;
                 if (xhr.upload) {
                     xhr.upload.addEventListener('progress', function (evt) {
                         if (evt.lengthComputable) {
@@ -79,6 +83,7 @@ $(document).ready(function () {
             },
             error: function (xhr) {
                 $('#status-text').text('Error en la subida');
+                $('#cancel-upload-btn').show();
                 console.error(xhr.responseJSON ? xhr.responseJSON.error : "Error desconocido");
             }
         });
@@ -195,6 +200,16 @@ $(document).ready(function () {
 
         iconElement.text(icon);
     }
+
+    $('#cancel-upload-btn').on('click', function () {
+        if (currentUpload) {
+            currentUpload.abort();
+            $('#status-text').text('Subida cancelada');
+            $('.progress-bar div').css('background', 'gray');
+            $('#upload-percent').text('Cancelado');
+            $(this).hide();
+        }
+    });
 
     setInterval(updateStatus, 2000);
     updateStatus(); // Carga inmediata al entrar/refrescar

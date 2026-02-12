@@ -1,11 +1,23 @@
+import os
 import base64
 import requests
+from modules.logging.logging_config import setup_logging
+
+logger = setup_logging(os.environ["LOG_FOLDER"])
+
 
 class OAuth2Client:
-    def __init__(self, base_url="http://oauth2-server:8080", client_id="cine-platform", client_secret="supersecreto"):
-        self.base_url = base_url.rstrip('/')
-        self.client_id = client_id
-        self.client_secret = client_secret
+    def __init__(self, base_url=None, client_id=None, client_secret=None):
+
+        # Todas las variables son obligatorias
+        self.base_url = (base_url or os.environ["OAUTH2_URL"]).rstrip('/')
+        self.client_id = client_id or os.environ["OAUTH2_CLIENT_ID"]
+        self.client_secret = client_secret or os.environ["OAUTH2_CLIENT_SECRET"]
+
+        # Endpoints obligatorios (del ConfigMap)
+        self.token_endpoint = os.environ["OAUTH2_TOKEN_ENDPOINT"]
+        self.userinfo_endpoint = os.environ["OAUTH2_USERINFO_ENDPOINT"]
+
         self.token = None
         self.user_data = None
 
@@ -16,7 +28,9 @@ class OAuth2Client:
 
     def login(self, username, password):
         """Autentica al usuario usando OAuth2 Password Grant."""
-        url = f"{self.base_url}/oauth/token"
+
+        # Construcción dinámica del endpoint
+        url = f"{self.base_url}{self.token_endpoint}"
         payload = {
             "grant_type": "password",
             "username": username,
@@ -28,11 +42,13 @@ class OAuth2Client:
             if response.status_code == 200:
                 data = response.json()
                 self.token = data.get("access_token")
-                # El usuario real está dentro del JWT, no en la respuesta
                 self.user_data = {"username": username}
+                logger.info("Login OK")
                 return True, self.user_data
+            logger.error(f"Login failed: {response.json()}")
             return False, response.json()
         except Exception as e:
+            logger.error(f"Login error: {e}")
             return False, str(e)
 
     def get_headers(self):
@@ -40,6 +56,7 @@ class OAuth2Client:
         headers = {}
         if self.token:
             headers["Authorization"] = f"Bearer {self.token}"
+        logger.info("Headers returned OK")
         return headers
 
     def get(self, url, params=None):

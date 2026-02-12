@@ -26,6 +26,11 @@
       color: white;
       text-decoration: none;
     }
+	#cancel-upload-btn {
+	  display: none;
+	  padding: 4px 12px;
+	  font-size: 0.85rem;
+	}
   </style>
 </head>
 <body>
@@ -56,6 +61,11 @@
 		  <span id="status-text">Preparando subida…</span>
 		  <div class="progress-bar"><div></div></div>
 		  <span id="upload-percent">0%</span>
+
+		  <!-- Botón cancelar -->
+		  <button id="cancel-upload-btn" class="btn btn-sm btn-danger mt-2" style="display:none;">
+			Cancelar subida
+		  </button>
 		</div>
 	  </div>
 	</div>
