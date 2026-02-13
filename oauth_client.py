@@ -14,9 +14,6 @@ class OAuth2Client:
         self.client_id = client_id or os.environ["OAUTH2_CLIENT_ID"]
         self.client_secret = client_secret or os.environ["OAUTH2_CLIENT_SECRET"]
 
-        logger.info(f"Client ID: {self.client_id}")
-        logger.info(f"Client Secret: {self.client_secret}")
-
         # Endpoints obligatorios (del ConfigMap)
         self.token_endpoint = os.environ["OAUTH2_TOKEN_ENDPOINT"]
         self.userinfo_endpoint = os.environ["OAUTH2_USERINFO_ENDPOINT"]

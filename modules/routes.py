@@ -1,6 +1,9 @@
 import os
 import jwt
 from flask import Blueprint, render_template, request, redirect, url_for, session, jsonify, Response, send_from_directory
+from modules.logging.logging_config import setup_logging
+
+logger = setup_logging(os.environ.get("LOG_FOLDER"))
 
 def create_blueprints(auth_service, media_service, optimizer_service):
     bp = Blueprint('main', __name__)
@@ -26,6 +29,13 @@ def create_blueprints(auth_service, media_service, optimizer_service):
 
                 # Decodificar JWT sin verificar firma
                 decoded = jwt.decode(token, options={"verify_signature": False})
+
+                # Validar aplicación
+                app_claim = decoded.get("app")
+                logger.info(f"App claim: {app_claim}")
+
+                if app_claim != "cine-platform":
+                    return render_template("login.html", error="Token no válido para esta aplicación")
 
                 # Guardar solo lo necesario en la sesión (NO el JWT)
                 session['logged_in'] = True
