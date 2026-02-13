@@ -46,17 +46,28 @@ class FileSystemMediaRepository(IMediaRepository):
         return " ".join(smart_cap(w) for w in name.split())
 
     def list_content(self):
-        movies = []
+        categorias = {}
         series = {}
 
         for root, _, files in os.walk(self.movies_folder):
+            categoria = os.path.relpath(root, self.movies_folder).replace("\\", "/")
+
+            # Ignorar raíz y carpeta de miniaturas
+            if categoria == "." or categoria.lower() == "thumbnails":
+                categoria = "Sin categoría"
+
             for file in files:
-                if file.endswith(('.mkv', '.mp4', '.avi')): # Added generic extensions support
-                    relative_path = os.path.relpath(os.path.join(root, file), self.movies_folder).replace("\\", "/")
-                    thumbnail_path = os.path.join(self.thumbnails_folder, f"{os.path.splitext(file)[0]}.jpg")
+                if file.endswith(('.mkv', '.mp4', '.avi')):
+                    full_path = os.path.join(root, file)
+                    relative_path = os.path.relpath(full_path, self.movies_folder).replace("\\", "/")
+
+                    thumbnail_path = os.path.join(
+                        self.thumbnails_folder,
+                        f"{os.path.splitext(file)[0]}.jpg"
+                    )
 
                     if not os.path.exists(thumbnail_path):
-                        self._generate_thumbnail(os.path.join(root, file), thumbnail_path)
+                        self._generate_thumbnail(full_path, thumbnail_path)
 
                     item = {
                         "name": self._clean_filename(file),
@@ -64,20 +75,36 @@ class FileSystemMediaRepository(IMediaRepository):
                         "thumbnail": f"/thumbnails/{os.path.basename(thumbnail_path)}"
                     }
 
+                    # Detectar series por sufijo
                     if "-serie" in file.lower():
                         series_name = item["name"].rsplit(" T", 1)[0]
                         if series_name not in series:
                             series[series_name] = []
                         series[series_name].append(item)
                     else:
-                        movies.append(item)
+                        # Agrupar por categoría
+                        if categoria not in categorias:
+                            categorias[categoria] = []
+                        categorias[categoria].append(item)
 
-        # Ordenar
-        series = {k: sorted(v, key=lambda x: x["name"]) for k, v in sorted(series.items())}
-        movies.sort(key=lambda x: x["name"])
-        
-        logger.info(f"Escaneo completado: {len(movies)} películas, {len(series)} series.")
-        return movies, series
+        # Ordenar categorías y contenido
+        categorias = {
+            cat: sorted(pelis, key=lambda x: x["name"])
+            for cat, pelis in sorted(categorias.items())
+        }
+
+        series = {
+            k: sorted(v, key=lambda x: x["name"])
+            for k, v in sorted(series.items())
+        }
+
+        logger.info(
+            f"Escaneo completado: {sum(len(v) for v in categorias.values())} películas "
+            f"en {len(categorias)} categorías, {len(series)} series."
+        )
+
+        return categorias, series
+
 
     def get_safe_path(self, filename):
         """

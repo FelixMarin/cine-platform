@@ -164,4 +164,17 @@ def create_blueprints(auth_service, media_service, optimizer_service):
             return "Acceso denegado", 403
         return render_template("admin_panel.html")
 
+    # --- API: Películas y Series ---
+    @bp.route('/api/movies')
+    def api_movies():
+        if not is_logged_in():
+            return jsonify({"error": "No autorizado"}), 401
+
+        categorias, series = media_service.list_content()
+
+        return jsonify({
+            "categorias": categorias,
+            "series": series
+        })
+
     return bp

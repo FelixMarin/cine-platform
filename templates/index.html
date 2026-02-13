@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/menu.css') }}">
     <script src="{{ url_for('static', filename='js/script.js') }}?v={{ range(1, 10000) | random }}" defer></script>
 </head>
+
 <body class="dark-mode">
 
     <!-- Botón hamburguesa para móvil -->
@@ -19,11 +20,11 @@
 
     <!-- Menú lateral colapsable -->
     <div class="side-menu" id="sideMenu" role="navigation" aria-label="Menú principal">
-        <!-- Botón para colapsar/expandir (solo visible en PC) -->
+
+        <!-- Botón para colapsar/expandir (solo PC) -->
         <div class="menu-collapse-btn" onclick="toggleCollapse()" title="Colapsar menú" role="button" aria-label="Colapsar menú">◀</div>
         
         <div class="menu-header">
-            <!-- Título completo (visible cuando NO está colapsado) -->
             <h2 class="menu-title-full">Cine<span>Platform</span></h2>
         </div>
         
@@ -33,24 +34,26 @@
         </div>
         
         <div class="menu-items">
-            <!-- Sección principal -->
             <div class="menu-section-title">PRINCIPAL</div>
+
             <a href="#" class="menu-item active" onclick="showTab('movies'); return false;" data-tab="movies" role="tab" aria-selected="true">
                 <span aria-hidden="true">🎬</span> 
                 <span class="menu-item-text">Películas</span>
             </a>
+
             <a href="#" class="menu-item" onclick="showTab('series'); return false;" data-tab="series" role="tab" aria-selected="false">
                 <span aria-hidden="true">📺</span> 
                 <span class="menu-item-text">Series</span>
             </a>
             
-            <!-- Sección admin (solo visible para admin) -->
             {% if session['user_role'] == 'admin' %}
             <div class="menu-section-title">ADMINISTRACIÓN</div>
+
             <a href="/admin/manage" class="menu-item">
                 <span aria-hidden="true">⚙️</span> 
                 <span class="menu-item-text">Panel Admin</span>
             </a>
+
             <a href="/optimizer" class="menu-item">
                 <span aria-hidden="true">🎥</span> 
                 <span class="menu-item-text">Optimizador</span>
@@ -58,7 +61,6 @@
             {% endif %}
         </div>
         
-        <!-- Cerrar sesión al final -->
         <a href="/logout" class="menu-logout">
             <span aria-hidden="true">🚪</span> 
             <span class="menu-logout-text">Cerrar Sesión</span>
@@ -67,69 +69,44 @@
 
     <!-- Contenido principal -->
     <main class="main-content" id="mainContent" role="main">
-        <!-- Tabs ocultos (por compatibilidad) -->
+
+        <!-- Tabs ocultos (compatibilidad) -->
         <div class="tabs" style="display: none;">
             <a id="moviesTab" class="tab-link active" onclick="showTab('movies')">Películas</a>
             <a id="seriesTab" class="tab-link" onclick="showTab('series')">Series</a>
         </div>
 
-        <!-- Sección de Películas -->
+        <!-- ========================= -->
+        <!--      SECCIÓN PELÍCULAS    -->
+        <!-- ========================= -->
         <section id="movies" class="tab-content" style="display: block;" role="tabpanel" aria-labelledby="moviesTab">
             <h2>Películas</h2>
-            {% if movies %}
-            <div class="card-container">
-                {% for movie in movies %}
-                <article class="card">
-                    <img src="{{ movie.thumbnail }}" alt="{{ movie.name }}" loading="lazy">
-                    <a href="/play/{{ movie.path }}" class="card-link">{{ movie.name }}</a>
-                </article>
-                {% endfor %}
-            </div>
-            {% else %}
-            <div class="empty-state">
-                <p>No hay películas disponibles</p>
-            </div>
-            {% endif %}
+
+            <!-- El JS insertará aquí las categorías dinámicamente -->
+            <div id="movies" class="categories-container"></div>
         </section>
 
-        <!-- Sección de Series -->
+        <!-- ========================= -->
+        <!--        SECCIÓN SERIES     -->
+        <!-- ========================= -->
         <section id="series" class="tab-content" style="display: none;" role="tabpanel" aria-labelledby="seriesTab">
             <h2>Series</h2>
-            {% if series %}
-                {% for series_name, episodes in series.items() %}
-                <div class="series-section">
-                    <h3 class="collapsible-header" onclick="toggleSeries(this)" role="button" aria-expanded="false">
-                        {{ series_name }}
-                    </h3>
-                    <div class="card-container collapsible-content" style="display: none;">
-                        {% for episode in episodes %}
-                        <article class="card">
-                            <img src="{{ episode.thumbnail }}" alt="{{ episode.name }}" loading="lazy">
-                            <a href="/play/{{ episode.path }}" class="card-link">{{ episode.name }}</a>
-                        </article>
-                        {% endfor %}
-                    </div>
-                </div>
-                {% endfor %}
-            {% else %}
-            <div class="empty-state">
-                <p>No hay series disponibles</p>
-            </div>
-            {% endif %}
+
+            <!-- El JS insertará aquí las series dinámicamente -->
+            <div id="seriesContainer"></div>
         </section>
+
     </main>
 
-    <!-- Script para inicialización adicional (muy poco, solo lo esencial) -->
+    <!-- Script adicional -->
     <script>
-        // Pequeño script para asegurar que el título se actualiza al cargar
         document.addEventListener('DOMContentLoaded', function() {
-            // Asegurar que la pestaña activa sea movies
             const activeTab = document.querySelector('.menu-item.active');
             if (!activeTab || activeTab.getAttribute('data-tab') !== 'movies') {
-                // Si no hay active o no es movies, forzar movies
                 window.showTab('movies');
             }
         });
     </script>
+
 </body>
 </html>
