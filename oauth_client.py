@@ -14,6 +14,9 @@ class OAuth2Client:
         self.client_id = client_id or os.environ["OAUTH2_CLIENT_ID"]
         self.client_secret = client_secret or os.environ["OAUTH2_CLIENT_SECRET"]
 
+        logger.info(f"Client ID: {self.client_id}")
+        logger.info(f"Client Secret: {self.client_secret}")
+
         # Endpoints obligatorios (del ConfigMap)
         self.token_endpoint = os.environ["OAUTH2_TOKEN_ENDPOINT"]
         self.userinfo_endpoint = os.environ["OAUTH2_USERINFO_ENDPOINT"]
@@ -24,6 +27,7 @@ class OAuth2Client:
     def _basic_auth_header(self):
         raw = f"{self.client_id}:{self.client_secret}".encode()
         encoded = base64.b64encode(raw).decode()
+        logger.info("Basic auth header returned OK")
         return {"Authorization": f"Basic {encoded}"}
 
     def login(self, username, password):
@@ -31,6 +35,7 @@ class OAuth2Client:
 
         # Construcción dinámica del endpoint
         url = f"{self.base_url}{self.token_endpoint}"
+        logger.info(f"Login URL: {url}")
         payload = {
             "grant_type": "password",
             "username": username,

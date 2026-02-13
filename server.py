@@ -14,10 +14,24 @@ from modules.adapter import FFmpegOptimizerAdapter
 from modules.routes import create_blueprints
 
 
-# --- CONFIGURACIÓN ---
-load_dotenv()
+# ============================
+#  CARGA DE ENTORNO (DEV / PROD)
+# ============================
 
-# Logging folder (obligatorio)
+# Detectar entorno
+env = os.environ.get("APP_ENV", "production")
+
+if env == "development":
+    load_dotenv(".env.dev")
+else:
+    load_dotenv(".env")
+
+print(f"[ENV] Ejecutando en modo: {env}")
+
+
+# ============================
+#  LOGGING
+# ============================
 logger = setup_logging(os.environ["LOG_FOLDER"])
 
 
@@ -31,12 +45,18 @@ def create_app():
         static_url_path="/static"
     )
 
-    # SECRET KEY (obligatoria)
+    # ============================
+    #  SECRET KEY
+    # ============================
     secret = os.environ["SECRET_KEY"]
     app.secret_key = secret
     logger.info(f"[CONFIG] SECRET_KEY cargada: {secret[:8]}********")
 
-    # Seguridad y cookies (todo obligatorio)
+    # ============================
+    #  COOKIES Y SEGURIDAD
+    # ============================
+
+    # Configuración base (producción)
     app.config['MAX_CONTENT_LENGTH'] = int(os.environ["MAX_CONTENT_LENGTH"])
     app.config['SESSION_COOKIE_DOMAIN'] = os.environ["SESSION_COOKIE_DOMAIN"]
     app.config['SESSION_COOKIE_HTTPONLY'] = os.environ["SESSION_COOKIE_HTTPONLY"] == "True"
@@ -44,13 +64,22 @@ def create_app():
     app.config['SESSION_COOKIE_SECURE'] = os.environ["SESSION_COOKIE_SECURE"] == "True"
     app.config['SESSION_COOKIE_PATH'] = os.environ["SESSION_COOKIE_PATH"]
 
+    # Ajustes automáticos para desarrollo
+    if env == "development":
+        logger.info("[CONFIG] Modo desarrollo: ajustando cookies y seguridad")
+        app.config['SESSION_COOKIE_DOMAIN'] = None
+        app.config['SESSION_COOKIE_SECURE'] = False
+
     logger.info("[CONFIG] Cookies configuradas:")
     logger.info(f"  DOMAIN={app.config['SESSION_COOKIE_DOMAIN']}")
     logger.info(f"  SAMESITE={app.config['SESSION_COOKIE_SAMESITE']}")
     logger.info(f"  SECURE={app.config['SESSION_COOKIE_SECURE']}")
     logger.info(f"  PATH={app.config['SESSION_COOKIE_PATH']}")
 
-    # --- INYECCIÓN DE DEPENDENCIAS ---
+    # ============================
+    #  INYECCIÓN DE SERVICIOS
+    # ============================
+
     logger.info("=== Inicializando servicios ===")
 
     # 1. Auth (OAuth2 Server)
@@ -71,7 +100,10 @@ def create_app():
     )
     logger.info("[SERVICE] OptimizerService inicializado")
 
-    # --- RUTAS ---
+    # ============================
+    #  RUTAS
+    # ============================
+
     logger.info("=== Registrando blueprints ===")
     main_bp = create_blueprints(auth_service, media_service, optimizer_service)
     app.register_blueprint(main_bp)
@@ -84,6 +116,9 @@ def create_app():
 app = create_app()
 
 
+# ============================
+#  EJECUCIÓN LOCAL
+# ============================
 if __name__ == "__main__":
     host = os.environ.get("FLASK_HOST", "0.0.0.0")
     port = int(os.environ.get("FLASK_PORT", 5000))
@@ -91,7 +126,7 @@ if __name__ == "__main__":
     cert_file = os.environ.get("SSL_CERT_FILE")
     key_file = os.environ.get("SSL_KEY_FILE")
 
-    # Comprobación robusta de certificados
+    # SSL solo si existen certificados
     use_ssl = (
         cert_file
         and key_file
@@ -99,20 +134,20 @@ if __name__ == "__main__":
         and os.path.exists(key_file)
     )
 
+    debug_mode = env == "development"
+
     if use_ssl:
         logger.info(f"=== Iniciando Cine Platform en {host}:{port} con HTTPS ===")
         app.run(
             host=host,
             port=port,
-            debug=False,
+            debug=debug_mode,
             ssl_context=(cert_file, key_file)
         )
     else:
-        logger.info(f"=== Iniciando Cine Platform en {host}:{port} sin HTTPS (certificados no encontrados) ===")
+        logger.info(f"=== Iniciando Cine Platform en {host}:{port} sin HTTPS ===")
         app.run(
             host=host,
             port=port,
-            debug=False
+            debug=debug_mode
         )
-
-
