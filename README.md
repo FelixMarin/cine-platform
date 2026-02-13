@@ -1,8 +1,9 @@
+![Coverage](assets/coverage-badge.svg)
 # Cine Platform
 
 ---
 
-`https://raw.githubusercontent.com/FelixMarin/cine-platform/refs/heads/main/screen1.jpg`
+![Screen](https://raw.githubusercontent.com/FelixMarin/cine-platform/refs/heads/main/screen1.jpg)
 
 ---
 
