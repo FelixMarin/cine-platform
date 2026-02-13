@@ -1,4 +1,4 @@
-# transcriber_app/modules/logging/logging_config.py
+# cine-platform/modules/logging/logging_config.py
 import logging
 import sys
 from pathlib import Path
@@ -14,6 +14,7 @@ def setup_logging(name="cine-platform", level=logging.DEBUG) -> logging.Logger:
     - level: nivel mínimo de log (DEBUG, INFO, WARNING, ERROR, CRITICAL).
     Devuelve un logger listo para usar.
     """
+    
     logger = logging.getLogger(name)
     logger.setLevel(level)
 

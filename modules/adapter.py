@@ -9,14 +9,21 @@ from .state import StateManager
 from .ffmpeg import FFmpegHandler
 from .pipeline import PipelineSteps
 
-logger = setup_logging("optimizer-adapter")
+# Logging usando la carpeta definida en entorno
+logger = setup_logging(os.environ.get("LOG_FOLDER"))
+
 
 def mover_a_audiovisual(ruta_output):
-    destino_dir = "/data/movies/mkv"
+    """
+    Mueve el archivo optimizado a la carpeta final definida en MOVIES_FOLDER.
+    Dentro de ella, usa el subdirectorio 'mkv'.
+    """
 
-    # Comprobar si el volumen está disponible
+    base_dir = os.environ["MOVIES_FOLDER"]  # obligatorio
+    destino_dir = os.path.join(base_dir, "mkv")
+
     if not os.path.exists(destino_dir):
-        logger.error("No se ha podido copiar el vídeo: la carpeta /data/movies/mkv no está disponible")
+        logger.error(f"No se ha podido copiar el vídeo: la carpeta {destino_dir} no está disponible")
         return False
 
     try:
@@ -33,16 +40,19 @@ def mover_a_audiovisual(ruta_output):
         return True
 
     except Exception as e:
-        logger.error(f"Error copiando el archivo a /data/movies/mkv: {e}")
+        logger.error(f"Error copiando el archivo a {destino_dir}: {e}")
         return False
+
 
 class FFmpegOptimizerAdapter(IOptimizerService):
     def __init__(self, upload_folder, temp_folder, output_folder):
         self.upload_folder = upload_folder
         self.temp_folder = temp_folder
         self.output_folder = output_folder
+
+        # Extensiones válidas (si quieres, las pasamos a .env)
         self.valid_extensions = {".mp4", ".mkv", ".avi", ".mov", ".flv", ".wmv"}
-        
+
         self.state_manager = StateManager()
         self.ffmpeg = FFmpegHandler(self.state_manager)
         self.steps = PipelineSteps(self.ffmpeg)
@@ -52,12 +62,12 @@ class FFmpegOptimizerAdapter(IOptimizerService):
 
     def _process_logic(self, video_path):
         start_time = time.time()
-        if "-optimized" in video_path: return
+        if "-optimized" in video_path:
+            return
 
         video_filename = os.path.basename(video_path)
         self.state_manager.set_current_video(video_filename)
 
-        # Update info if needed
         current_info = self.state_manager.state.video_info
         if not current_info or current_info.get("name") != video_filename:
             info = self.ffmpeg.get_video_info(video_path)
@@ -97,12 +107,13 @@ class FFmpegOptimizerAdapter(IOptimizerService):
 
             shutil.move(temp_optimized, final_output)
 
-            # Intentar mover a MOVIES_FOLDER
+            # Mover al directorio final
             mover_a_audiovisual(final_output)
 
             # Cleanup
             for p in [temp_original, repaired, reduced]:
-                if os.path.exists(p): os.remove(p)
+                if os.path.exists(p):
+                    os.remove(p)
 
             logger.info(f"Video {video_filename} finalizado.")
 
@@ -113,8 +124,10 @@ class FFmpegOptimizerAdapter(IOptimizerService):
             finish_time = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
             duration = f"{round(time.time() - start_time, 1)}s"
             self.state_manager.add_history({
-                "name": video_filename, "status": status_msg,
-                "timestamp": finish_time, "duration": duration
+                "name": video_filename,
+                "status": status_msg,
+                "timestamp": finish_time,
+                "duration": duration
             })
             self.state_manager.reset()
 
@@ -125,19 +138,14 @@ class FFmpegOptimizerAdapter(IOptimizerService):
 
     def process_folder(self, folder_path):
         def _folder_worker():
-            # Reset history for batch process? Or keep appending? 
-            # Original code reset it: self.state.history = []
-            # But state manager loads from file. Let's keep it simple and just clear it in memory if needed, 
-            # or just let it append. The original code did: self.state.history = []
-            # I'll stick to appending to preserve history of previous runs unless explicitly cleared.
-            # But to match original behavior exactly:
-            self.state_manager.state.history = [] 
+            self.state_manager.state.history = []
             self.state_manager.save()
-            
+
             for root, _, files in os.walk(folder_path):
                 for file in files:
                     if os.path.splitext(file)[1].lower() in self.valid_extensions:
                         self._process_logic(os.path.join(root, file))
+
         threading.Thread(target=_folder_worker).start()
 
     def get_status(self):
@@ -149,9 +157,9 @@ class FFmpegOptimizerAdapter(IOptimizerService):
             "log_line": s.log_line,
             "video_info": s.video_info
         }
-    
+
     def get_output_folder(self):
         return self.output_folder
-    
+
     def get_upload_folder(self):
         return self.upload_folder

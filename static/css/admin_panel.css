@@ -1,0 +1,461 @@
+/* ===== PANEL DE ADMINISTRACIÓN ===== */
+.admin-container {
+    max-width: 1200px;
+    margin: 50px auto;
+    padding: 20px;
+}
+
+/* Cabecera */
+.admin-header {
+    background: var(--bg-secondary);
+    padding: 25px 30px;
+    border-radius: var(--border-radius);
+    margin-bottom: 30px;
+    border-left: 4px solid var(--accent-color);
+    box-shadow: var(--shadow);
+}
+
+.admin-header h1 {
+    margin: 0;
+    color: var(--text-primary);
+    font-size: 2rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.admin-header p {
+    color: var(--text-secondary);
+    margin: 10px 0 0 0;
+    font-size: 1rem;
+}
+
+/* Secciones */
+.admin-section {
+    background: var(--bg-secondary);
+    padding: 25px 30px;
+    border-radius: var(--border-radius);
+    margin-bottom: 25px;
+    box-shadow: var(--shadow);
+    border: 1px solid var(--border-color);
+}
+
+.admin-section h2 {
+    color: var(--text-primary);
+    margin: 0 0 20px 0;
+    border-bottom: 2px solid var(--border-color);
+    padding-bottom: 15px;
+    font-size: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.admin-section p {
+    color: var(--text-secondary);
+    line-height: 1.6;
+    margin-bottom: 20px;
+}
+
+/* Grid de estadísticas */
+.admin-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 20px;
+    margin-top: 20px;
+}
+
+.stat-card {
+    background: var(--bg-tertiary);
+    padding: 25px 20px;
+    border-radius: var(--border-radius);
+    text-align: center;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    border: 1px solid var(--border-color);
+}
+
+.stat-card:hover {
+    transform: translateY(-5px);
+    box-shadow: var(--shadow-hover);
+    border-color: var(--accent-color);
+}
+
+.stat-card h3 {
+    margin: 0 0 15px 0;
+    color: var(--accent-color);
+    font-size: 2.5rem;
+    line-height: 1;
+}
+
+.stat-card p {
+    margin: 0;
+    color: var(--text-primary);
+    font-weight: 500;
+    font-size: 1.1rem;
+}
+
+/* Botón de volver */
+.back-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    padding: 12px 24px;
+    border-radius: var(--border-radius-sm);
+    text-decoration: none;
+    margin-bottom: 25px;
+    transition: all 0.3s ease;
+    border: 1px solid var(--border-color);
+    font-weight: 500;
+}
+
+.back-btn:hover {
+    background: var(--accent-color);
+    border-color: var(--accent-hover);
+    transform: translateX(-5px);
+}
+
+.back-btn::before {
+    content: "←";
+    font-size: 1.2rem;
+}
+
+/* Lista de herramientas */
+.admin-section ul {
+    color: var(--text-secondary);
+    line-height: 1.8;
+    padding-left: 20px;
+    margin: 15px 0;
+}
+
+.admin-section li {
+    margin-bottom: 8px;
+    color: var(--text-secondary);
+}
+
+.admin-section li::marker {
+    color: var(--accent-color);
+}
+
+/* Código */
+.admin-section code {
+    background: var(--bg-tertiary);
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-family: 'Courier New', monospace;
+    color: var(--accent-color);
+    border: 1px solid var(--border-color);
+    font-size: 0.9rem;
+}
+
+/* Estado vacío o de carga */
+.admin-loading {
+    text-align: center;
+    padding: 40px;
+    color: var(--text-secondary);
+}
+
+.admin-loading .spinner {
+    margin-bottom: 15px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .admin-container {
+        margin: 20px auto;
+        padding: 15px;
+    }
+
+    .admin-header {
+        padding: 20px;
+    }
+
+    .admin-header h1 {
+        font-size: 1.5rem;
+    }
+
+    .admin-section {
+        padding: 20px;
+    }
+
+    .admin-section h2 {
+        font-size: 1.3rem;
+    }
+
+    .stat-card h3 {
+        font-size: 2rem;
+    }
+
+    .stat-card p {
+        font-size: 1rem;
+    }
+
+    .back-btn {
+        padding: 10px 20px;
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+@media (max-width: 480px) {
+    .admin-container {
+        margin: 10px auto;
+        padding: 10px;
+    }
+
+    .admin-stats {
+        grid-template-columns: 1fr;
+        gap: 15px;
+    }
+
+    .admin-header h1 {
+        font-size: 1.3rem;
+    }
+
+    .admin-section ul {
+        padding-left: 15px;
+    }
+}
+
+/* Animaciones */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.admin-section {
+    animation: fadeIn 0.5s ease forwards;
+}
+
+.admin-section:nth-child(2) {
+    animation-delay: 0.1s;
+}
+
+.admin-section:nth-child(3) {
+    animation-delay: 0.2s;
+}
+
+.admin-section:nth-child(4) {
+    animation-delay: 0.3s;
+}
+
+/* ===== PANEL DE ADMINISTRACIÓN ===== */
+.admin-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 30px;
+}
+
+/* Ajuste para cuando el menú está colapsado en PC */
+.main-content {
+    padding: 20px;
+}
+
+/* Cabecera */
+.admin-header {
+    background: var(--bg-secondary);
+    padding: 25px 30px;
+    border-radius: var(--border-radius);
+    margin-bottom: 30px;
+    border-left: 4px solid var(--accent-color);
+    box-shadow: var(--shadow);
+}
+
+.admin-header h1 {
+    margin: 0;
+    color: var(--text-primary);
+    font-size: 2rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.admin-header p {
+    color: var(--text-secondary);
+    margin: 10px 0 0 0;
+    font-size: 1rem;
+}
+
+/* Secciones */
+.admin-section {
+    background: var(--bg-secondary);
+    padding: 25px 30px;
+    border-radius: var(--border-radius);
+    margin-bottom: 25px;
+    box-shadow: var(--shadow);
+    border: 1px solid var(--border-color);
+}
+
+.admin-section h2 {
+    color: var(--text-primary);
+    margin: 0 0 20px 0;
+    border-bottom: 2px solid var(--border-color);
+    padding-bottom: 15px;
+    font-size: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.admin-section p {
+    color: var(--text-secondary);
+    line-height: 1.6;
+    margin-bottom: 20px;
+}
+
+/* Grid de estadísticas */
+.admin-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 20px;
+    margin-top: 20px;
+}
+
+.stat-card {
+    background: var(--bg-tertiary);
+    padding: 25px 20px;
+    border-radius: var(--border-radius);
+    text-align: center;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    border: 1px solid var(--border-color);
+}
+
+.stat-card:hover {
+    transform: translateY(-5px);
+    box-shadow: var(--shadow-hover);
+    border-color: var(--accent-color);
+}
+
+.stat-card h3 {
+    margin: 0 0 15px 0;
+    color: var(--accent-color);
+    font-size: 2.5rem;
+    line-height: 1;
+}
+
+.stat-card p {
+    margin: 0;
+    color: var(--text-primary);
+    font-weight: 500;
+    font-size: 1.1rem;
+}
+
+/* Lista de herramientas */
+.admin-section ul {
+    color: var(--text-secondary);
+    line-height: 1.8;
+    padding-left: 20px;
+    margin: 15px 0;
+}
+
+.admin-section li {
+    margin-bottom: 8px;
+    color: var(--text-secondary);
+}
+
+.admin-section li::marker {
+    color: var(--accent-color);
+}
+
+/* Código */
+.admin-section code {
+    background: var(--bg-tertiary);
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-family: 'Courier New', monospace;
+    color: var(--accent-color);
+    border: 1px solid var(--border-color);
+    font-size: 0.9rem;
+}
+
+/* Estado vacío o de carga */
+.admin-loading {
+    text-align: center;
+    padding: 40px;
+    color: var(--text-secondary);
+}
+
+.admin-loading .spinner {
+    margin-bottom: 15px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .admin-container {
+        padding: 20px;
+    }
+
+    .admin-header {
+        padding: 20px;
+    }
+
+    .admin-header h1 {
+        font-size: 1.5rem;
+    }
+
+    .admin-section {
+        padding: 20px;
+    }
+
+    .admin-section h2 {
+        font-size: 1.3rem;
+    }
+
+    .stat-card h3 {
+        font-size: 2rem;
+    }
+
+    .stat-card p {
+        font-size: 1rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .admin-container {
+        padding: 15px;
+    }
+
+    .admin-stats {
+        grid-template-columns: 1fr;
+        gap: 15px;
+    }
+
+    .admin-header h1 {
+        font-size: 1.3rem;
+    }
+
+    .admin-section ul {
+        padding-left: 15px;
+    }
+}
+
+/* Animaciones */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.admin-section {
+    animation: fadeIn 0.5s ease forwards;
+}
+
+.admin-section:nth-child(2) {
+    animation-delay: 0.1s;
+}
+
+.admin-section:nth-child(3) {
+    animation-delay: 0.2s;
+}

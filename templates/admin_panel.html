@@ -2,126 +2,140 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.5">
     <title>Panel de Administración - Cine Platform</title>
     <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    <style>
-        .admin-container {
-            max-width: 1200px;
-            margin: 50px auto;
-            padding: 20px;
-        }
-        .admin-header {
-            background: #222;
-            padding: 20px;
-            border-radius: 8px;
-            margin-bottom: 30px;
-            border-left: 4px solid #d9534f;
-        }
-        .admin-header h1 {
-            margin: 0;
-            color: #fff;
-        }
-        .admin-section {
-            background: #1a1a1a;
-            padding: 20px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-        }
-        .admin-section h2 {
-            color: #fff;
-            margin-top: 0;
-            border-bottom: 2px solid #444;
-            padding-bottom: 10px;
-        }
-        .admin-stats {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 20px;
-            margin-top: 20px;
-        }
-        .stat-card {
-            background: #2a2a2a;
-            padding: 20px;
-            border-radius: 8px;
-            text-align: center;
-        }
-        .stat-card h3 {
-            margin: 0 0 10px 0;
-            color: #00d4ff;
-            font-size: 2em;
-        }
-        .stat-card p {
-            margin: 0;
-            color: #bbb;
-        }
-        .back-btn {
-            display: inline-block;
-            background: #007bff;
-            color: white;
-            padding: 10px 20px;
-            border-radius: 5px;
-            text-decoration: none;
-            margin-bottom: 20px;
-        }
-        .back-btn:hover {
-            background: #0056b3;
-        }
-    </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/menu.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin_panel.css') }}">
+    <script src="{{ url_for('static', filename='js/script.js') }}?v={{ range(1, 10000) | random }}" defer></script>
+    <script src="{{ url_for('static', filename='js/admin_panel.js') }}?v={{ range(1, 10000) | random }}" defer></script>
 </head>
 <body class="dark-mode">
-    <div class="admin-container">
-        <a href="/" class="back-btn">← Volver al Dashboard</a>
-        
-        <div class="admin-header">
-            <h1>⚙️ Panel de Administración</h1>
-            <p style="color: #bbb; margin: 10px 0 0 0;">Bienvenido, {{ session['user_email'] }}</p>
-        </div>
 
-        <div class="admin-section">
-            <h2>📊 Estadísticas del Sistema</h2>
-            <div class="admin-stats">
-                <div class="stat-card">
-                    <h3>🎬</h3>
-                    <p>Películas y Series</p>
-                </div>
-                <div class="stat-card">
-                    <h3>👥</h3>
-                    <p>Usuarios Activos</p>
-                </div>
-                <div class="stat-card">
-                    <h3>💾</h3>
-                    <p>Almacenamiento</p>
-                </div>
-                <div class="stat-card">
-                    <h3>🔄</h3>
-                    <p>Videos Procesados</p>
+    <!-- Botón hamburguesa para móvil -->
+    <button class="menu-toggle" onclick="toggleMenu()" aria-label="Abrir menú">☰</button>
+    
+    <!-- Overlay para móvil -->
+    <div class="menu-overlay" onclick="toggleMenu()" aria-hidden="true"></div>
+
+    <!-- Menú lateral colapsable -->
+    <div class="side-menu" id="sideMenu" role="navigation" aria-label="Menú principal">
+        <!-- Botón para colapsar/expandir (solo visible en PC) -->
+        <div class="menu-collapse-btn" onclick="toggleCollapse()" title="Colapsar menú" role="button" aria-label="Colapsar menú">◀</div>
+        
+        <div class="menu-header">
+            <!-- Título completo (visible cuando NO está colapsado) -->
+            <h2 class="menu-title-full">Cine<span>Platform</span></h2>
+        </div>
+        
+        <div class="menu-user">
+            <div class="menu-user-email">{{ session['user_email'] }}</div>
+            <div class="menu-user-role">{{ session['user_role'] }}</div>
+        </div>
+        
+        <div class="menu-items">
+            <!-- Sección principal -->
+            <div class="menu-section-title">PRINCIPAL</div>
+            <a href="/" class="menu-item">
+                <span aria-hidden="true">🏠</span> 
+                <span class="menu-item-text">Dashboard</span>
+            </a>
+            <a href="/" class="menu-item" onclick="showTab('movies'); return false;">
+                <span aria-hidden="true">🎬</span> 
+                <span class="menu-item-text">Películas</span>
+            </a>
+            <a href="/" class="menu-item" onclick="showTab('series'); return false;">
+                <span aria-hidden="true">📺</span> 
+                <span class="menu-item-text">Series</span>
+            </a>
+            
+            <!-- Sección admin (solo visible para admin) -->
+            {% if session['user_role'] == 'admin' %}
+            <div class="menu-section-title">ADMINISTRACIÓN</div>
+            <a href="/admin/manage" class="menu-item active">
+                <span aria-hidden="true">⚙️</span> 
+                <span class="menu-item-text">Panel Admin</span>
+            </a>
+            <a href="/optimizer" class="menu-item">
+                <span aria-hidden="true">🎥</span> 
+                <span class="menu-item-text">Optimizador</span>
+            </a>
+            {% endif %}
+        </div>
+        
+        <!-- Cerrar sesión al final -->
+        <a href="/logout" class="menu-logout">
+            <span aria-hidden="true">🚪</span> 
+            <span class="menu-logout-text">Cerrar Sesión</span>
+        </a>
+    </div>
+
+    <!-- Contenido principal -->
+    <main class="main-content" id="mainContent" role="main">
+        <div class="admin-container">
+            <div class="admin-header">
+                <h1>⚙️ Panel de Administración</h1>
+                <p>Bienvenido, {{ session['user_email'] }}</p>
+            </div>
+
+            <div class="admin-section">
+                <h2>📊 Estadísticas del Sistema</h2>
+                <div class="admin-stats">
+                    <div class="stat-card">
+                        <h3>-</h3>
+                        <p>Películas y Series</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>-</h3>
+                        <p>Usuarios Activos</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>-</h3>
+                        <p>Almacenamiento</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>-</h3>
+                        <p>Videos Procesados</p>
+                    </div>
                 </div>
             </div>
-        </div>
 
-        <div class="admin-section">
-            <h2>🛠️ Herramientas de Administración</h2>
-            <p style="color: #bbb;">
-                Panel de administración en desarrollo. Aquí podrás gestionar usuarios, 
-                contenido, y configuración del sistema.
-            </p>
-            <ul style="color: #bbb; line-height: 1.8;">
-                <li>Gestión de usuarios y permisos</li>
-                <li>Administración de contenido multimedia</li>
-                <li>Monitoreo de procesamiento de videos</li>
-                <li>Configuración del sistema</li>
-                <li>Logs y auditoría</li>
-            </ul>
-        </div>
+            <div class="admin-section">
+                <h2>🛠️ Herramientas de Administración</h2>
+                <p>
+                    Panel de administración en desarrollo. Aquí podrás gestionar usuarios, 
+                    contenido, y configuración del sistema.
+                </p>
+                <ul>
+                    <li>Gestión de usuarios y permisos</li>
+                    <li>Administración de contenido multimedia</li>
+                    <li>Monitoreo de procesamiento de videos</li>
+                    <li>Configuración del sistema</li>
+                    <li>Logs y auditoría</li>
+                </ul>
+            </div>
 
-        <div class="admin-section">
-            <h2>📝 Logs Recientes</h2>
-            <p style="color: #bbb;">
-                Los logs del sistema se encuentran en: <code style="background: #333; padding: 2px 6px; border-radius: 3px;">logs/cine-platform.log</code>
-            </p>
+            <div class="admin-section">
+                <h2>📝 Logs Recientes</h2>
+                <p>
+                    Los logs del sistema se encuentran en: <code>logs/cine-platform.log</code>
+                </p>
+            </div>
         </div>
-    </div>
+    </main>
+
+    <script>
+        // Pequeño script para asegurar que el menú mantiene el estado
+        document.addEventListener('DOMContentLoaded', function() {
+            // Marcar el item activo correctamente
+            const currentPath = window.location.pathname;
+            document.querySelectorAll('.menu-item').forEach(item => {
+                if (item.getAttribute('href') === currentPath) {
+                    item.classList.add('active');
+                }
+            });
+        });
+    </script>
 </body>
 </html>

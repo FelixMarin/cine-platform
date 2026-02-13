@@ -191,7 +191,7 @@ curl -X POST "http://pocketbase.cine.svc.cluster.local:8070/api/collections/user
 ## 🔹 Ver variables de entorno de cine‑platform
 ```
 kubectl exec -n cine -it deploy/cine-platform -- sh
-echo $POCKETBASE_URL
+echo $MOVIES_FOLDER
 ```
 
 ---

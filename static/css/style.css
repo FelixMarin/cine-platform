@@ -1,117 +1,202 @@
+/* ===== VARIABLES GLOBALES ===== */
+:root {
+    --bg-primary: #1a1a1a;        /* Fondo principal - igual que login */
+    --bg-secondary: #333;          /* Fondos secundarios - igual que login */
+    --bg-tertiary: #222;          /* Fondos terciarios - inputs */
+    --bg-card: #2c2c2c;          /* Tarjetas y elementos */
+    --accent-color: #e50914;      /* Rojo característico del login */
+    --accent-hover: #b20710;      /* Rojo hover del login */
+    --border-color: #444;         /* Bordes */
+    --text-primary: #ffffff;      /* Texto blanco */
+    --text-secondary: #cccccc;    /* Texto gris claro */
+    --shadow: 0 8px 16px rgba(0, 0, 0, 0.4);
+    --border-radius: 12px;        /* Bordes redondeados como login */
+    --border-radius-sm: 8px;      /* Bordes pequeños */
+}
+
+/* ===== ESTILOS BASE ===== */
 body {
-    font-family: Arial, sans-serif;
+    font-family: sans-serif;      /* Misma fuente que login */
     margin: 0;
     padding: 0;
-    background-color: #121212;
-    color: #ffffff;
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    line-height: 1.6;
 }
-.dark-mode {
-    background-color: #121212;
-    color: #ffffff;
-}
+
+/* ===== TABS PRINCIPALES ===== */
 .tabs {
     display: flex;
     justify-content: center;
-    background-color: #1e1e1e;
-    border-bottom: 2px solid #444;
+    background-color: var(--bg-secondary);
+    border-bottom: 2px solid var(--border-color);
     margin-bottom: 20px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
 }
+
 .tab {
     flex: 1;
     text-align: center;
-    padding: 10px;
+    padding: 16px;
     cursor: pointer;
-    font-size: 18px;
-    background-color: #1e1e1e;
-    border-right: 1px solid #444;
+    font-size: 1.2rem;
+    background-color: var(--bg-secondary);
+    border-right: 1px solid var(--border-color);
+    color: var(--text-primary);
+    transition: background-color 0.3s ease;
+    font-weight: 500;
 }
+
 .tab:last-child {
     border-right: none;
 }
+
+.tab:hover {
+    background-color: var(--bg-tertiary);
+}
+
 .tab.active {
-    background-color: #333;
-    color: #fff;
+    background-color: var(--accent-color);  /* Rojo como el botón del login */
+    color: var(--text-primary);
+    font-weight: 600;
 }
-.container {
-    padding: 20px;
-}
-.section {
-    display: block;
-}
-.section.active {
-    display: block;
-}
-.card-container {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 10px;
-    justify-items: center;
-}
-.card {
-    width: 200px;
-    border: 1px solid #444;
-    border-radius: 5px;
-    overflow: hidden;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-    background-color: #1e1e1e;
-}
-.card img {
-    width: 100%;
-    height: 150px;
-    object-fit: cover;
-}
-.card a {
-    display: block;
-    text-decoration: none;
-    color: #fff;
-    padding: 10px;
-    text-align: center;
-}
-.card a:hover {
-    background: #333;
-}
+
+/* ===== TABS SECUNDARIOS (TAB-LINK) ===== */
 .tab-link {
     flex: 1;
     text-align: center;
     padding: 15px 0;
     cursor: pointer;
-    color: #fff;
-    background-color: #1e1e1e;
+    color: var(--text-primary);
+    background-color: var(--bg-secondary);
     text-decoration: none;
-    font-weight: bold;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    border-bottom: 3px solid transparent;
 }
+
 .tab-link:hover {
-    background-color: #333;
+    background-color: var(--bg-tertiary);
+    border-bottom-color: var(--accent-color);  /* Rojo al hover */
 }
+
 .tab-link.active {
-    border-bottom: 2px solid #fff;
+    border-bottom: 3px solid var(--accent-color);  /* Rojo cuando está activo */
+    font-weight: 600;
 }
+
+/* ===== CONTENEDOR PRINCIPAL ===== */
+.container {
+    padding: 20px;
+    max-width: 1400px;
+    margin: 0 auto;
+    box-sizing: border-box;
+}
+
+.section {
+    display: block;
+}
+
+.section.active {
+    display: block;
+}
+
 .tab-content {
     display: none;
     padding: 20px;
+    background-color: var(--bg-primary);
+    border-radius: var(--border-radius);
+    margin-top: 20px;
 }
-/* Collapsible Series Styles */
-.collapsible-header {
-    background-color: #2c2c2c;
-    color: #fff;
+
+.tab-content.active {
+    display: block;
+}
+
+/* ===== TARJETAS ===== */
+.card-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 20px;
+    justify-items: center;
+    padding: 20px 0;
+}
+
+.card {
+    width: 100%;
+    max-width: 240px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    overflow: hidden;
+    box-shadow: var(--shadow);
+    background-color: var(--bg-card);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.6);
+    border-color: var(--accent-color);  /* Borde rojo al hover */
+}
+
+.card img {
+    width: 100%;
+    height: 160px;
+    object-fit: cover;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.card a {
+    display: block;
+    text-decoration: none;
+    color: var(--text-primary);
     padding: 15px;
-    margin: 10px 0 2px 0;
+    text-align: center;
+    font-size: 1.1rem;
+    font-weight: 500;
+    transition: background-color 0.3s ease;
+}
+
+.card a:hover {
+    background: var(--accent-color);  /* Fondo rojo al hover como el botón */
+    color: var(--text-primary);
+}
+
+/* ===== SECCIONES COLAPSABLES ===== */
+.collapsible-header {
+    background-color: var(--bg-secondary);  /* Mismo color que la caja del login */
+    color: var(--text-primary);
+    padding: 18px 20px;
+    margin: 15px 0 2px 0;
     cursor: pointer;
-    border-radius: 5px;
+    border-radius: var(--border-radius);
     display: flex;
     justify-content: space-between;
     align-items: center;
-    transition: background-color 0.3s;
+    transition: all 0.3s ease;
+    border: 1px solid transparent;
+    font-size: 1.2rem;
+    font-weight: 600;
 }
 
 .collapsible-header:hover {
-    background-color: #3d3d3d;
+    background-color: var(--accent-color);  /* Rojo al hover como el botón */
+    border-color: var(--accent-hover);
 }
 
 .collapsible-header::after {
-    content: '\25BC'; /* Down arrow */
-    font-size: 12px;
-    transition: transform 0.3s;
+    content: '\25BC';
+    font-size: 14px;
+    transition: transform 0.3s ease;
+    color: var(--text-primary);
+}
+
+.collapsible-header.active {
+    background-color: var(--accent-color);  /* Rojo cuando está activo */
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
 }
 
 .collapsible-header.active::after {
@@ -120,13 +205,147 @@ body {
 
 .collapsible-content {
     display: none;
-    padding: 10px;
-    border: 1px solid #333;
+    padding: 20px;
+    border: 1px solid var(--border-color);
     border-top: none;
-    border-radius: 0 0 5px 5px;
-    background-color: #1a1a1a;
+    border-radius: 0 0 var(--border-radius) var(--border-radius);
+    background-color: var(--bg-tertiary);  /* Mismo color que los inputs */
+    margin-bottom: 15px;
 }
 
 .collapsible-content.active {
-    display: grid; /* Back to grid when active */
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+}
+
+/* ===== RESPONSIVE PARA MÓVIL ===== */
+@media (max-width: 768px) {
+    .container {
+        padding: 16px;
+    }
+    
+    .tabs {
+        flex-wrap: wrap;
+    }
+    
+    .tab, .tab-link {
+        padding: 14px 8px;
+        font-size: 1.1rem;
+        flex-basis: 50%;
+    }
+    
+    .card-container {
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        gap: 15px;
+    }
+    
+    .card {
+        max-width: 100%;
+    }
+    
+    .card img {
+        height: 140px;
+    }
+    
+    .card a {
+        padding: 12px;
+        font-size: 1rem;
+    }
+    
+    .collapsible-header {
+        padding: 16px;
+        font-size: 1.1rem;
+    }
+    
+    .collapsible-content.active {
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 12px;
+        padding: 16px;
+    }
+}
+
+@media (max-width: 480px) {
+    .container {
+        padding: 12px;
+    }
+    
+    .tab, .tab-link {
+        flex-basis: 100%;
+        padding: 16px;
+        border-right: none;
+        border-bottom: 1px solid var(--border-color);
+    }
+    
+    .tab:last-child, .tab-link:last-child {
+        border-bottom: none;
+    }
+    
+    .card-container {
+        grid-template-columns: 1fr;
+        gap: 16px;
+    }
+    
+    .card {
+        max-width: 100%;
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .card img {
+        height: 180px;
+    }
+    
+    .card a {
+        padding: 14px;
+        font-size: 1.1rem;
+    }
+    
+    .collapsible-content.active {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ===== UTILIDADES ===== */
+/* Botón con estilo del login */
+.btn-login-style {
+    background-color: var(--accent-color);
+    color: var(--text-primary);
+    padding: 14px 24px;
+    border: none;
+    border-radius: var(--border-radius-sm);
+    font-size: 1.1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    width: 100%;
+    max-width: 300px;
+    margin: 10px auto;
+    display: block;
+}
+
+.btn-login-style:hover {
+    background-color: var(--accent-hover);
+    transform: scale(0.98);
+}
+
+/* Mensajes de error/éxito */
+.message {
+    padding: 15px;
+    border-radius: var(--border-radius-sm);
+    margin: 15px 0;
+    text-align: center;
+    font-weight: 500;
+}
+
+.error-message {
+    background-color: rgba(229, 9, 20, 0.2);
+    color: #ff6b6b;
+    border: 1px solid var(--accent-color);
+}
+
+.success-message {
+    background-color: rgba(76, 175, 80, 0.2);
+    color: #81c784;
+    border: 1px solid #4caf50;
 }

@@ -1,22 +1,32 @@
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
     <title>Login - Mi Cine Jetson</title>
     <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
-    <style>
-        body { font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; background: #1a1a1a; color: white; }
-        form { background: #333; padding: 20px; border-radius: 8px; display: flex; flex-direction: column; }
-        input { margin-bottom: 10px; padding: 10px; }
-        button { padding: 10px; background: #e50914; color: white; border: none; cursor: pointer; }
-    </style>
+
+    <!-- CSS del login -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/login.css') }}">
 </head>
+
 <body>
-    <form method="POST">
-        <h2>Identificarse</h2>
-        {% if error %}<p style="color: red;">{{ error }}</p>{% endif %}
-        <input type="email" name="email" placeholder="Email" required>
-        <input type="password" name="password" placeholder="Contraseña" required>
-        <button type="submit">Entrar</button>
-    </form>
+    <div class="login-box">
+        <form method="POST">
+            <h2>Identificarse</h2>
+
+            {% if error %}
+                <p class="error-msg">{{ error }}</p>
+            {% endif %}
+
+            <input type="text" name="email" placeholder="Usuario" required>
+            <input type="password" name="password" placeholder="Contraseña" required>
+
+            <button type="submit">Entrar</button>
+        </form>
+    </div>
+
+    <!-- JS del login -->
+    <script src="{{ url_for('static', filename='js/login.js') }}"></script>
 </body>
 </html>

@@ -23,17 +23,89 @@ spec:
             - containerPort: 5000
 
           env:
+            # ============================
+            # 🔐 Secret variables
+            # ============================
             - name: SECRET_KEY
               valueFrom:
                 secretKeyRef:
                   name: cine-secret
                   key: SECRET_KEY
 
-            - name: POCKETBASE_URL
+            - name: OAUTH2_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: cine-secret
+                  key: OAUTH2_CLIENT_ID
+
+            - name: OAUTH2_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: cine-secret
+                  key: OAUTH2_CLIENT_SECRET
+
+            - name: OAUTH2_URL
+              valueFrom:
+                secretKeyRef:
+                  name: cine-secret
+                  key: OAUTH2_URL
+
+            - name: OAUTH2_REDIRECT_URI
+              valueFrom:
+                secretKeyRef:
+                  name: cine-secret
+                  key: OAUTH2_REDIRECT_URI
+
+            - name: SESSION_COOKIE_DOMAIN
+              valueFrom:
+                secretKeyRef:
+                  name: cine-secret
+                  key: SESSION_COOKIE_DOMAIN
+
+            # ============================
+            # 🟦 ConfigMap variables
+            # ============================
+            - name: FLASK_HOST
               valueFrom:
                 configMapKeyRef:
                   name: cine-config
-                  key: POCKETBASE_URL
+                  key: FLASK_HOST
+
+            - name: FLASK_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: cine-config
+                  key: FLASK_PORT
+
+            - name: MAX_CONTENT_LENGTH
+              valueFrom:
+                configMapKeyRef:
+                  name: cine-config
+                  key: MAX_CONTENT_LENGTH
+
+            - name: SESSION_COOKIE_HTTPONLY
+              valueFrom:
+                configMapKeyRef:
+                  name: cine-config
+                  key: SESSION_COOKIE_HTTPONLY
+
+            - name: SESSION_COOKIE_SAMESITE
+              valueFrom:
+                configMapKeyRef:
+                  name: cine-config
+                  key: SESSION_COOKIE_SAMESITE
+
+            - name: SESSION_COOKIE_SECURE
+              valueFrom:
+                configMapKeyRef:
+                  name: cine-config
+                  key: SESSION_COOKIE_SECURE
+
+            - name: SESSION_COOKIE_PATH
+              valueFrom:
+                configMapKeyRef:
+                  name: cine-config
+                  key: SESSION_COOKIE_PATH
 
             - name: MOVIES_FOLDER
               valueFrom:
@@ -42,16 +114,46 @@ spec:
                   key: MOVIES_FOLDER
 
             - name: UPLOAD_FOLDER
-              value: "/app/uploads"
+              valueFrom:
+                configMapKeyRef:
+                  name: cine-config
+                  key: UPLOAD_FOLDER
 
             - name: TEMP_FOLDER
-              value: "/app/temp"
+              valueFrom:
+                configMapKeyRef:
+                  name: cine-config
+                  key: TEMP_FOLDER
 
             - name: OUTPUT_FOLDER
-              value: "/app/outputs"
+              valueFrom:
+                configMapKeyRef:
+                  name: cine-config
+                  key: OUTPUT_FOLDER
 
             - name: LOG_FOLDER
-              value: "/app/logs"
+              valueFrom:
+                configMapKeyRef:
+                  name: cine-config
+                  key: LOG_FOLDER
+
+            - name: OAUTH2_AUTHORIZE_ENDPOINT
+              valueFrom:
+                configMapKeyRef:
+                  name: cine-config
+                  key: OAUTH2_AUTHORIZE_ENDPOINT
+
+            - name: OAUTH2_TOKEN_ENDPOINT
+              valueFrom:
+                configMapKeyRef:
+                  name: cine-config
+                  key: OAUTH2_TOKEN_ENDPOINT
+
+            - name: OAUTH2_USERINFO_ENDPOINT
+              valueFrom:
+                configMapKeyRef:
+                  name: cine-config
+                  key: OAUTH2_USERINFO_ENDPOINT
 
           volumeMounts:
             - name: src

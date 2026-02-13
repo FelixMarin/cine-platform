@@ -8,6 +8,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from modules.adapter import FFmpegOptimizerAdapter, mover_a_audiovisual
 
+os.environ["MOVIES_FOLDER"] = "/tmp/movies"
 
 class TestFFmpegOptimizerAdapter(unittest.TestCase):
 
@@ -121,7 +122,8 @@ class TestMoverAudiovisual(unittest.TestCase):
         result = mover_a_audiovisual("/out/video.mkv")
 
         self.assertTrue(result)
-        mock_copy.assert_called_with("/out/video.mkv", "/data/movies/mkv/video.mkv")
+        expected = os.path.join("/tmp/movies", "mkv", "video.mkv")
+        mock_copy.assert_called_with("/out/video.mkv", expected)
         mock_remove.assert_called_with("/out/video.mkv")
 
 

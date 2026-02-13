@@ -17,27 +17,66 @@ spec:
         - name: cine-platform
           image: felixmurcia/cine-platform:latest
           ports:
-            - containerPort: 5000
+            - containerPort: 9443
 
           env:
+            # ============================
+            # 🔐 SSL variables
+            # ============================
+            - name: SSL_CERT_FILE
+              valueFrom:
+                secretKeyRef:
+                  name: cine-secret
+                  key: SSL_CERT_FILE
+
+            - name: SSL_KEY_FILE
+              valueFrom:
+                secretKeyRef:
+                  name: cine-secret
+                  key: SSL_KEY_FILE
+
+            # ============================
+            # 🔐 Secret variables
+            # ============================
             - name: SECRET_KEY
               valueFrom:
                 secretKeyRef:
                   name: cine-secret
                   key: SECRET_KEY
 
-            - name: POCKETBASE_URL
+            - name: OAUTH2_CLIENT_ID
               valueFrom:
-                configMapKeyRef:
-                  name: cine-config
-                  key: POCKETBASE_URL
+                secretKeyRef:
+                  name: cine-secret
+                  key: OAUTH2_CLIENT_ID
 
-            - name: MOVIES_FOLDER
+            - name: OAUTH2_CLIENT_SECRET
               valueFrom:
-                configMapKeyRef:
-                  name: cine-config
-                  key: MOVIES_FOLDER
+                secretKeyRef:
+                  name: cine-secret
+                  key: OAUTH2_CLIENT_SECRET
 
+            - name: OAUTH2_URL
+              valueFrom:
+                secretKeyRef:
+                  name: cine-secret
+                  key: OAUTH2_URL
+
+            - name: OAUTH2_REDIRECT_URI
+              valueFrom:
+                secretKeyRef:
+                  name: cine-secret
+                  key: OAUTH2_REDIRECT_URI
+
+            - name: SESSION_COOKIE_DOMAIN
+              valueFrom:
+                secretKeyRef:
+                  name: cine-secret
+                  key: SESSION_COOKIE_DOMAIN
+
+            # ============================
+            # 🟦 ConfigMap variables
+            # ============================
             - name: FLASK_HOST
               valueFrom:
                 configMapKeyRef:
@@ -50,17 +89,83 @@ spec:
                   name: cine-config
                   key: FLASK_PORT
 
+            - name: MAX_CONTENT_LENGTH
+              valueFrom:
+                configMapKeyRef:
+                  name: cine-config
+                  key: MAX_CONTENT_LENGTH
+
+            - name: SESSION_COOKIE_HTTPONLY
+              valueFrom:
+                configMapKeyRef:
+                  name: cine-config
+                  key: SESSION_COOKIE_HTTPONLY
+
+            - name: SESSION_COOKIE_SAMESITE
+              valueFrom:
+                configMapKeyRef:
+                  name: cine-config
+                  key: SESSION_COOKIE_SAMESITE
+
+            - name: SESSION_COOKIE_SECURE
+              valueFrom:
+                configMapKeyRef:
+                  name: cine-config
+                  key: SESSION_COOKIE_SECURE
+
+            - name: SESSION_COOKIE_PATH
+              valueFrom:
+                configMapKeyRef:
+                  name: cine-config
+                  key: SESSION_COOKIE_PATH
+
+            - name: MOVIES_FOLDER
+              valueFrom:
+                configMapKeyRef:
+                  name: cine-config
+                  key: MOVIES_FOLDER
+
             - name: UPLOAD_FOLDER
-              value: "/app/uploads"
+              valueFrom:
+                configMapKeyRef:
+                  name: cine-config
+                  key: UPLOAD_FOLDER
 
             - name: TEMP_FOLDER
-              value: "/app/temp"
+              valueFrom:
+                configMapKeyRef:
+                  name: cine-config
+                  key: TEMP_FOLDER
 
             - name: OUTPUT_FOLDER
-              value: "/app/outputs"
+              valueFrom:
+                configMapKeyRef:
+                  name: cine-config
+                  key: OUTPUT_FOLDER
 
             - name: LOG_FOLDER
-              value: "/app/logs"
+              valueFrom:
+                configMapKeyRef:
+                  name: cine-config
+                  key: LOG_FOLDER
+
+            - name: OAUTH2_AUTHORIZE_ENDPOINT
+              valueFrom:
+                configMapKeyRef:
+                  name: cine-config
+                  key: OAUTH2_AUTHORIZE_ENDPOINT
+
+            - name: OAUTH2_TOKEN_ENDPOINT
+              valueFrom:
+                configMapKeyRef:
+                  name: cine-config
+                  key: OAUTH2_TOKEN_ENDPOINT
+
+            - name: OAUTH2_USERINFO_ENDPOINT
+              valueFrom:
+                configMapKeyRef:
+                  name: cine-config
+                  key: OAUTH2_USERINFO_ENDPOINT
 
           volumeMounts:
             - name: uploads
@@ -77,6 +182,10 @@ spec:
 
             - name: movies
               mountPath: /data/movies
+
+            - name: certs
+              mountPath: /certs
+              readOnly: true
 
       volumes:
         - name: uploads
@@ -103,3 +212,7 @@ spec:
           hostPath:
             path: /media/d/audiovisual
             type: Directory
+        
+        - name: certs
+          hostPath:
+            path: /var/lib/tailscale/certs

@@ -1,4 +1,39 @@
 $(document).ready(function () {
+    let currentUpload = null;
+
+    // ===== FUNCIONES DEL MENÚ (ahora con jQuery) =====
+    window.toggleMenu = function () {
+        const $menu = $('#sideMenu');
+        const $overlay = $('.menu-overlay');
+        $menu.toggleClass('open');
+        $overlay.toggleClass('active');
+    };
+
+    window.toggleCollapse = function () {
+        const $menu = $('#sideMenu');
+        const $mainContent = $('#mainContent');
+        const $collapseBtn = $('.menu-collapse-btn');
+
+        $menu.toggleClass('collapsed');
+        $mainContent.toggleClass('expanded');
+
+        if ($menu.hasClass('collapsed')) {
+            $collapseBtn.html('▶').attr('title', 'Expandir menú');
+        } else {
+            $collapseBtn.html('◀').attr('title', 'Colapsar menú');
+        }
+
+        // Guardar preferencia
+        try {
+            localStorage.setItem('menuCollapsed', $menu.hasClass('collapsed'));
+        } catch (e) { }
+    };
+
+    window.showTab = function (tabName) {
+        window.location.href = '/?tab=' + tabName;
+    };
+
+    // ===== FUNCIONES DEL OPTIMIZADOR =====
 
     // --- Vista previa del video ---
     $('#video-input').on('change', function () {
@@ -43,6 +78,7 @@ $(document).ready(function () {
         }
 
         $('#upload-status').fadeIn();
+        $('#cancel-upload-btn').hide();
         $('#status-text').text('Subiendo...');
         $('.progress-bar div').css('width', '0%');
         $('#upload-percent').text('0%');
@@ -58,6 +94,7 @@ $(document).ready(function () {
             contentType: false,
             xhr: function () {
                 let xhr = $.ajaxSettings.xhr();
+                currentUpload = xhr;
                 if (xhr.upload) {
                     xhr.upload.addEventListener('progress', function (evt) {
                         if (evt.lengthComputable) {
@@ -79,11 +116,24 @@ $(document).ready(function () {
             },
             error: function (xhr) {
                 $('#status-text').text('Error en la subida');
+                $('#cancel-upload-btn').show();
                 console.error(xhr.responseJSON ? xhr.responseJSON.error : "Error desconocido");
             }
         });
     });
 
+    // --- Cancelar subida ---
+    $('#cancel-upload-btn').on('click', function () {
+        if (currentUpload) {
+            currentUpload.abort();
+            $('#status-text').text('Subida cancelada');
+            $('.progress-bar div').css('background', 'gray');
+            $('#upload-percent').text('Cancelado');
+            $(this).hide();
+        }
+    });
+
+    // --- Funciones auxiliares ---
     function formatSecondsToHHMMSS(seconds) {
         seconds = parseInt(seconds, 10);
         const h = Math.floor(seconds / 3600);
@@ -93,6 +143,60 @@ $(document).ready(function () {
         return [h, m, s]
             .map(unit => String(unit).padStart(2, '0'))
             .join(':');
+    }
+
+    function updateSteps(step) {
+        $('.pipeline-step').removeClass('active completed').addClass('inactive');
+        for (let i = 1; i < step; i++) {
+            $('#step' + i).removeClass('inactive').addClass('completed');
+        }
+        if (step > 0 && step <= 4) {
+            $('#step' + step).removeClass('inactive').addClass('active');
+        }
+    }
+
+    function updateHistory(history) {
+        $('#history').empty();
+        history.forEach(item => {
+            let name, status, timestamp, duration;
+            if (Array.isArray(item)) {
+                name = item[0];
+                status = item[1];
+                timestamp = item[2] || '–';
+                duration = item[3] || '–';
+            } else {
+                name = item.name;
+                status = item.status;
+                timestamp = item.timestamp || '–';
+                duration = item.duration || '–';
+            }
+            const statusClass = status.toLowerCase().includes('error') ? 'status-error' : 'status-success';
+            $('#history').append(
+                `<tr>
+                    <td>${name}</td>
+                    <td class="${statusClass}">${status}</td>
+                    <td>${timestamp}</td>
+                    <td>${duration}</td>
+                </tr>`
+            );
+        });
+    }
+
+    function updateStatusIcon(logLine) {
+        const $iconElement = $('#statusIcon');
+        const line = logLine || '';
+
+        let icon = '🟡'; // Estado por defecto: en espera
+
+        if (line.toLowerCase().includes('error') || line.toLowerCase().includes('failed')) {
+            icon = '🔴'; // Error detectado
+        } else if (line.toLowerCase().includes('frame') || line.toLowerCase().includes('speed')) {
+            icon = '🟢'; // Procesando activamente
+        } else if (line.toLowerCase().includes('completed') || line.toLowerCase().includes('done')) {
+            icon = '✅'; // Finalizado correctamente
+        }
+
+        $iconElement.text(icon);
     }
 
     // --- Actualización de estado cada 2s ---
@@ -142,60 +246,36 @@ $(document).ready(function () {
         });
     }
 
-    function updateSteps(step) {
-        $('.pipeline-step').removeClass('active completed').addClass('inactive');
-        for (let i = 1; i < step; i++) {
-            $('#step' + i).removeClass('inactive').addClass('completed');
-        }
-        if (step > 0 && step <= 4) {
-            $('#step' + step).removeClass('inactive').addClass('active');
-        }
+    // ===== INICIALIZACIÓN =====
+
+    // Cargar estado del menú al iniciar
+    const savedState = localStorage.getItem('menuCollapsed');
+    const $menu = $('#sideMenu');
+    const $mainContent = $('#mainContent');
+    const $collapseBtn = $('.menu-collapse-btn');
+
+    if (savedState === 'true' && $(window).width() > 768 && $menu.length && $mainContent.length && $collapseBtn.length) {
+        $menu.addClass('collapsed');
+        $mainContent.addClass('expanded');
+        $collapseBtn.html('▶');
     }
 
-    function updateHistory(history) {
-        $('#history').empty();
-        history.forEach(item => {
-            let name, status, timestamp, duration;
-            if (Array.isArray(item)) {
-                name = item[0];
-                status = item[1];
-                timestamp = item[2] || '–';
-                duration = item[3] || '–';
-            } else {
-                name = item.name;
-                status = item.status;
-                timestamp = item.timestamp || '–';
-                duration = item.duration || '–';
-            }
-            const statusClass = status.toLowerCase().includes('error') ? 'status-error' : 'status-success';
-            $('#history').append(
-                `<tr>
-                    <td>${name}</td>
-                    <td class="${statusClass}">${status}</td>
-                    <td>${timestamp}</td>
-                    <td>${duration}</td>
-                </tr>`
-            );
-        });
-    }
-
-    function updateStatusIcon(logLine) {
-        const iconElement = $('#statusIcon');
-        const line = logLine || '';
-
-        let icon = '🟡'; // Estado por defecto: en espera
-
-        if (line.toLowerCase().includes('error') || line.toLowerCase().includes('failed')) {
-            icon = '🔴'; // Error detectado
-        } else if (line.toLowerCase().includes('frame') || line.toLowerCase().includes('speed')) {
-            icon = '🟢'; // Procesando activamente
-        } else if (line.toLowerCase().includes('completed') || line.toLowerCase().includes('done')) {
-            icon = '✅'; // Finalizado correctamente
+    // Marcar el item activo correctamente
+    const currentPath = window.location.pathname;
+    $('.menu-item').each(function () {
+        if ($(this).attr('href') === currentPath) {
+            $(this).addClass('active');
         }
+    });
 
-        iconElement.text(icon);
-    }
+    // Cerrar menú al hacer clic en enlaces (móvil)
+    $('.menu-item, .menu-logout').on('click', function () {
+        if ($(window).width() <= 768) {
+            toggleMenu();
+        }
+    });
 
+    // Iniciar actualizaciones periódicas
     setInterval(updateStatus, 2000);
     updateStatus(); // Carga inmediata al entrar/refrescar
 });

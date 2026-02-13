@@ -19,8 +19,8 @@ RUN mkdir -p uploads temp outputs logs
 
 # Variables de entorno por defecto
 ENV FLASK_HOST=0.0.0.0
-ENV FLASK_PORT=5000
+# ENV FLASK_PORT=5000
 
-EXPOSE 5000
+EXPOSE 9443
 
 CMD ["python", "server.py"]

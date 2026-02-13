@@ -3,7 +3,7 @@ import subprocess
 import json
 from modules.logging.logging_config import setup_logging
 
-logger = setup_logging("ffmpeg-utils")
+logger = setup_logging(os.environ.get("LOG_FOLDER"))
 
 class FFmpegHandler:
     def __init__(self, state_manager):
