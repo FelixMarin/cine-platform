@@ -9,7 +9,6 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/menu.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/optimizer.css') }}"/>
-  <script src="{{ url_for('static', filename='js/script.js') }}?v={{ range(1, 10000) | random }}" defer></script>
 </head>
 <body>
 
@@ -21,11 +20,9 @@
 
     <!-- Menú lateral colapsable -->
     <div class="side-menu" id="sideMenu" role="navigation" aria-label="Menú principal">
-        <!-- Botón para colapsar/expandir (solo visible en PC) -->
         <div class="menu-collapse-btn" onclick="toggleCollapse()" title="Colapsar menú" role="button" aria-label="Colapsar menú">◀</div>
         
         <div class="menu-header">
-            <!-- Título completo (visible cuando NO está colapsado) -->
             <h2 class="menu-title-full">Cine<span>Platform</span></h2>
         </div>
         
@@ -35,7 +32,6 @@
         </div>
         
         <div class="menu-items">
-            <!-- Sección principal -->
             <div class="menu-section-title">PRINCIPAL</div>
             <a href="/" class="menu-item">
                 <span aria-hidden="true">🏠</span> 
@@ -50,7 +46,6 @@
                 <span class="menu-item-text">Series</span>
             </a>
             
-            <!-- Sección admin (solo visible para admin) -->
             {% if session['user_role'] == 'admin' %}
             <div class="menu-section-title">ADMINISTRACIÓN</div>
             <a href="/admin/manage" class="menu-item">
@@ -64,7 +59,6 @@
             {% endif %}
         </div>
         
-        <!-- Cerrar sesión al final -->
         <a href="/logout" class="menu-logout">
             <span aria-hidden="true">🚪</span> 
             <span class="menu-logout-text">Cerrar Sesión</span>
@@ -74,9 +68,9 @@
     <!-- Contenido principal -->
     <main class="main-content" id="mainContent" role="main">
         <div class="optimizer-container">
-            <h1 class="text-center mb-4">🎬 Pipeline de Optimización de Videos</h1>
+            <img src="/static/images/optimizer.svg" alt="Optimizer" class="app-logo">
 
-            <!-- Formulario de subida directa -->
+            <!-- Subida -->
             <div class="card shadow-sm mb-4">
               <div class="card-body">
                 <h5 class="card-title">📤 Subir archivo de video</h5>
@@ -87,42 +81,43 @@
                   <input type="file" id="video-input" name="video" accept=".mkv,.mp4,.avi,.mov,.flv,.wmv" required style="display:none" />
                   <button type="submit" id="upload-btn" class="btn btn-success ml-2">Subir</button>
                 </form>
+
                 <div id="video-preview-container" class="mt-3 text-center" style="display:none;">
                   <h6 class="text-muted">Vista previa:</h6>
                   <video id="video-preview" controls class="shadow-sm rounded" style="max-width: 100%; max-height: 250px;"></video>
                 </div>
+
                 <div id="upload-status" class="mt-3" style="display:none;">
                   <span class="spinner"></span>
                   <span id="status-text">Preparando subida…</span>
                   <div class="progress-bar"><div></div></div>
                   <span id="upload-percent">0%</span>
-
-                  <!-- Botón cancelar -->
-                  <button id="cancel-upload-btn" class="btn btn-sm btn-danger mt-2" style="display:none;">
-                    Cancelar subida
-                  </button>
+                  <button id="cancel-upload-btn" class="btn btn-sm btn-danger mt-2" style="display:none;">Cancelar subida</button>
                 </div>
               </div>
             </div>
 
-            <div class="card shadow-sm mb-4">
+            <!-- NUEVA BARRA DE PROGRESO -->
+            <div id="progressContainer" class="card shadow-sm mb-4">
               <div class="card-body">
-                <h5 class="card-title">🛠️ Estado del Pipeline</h5>
-                <div id="pipelineSteps" class="d-flex flex-wrap">
-                  <div id="step1" class="pipeline-step inactive">Reparar Archivo</div>
-                  <div id="step2" class="pipeline-step inactive">Reducir Tamaño</div>
-                  <div id="step3" class="pipeline-step inactive">Optimizar Video</div>
-                  <div id="step4" class="pipeline-step inactive">Validar Duración</div>
+                <h5 class="card-title">📈 Progreso del Pipeline</h5>
+
+                <div class="progress-wrapper">
+                    <div id="progressBar" class="progress-bar"></div>
                 </div>
+
+                <div id="progressText" class="progress-text"></div>
               </div>
             </div>
-            
+
+            <!-- Estado -->
             <div class="card shadow-sm mb-4" id="estado-procesamiento">
               <div class="card-body">
                 <div class="d-flex justify-content-between align-items-center">
-                  <h5 class="mb-0">📈 Estado de procesamiento</h5>
+                  <h5 class="mb-0">📊 Estado de procesamiento</h5>
                   <span id="statusIcon" style="font-size:1.5em;">🟢</span>
                 </div>
+
                 <p class="mt-2 mb-1"><strong>Archivo en proceso:</strong> <span id="currentFile">Ninguno</span></p>
 
                 <table class="table table-sm table-bordered text-center mt-3">
@@ -145,27 +140,23 @@
                     </tr>
                   </tbody>
                 </table>
-                
-                <div class="mt-3">
-                  <h6 class="text-muted">🎬 Información del vídeo original</h6>
-                    <table class="table table-sm table-striped table-bordered mt-2">
-                      <thead class="thead-light">
-                        <tr><th>Campo</th><th>Valor</th></tr>
-                      </thead>
-                      <tbody>
-                        <tr><td>Nombre</td><td id="info-name">–</td></tr>
-                        <tr><td>Duración</td><td id="info-duration">–</td></tr>
-                        <tr><td>Resolución</td><td id="info-resolution">–</td></tr>
-                        <tr><td>Formato</td><td id="info-format">–</td></tr>
-                        <tr><td>Codec vídeo</td><td id="info-vcodec">–</td></tr>
-                        <tr><td>Codec audio</td><td id="info-acodec">–</td></tr>
-                        <tr><td>Tamaño</td><td id="info-size">–</td></tr>
-                      </tbody>
-                    </table>
-                </div>
+
+                <h6 class="text-muted mt-3">🎬 Información del vídeo original</h6>
+                <table class="table table-sm table-striped table-bordered mt-2">
+                  <tbody>
+                    <tr><td>Nombre</td><td id="info-name">–</td></tr>
+                    <tr><td>Duración</td><td id="info-duration">–</td></tr>
+                    <tr><td>Resolución</td><td id="info-resolution">–</td></tr>
+                    <tr><td>Formato</td><td id="info-format">–</td></tr>
+                    <tr><td>Codec vídeo</td><td id="info-vcodec">–</td></tr>
+                    <tr><td>Codec audio</td><td id="info-acodec">–</td></tr>
+                    <tr><td>Tamaño</td><td id="info-size">–</td></tr>
+                  </tbody>
+                </table>
               </div>
             </div>
 
+            <!-- Historial -->
             <div class="card shadow-sm mb-4">
               <div class="card-body">
                 <h5 class="card-title">📚 Historial de Procesamiento</h5>
@@ -182,6 +173,7 @@
                 </table>
               </div>
             </div>
+
         </div>
     </main>
 

@@ -1,3 +1,4 @@
+# modules/adapter.py
 import os
 import threading
 import shutil
@@ -74,8 +75,6 @@ class FFmpegOptimizerAdapter(IOptimizerService):
             self.state_manager.set_video_info(info)
 
         temp_original = os.path.join(self.temp_folder, video_filename)
-        repaired = os.path.join(self.temp_folder, video_filename.rsplit('.', 1)[0] + "_repaired.mkv")
-        reduced = os.path.join(self.temp_folder, video_filename.rsplit('.', 1)[0] + "_reduced.mkv")
         optimized_name = video_filename.rsplit('.', 1)[0] + "-optimized.mkv"
         temp_optimized = os.path.join(self.temp_folder, optimized_name)
         final_output = os.path.join(self.output_folder, optimized_name)
@@ -86,20 +85,12 @@ class FFmpegOptimizerAdapter(IOptimizerService):
             logger.info(f"Procesando {video_filename}")
             shutil.copy2(video_path, temp_original)
 
-            # Step 1: Repair
+            # Paso único: Process (antes eran 1,2,3)
             self.state_manager.set_step(1)
-            self.steps.repair(temp_original, repaired)
+            self.steps.process(temp_original, temp_optimized)
 
-            # Step 2: Reduce
+            # Validar duración (paso 2 visualmente)
             self.state_manager.set_step(2)
-            self.steps.reduce(repaired, reduced)
-
-            # Step 3: Optimize
-            self.state_manager.set_step(3)
-            self.steps.optimize(reduced, temp_optimized)
-
-            # Step 4: Validate
-            self.state_manager.set_step(4)
             dur_orig = self.ffmpeg.get_duration(temp_original)
             dur_opt = self.ffmpeg.get_duration(temp_optimized)
             if abs(dur_orig - dur_opt) > 2:
@@ -111,9 +102,8 @@ class FFmpegOptimizerAdapter(IOptimizerService):
             mover_a_audiovisual(final_output)
 
             # Cleanup
-            for p in [temp_original, repaired, reduced]:
-                if os.path.exists(p):
-                    os.remove(p)
+            if os.path.exists(temp_original):
+                os.remove(temp_original)
 
             logger.info(f"Video {video_filename} finalizado.")
 
@@ -130,6 +120,7 @@ class FFmpegOptimizerAdapter(IOptimizerService):
                 "duration": duration
             })
             self.state_manager.reset()
+
 
     def process_file(self, file_path):
         info = self.ffmpeg.get_video_info(file_path)

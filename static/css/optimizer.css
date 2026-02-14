@@ -7,53 +7,73 @@ h1, h4, h5 {
   font-weight: 600;
 }
 
-/* Pasos del pipeline */
-.pipeline-step {
-  display: inline-block;
-  padding: 10px 20px;
-  margin: 5px;
-  color: white;
-  font-weight: 500;
-  min-width: 180px;
-  text-align: center;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-  transition: all 0.3s ease-in-out;
-  margin-left: 4%;
-}
-.pipeline-step.inactive {
-  background-color: #b0b0b0;
-  opacity: 0.6;
-}
-.pipeline-step.active {
-  background: linear-gradient(135deg, #007bff, #00bfff);
-  transform: scale(1.05);
-  box-shadow: 0 4px 10px rgba(0,123,255,0.4);
-}
-.pipeline-step.completed {
-  background: linear-gradient(135deg, #28a745, #5cd65c);
-}
-.pipeline-step.completed::after {
-  content: " ✓";
-  font-weight: bold;
+/* ================================
+   NUEVA BARRA DE PROGRESO LINEAL
+   ================================ */
+
+.progress-wrapper {
+  width: 100%;
+  height: 14px;
+  background: #e9ecef;
+  border-radius: 6px;
+  overflow: hidden;
+  margin-top: 10px;
+  margin-bottom: 8px;
+  border: 1px solid #d0d0d0;
+
+  /* 🔥 OCULTA POR DEFECTO */
+  display: none;
 }
 
-/* Tabla */
+.progress-bar {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(135deg, #007bff, #00bfff);
+  transition: width 0.4s ease;
+}
+
+.progress-text {
+  font-size: 0.95rem;
+  color: #555;
+  margin-top: 4px;
+  font-weight: 500;
+
+  /* 🔥 OCULTA POR DEFECTO */
+  display: none;
+}
+
+/* ================================
+   TABLAS
+   ================================ */
+
 .table th {
   background-color: #343a40;
   color: white;
 }
 
-/* Estados */
+#estado-procesamiento td {
+  font-weight: 500;
+  color: #343a40;
+}
+
+/* ================================
+   ESTADOS
+   ================================ */
+
 .status-success {
   color: #28a745;
   font-weight: bold;
 }
+
 .status-error {
   color: #dc3545;
   font-weight: bold;
 }
 
-/* Botón custom de archivo */
+/* ================================
+   BOTÓN CUSTOM DE ARCHIVO
+   ================================ */
+
 .custom-file-upload {
   background: linear-gradient(135deg, #4e8ef7, #1c5adf);
   color: white;
@@ -65,11 +85,15 @@ h1, h4, h5 {
   display: inline-block;
   margin-right: 8px;
 }
+
 .custom-file-upload:hover {
   background: linear-gradient(135deg, #1c5adf, #4e8ef7);
 }
 
-/* Botón de subir */
+/* ================================
+   BOTÓN SUBIR
+   ================================ */
+
 #upload-btn {
   background: #00b894;
   border: none;
@@ -79,11 +103,15 @@ h1, h4, h5 {
   font-weight: 500;
   transition: background 0.3s;
 }
+
 #upload-btn:hover {
   background: #019874;
 }
 
-/* Spinner */
+/* ================================
+   SPINNER
+   ================================ */
+
 .spinner {
   width: 18px;
   height: 18px;
@@ -95,20 +123,15 @@ h1, h4, h5 {
   vertical-align: middle;
   margin-right: 6px;
 }
+
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
 
-/* Barra de progreso personalizada */
-.progress-bar {
-  background: #e9ecef;
-  border-radius: 4px;
-  overflow: hidden;
-  display: inline-block;
-  vertical-align: middle;
-  width: 150px;
-  margin-left: 8px;
-}
+/* ================================
+   BARRA DE PROGRESO DE SUBIDA
+   ================================ */
+
 .progress-bar div {
   height: 6px;
   background: linear-gradient(135deg, #007bff, #00bfff);
@@ -116,30 +139,40 @@ h1, h4, h5 {
   transition: width 0.3s ease;
 }
 
-/* Icono de estado */
+/* ================================
+   ICONO DE ESTADO
+   ================================ */
+
 #statusIcon {
   transition: transform 0.3s ease;
 }
+
 #statusIcon:hover {
   transform: rotate(15deg) scale(1.2);
 }
 
-/* Línea del log */
-#logLine {
-  font-family: monospace;
-  font-size: 0.95em;
-  color: #333;
-}
-
-#estado-procesamiento td {
-  font-weight: 500;
-  color: #343a40;
-}
+/* ================================
+   VIDEO PREVIEW
+   ================================ */
 
 #video-preview {
   border: 1px solid #ddd;
   background-color: #000;
 }
+
+/* ================================
+   BOTÓN CANCELAR SUBIDA
+   ================================ */
+
+#cancel-upload-btn {
+  display: none;
+  padding: 4px 12px;
+  font-size: 0.85rem;
+}
+
+/* ================================
+   BOTÓN VOLVER
+   ================================ */
 
 .back-btn {
     position: fixed;
@@ -158,10 +191,4 @@ h1, h4, h5 {
     background: #0056b3;
     color: white;
     text-decoration: none;
-}
-
-#cancel-upload-btn {
-    display: none;
-    padding: 4px 12px;
-    font-size: 0.85rem;
 }
