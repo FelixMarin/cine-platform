@@ -15,6 +15,6 @@
   </g>
 
   <!-- Título en una sola línea -->
-  <text x="60" y="38" class="title" font-size="34" fill="#1e293b" letter-spacing="-0.2">Pipeline de Optimización de Videos</text>
+  <text x="60" y="38" class="title" font-size="34" fill="#1e293b" letter-spacing="-0.2">Optimizador de Video</text>
 
 </svg>
