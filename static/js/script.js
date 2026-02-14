@@ -1,48 +1,150 @@
-function showTab(tabId) {
-    // Oculta todas las pestañas
-    const tabs = document.querySelectorAll('.tab-content');
-    tabs.forEach(tab => tab.style.display = 'none');
+// =========================
+//  UTILIDADES DE CATEGORÍAS
+// =========================
 
-    // Muestra la pestaña seleccionada
-    const targetTab = document.getElementById(tabId);
-    if (targetTab) {
-        targetTab.style.display = 'block';
-    }
+function formatCategoryName(cat) {
+    return cat
+        .replace(/_/g, " ")
+        .replace(/\b\w/g, c => c.toUpperCase());
+}
 
-    // Actualiza la pestaña activa
-    const tabLinks = document.querySelectorAll('.tab-link');
-    tabLinks.forEach(link => link.classList.remove('active'));
-    const targetLink = document.getElementById(tabId + 'Tab');
-    if (targetLink) {
-        targetLink.classList.add('active');
+function createMovieCard(movie) {
+    const card = document.createElement("div");
+    card.classList.add("movie-card");
+
+    card.innerHTML = `
+        <img src="${movie.thumbnail}" class="movie-thumb">
+        <div class="movie-title">${movie.name}</div>
+    `;
+
+    card.onclick = () => playMovie(movie.path);
+    return card;
+}
+
+function renderMoviesByCategory(categorias) {
+    const moviesDiv = document.getElementById("movies");
+    moviesDiv.innerHTML = "";
+
+    for (const categoria in categorias) {
+        const section = document.createElement("div");
+        section.classList.add("category-section");
+
+        // Header colapsable
+        const header = document.createElement("h3");
+        header.classList.add("collapsible-header");
+        header.textContent = formatCategoryName(categoria);
+        header.onclick = () => toggleSeries(header); // Reutilizamos la misma función
+
+        // Contenido colapsable
+        const content = document.createElement("div");
+        content.classList.add("category-content", "collapsible-content");
+        content.style.display = "none";
+
+        categorias[categoria].forEach(movie => {
+            const card = createMovieCard(movie);
+            content.appendChild(card);
+        });
+
+        section.appendChild(header);
+        section.appendChild(content);
+        moviesDiv.appendChild(section);
     }
 }
+
+function renderSeries(series) {
+    const seriesDiv = document.getElementById("seriesContainer");
+    seriesDiv.innerHTML = "";
+
+    for (const serie in series) {
+        const section = document.createElement("div");
+        section.classList.add("series-section");
+
+        const header = document.createElement("h3");
+        header.classList.add("collapsible-header");
+        header.textContent = serie;
+        header.setAttribute("role", "button");
+        header.setAttribute("aria-expanded", "false");
+        header.onclick = () => toggleSeries(header);
+
+        const content = document.createElement("div");
+        content.classList.add("card-container", "collapsible-content");
+        content.style.display = "none";
+
+        series[serie].forEach(ep => {
+            const card = document.createElement("article");
+            card.classList.add("card");
+
+            card.innerHTML = `
+                <img src="${ep.thumbnail}" alt="${ep.name}" loading="lazy">
+                <a href="/play/${ep.path}" class="card-link">${ep.name}</a>
+            `;
+
+            content.appendChild(card);
+        });
+
+        section.appendChild(header);
+        section.appendChild(content);
+        seriesDiv.appendChild(section);
+    }
+}
+
+// =========================
+//  PESTAÑAS
+// =========================
+
+function showTab(tabName) {
+    if (event) event.preventDefault();
+
+    document.querySelectorAll('.menu-item').forEach(item => item.classList.remove('active'));
+
+    if (tabName === 'movies') {
+        const moviesTab = document.querySelector('.menu-item[onclick="showTab(\'movies\')"]');
+        if (moviesTab) moviesTab.classList.add('active');
+    } else {
+        const seriesTab = document.querySelector('.menu-item[onclick="showTab(\'series\')"]');
+        if (seriesTab) seriesTab.classList.add('active');
+    }
+
+    const moviesDiv = document.getElementById('movies');
+    const seriesDiv = document.getElementById('series');
+
+    if (moviesDiv && seriesDiv) {
+        moviesDiv.style.display = tabName === 'movies' ? 'block' : 'none';
+        seriesDiv.style.display = tabName === 'series' ? 'block' : 'none';
+    }
+
+    document.title = tabName === 'movies' ? 'Películas - Cine Platform' : 'Series - Cine Platform';
+
+    if (window.innerWidth <= 768) {
+        const menu = document.getElementById('sideMenu');
+        if (menu && menu.classList.contains('open')) toggleMenu();
+    }
+
+    return false;
+}
+
+// =========================
+//  SERIES
+// =========================
 
 function toggleSeries(header) {
+    if (!header) return;
+
     header.classList.toggle('active');
     const content = header.nextElementSibling;
-    if (content.classList.contains('active')) {
-        content.classList.remove('active');
-        content.style.display = 'none';
-    } else {
-        content.classList.add('active');
-        content.style.display = 'grid';
+
+    if (content) {
+        content.classList.toggle('active');
+        content.style.display = content.classList.contains('active') ? 'grid' : 'none';
     }
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-    // Set initial active tab and section
-    showTab('movies');
-});
+// =========================
+//  MENÚ
+// =========================
 
-// ===== VARIABLES GLOBALES =====
 let isMenuCollapsed = false;
 
-// ===== FUNCIONES DEL MENÚ =====
-
-/**
- * Toggle del menú móvil (abrir/cerrar)
- */
 function toggleMenu() {
     const menu = document.getElementById('sideMenu');
     const overlay = document.querySelector('.menu-overlay');
@@ -53,9 +155,6 @@ function toggleMenu() {
     }
 }
 
-/**
- * Toggle del menú colapsable en PC
- */
 function toggleCollapse() {
     const menu = document.getElementById('sideMenu');
     const mainContent = document.getElementById('mainContent');
@@ -68,121 +167,35 @@ function toggleCollapse() {
     if (isMenuCollapsed) {
         menu.classList.add('collapsed');
         mainContent.classList.add('expanded');
-        collapseBtn.innerHTML = '▶'; // Flecha derecha (expandir)
+        collapseBtn.innerHTML = '▶';
     } else {
         menu.classList.remove('collapsed');
         mainContent.classList.remove('expanded');
-        collapseBtn.innerHTML = '◀'; // Flecha izquierda (colapsar)
+        collapseBtn.innerHTML = '◀';
     }
 
-    // Guardar preferencia en localStorage
     try {
         localStorage.setItem('menuCollapsed', isMenuCollapsed);
     } catch (e) {
-        console.warn('No se pudo guardar la preferencia en localStorage', e);
+        console.warn('No se pudo guardar la preferencia', e);
     }
 }
 
-// ===== FUNCIONES DE PESTAÑAS =====
+// =========================
+//  UTILIDADES
+// =========================
 
-/**
- * Mostrar una pestaña específica (películas o series)
- * @param {string} tabName - 'movies' o 'series'
- */
-function showTab(tabName) {
-    // Prevenir comportamiento por defecto si existe evento
-    if (event) {
-        event.preventDefault();
-    }
-
-    // Actualizar items del menú (quitar active de todos)
-    document.querySelectorAll('.menu-item').forEach(item => {
-        item.classList.remove('active');
-    });
-
-    // Activar el item correcto
-    if (tabName === 'movies') {
-        const moviesTab = document.querySelector('.menu-item[onclick="showTab(\'movies\')"]');
-        if (moviesTab) moviesTab.classList.add('active');
-    } else {
-        const seriesTab = document.querySelector('.menu-item[onclick="showTab(\'series\')"]');
-        if (seriesTab) seriesTab.classList.add('active');
-    }
-
-    // Mostrar/ocultar contenido
-    const moviesDiv = document.getElementById('movies');
-    const seriesDiv = document.getElementById('series');
-
-    if (moviesDiv && seriesDiv) {
-        moviesDiv.style.display = tabName === 'movies' ? 'block' : 'none';
-        seriesDiv.style.display = tabName === 'series' ? 'block' : 'none';
-    }
-
-    // Actualizar título de la página
-    document.title = tabName === 'movies' ? 'Películas - Cine Platform' : 'Series - Cine Platform';
-
-    // Cerrar menú en móvil si está abierto
-    if (window.innerWidth <= 768) {
-        const menu = document.getElementById('sideMenu');
-        if (menu && menu.classList.contains('open')) {
-            toggleMenu();
-        }
-    }
-
-    return false;
-}
-
-// ===== FUNCIONES PARA SERIES =====
-
-/**
- * Toggle para secciones colapsables de series
- * @param {HTMLElement} header - Elemento del header clickeado
- */
-function toggleSeries(header) {
-    if (!header) return;
-
-    // Toggle clase active en el header
-    header.classList.toggle('active');
-
-    // Buscar el contenido (siguiente elemento hermano)
-    const content = header.nextElementSibling;
-
-    if (content) {
-        content.classList.toggle('active');
-
-        // Ajustar display según la clase
-        if (content.classList.contains('active')) {
-            content.style.display = 'grid';
-        } else {
-            content.style.display = 'none';
-        }
-    }
-}
-
-// ===== FUNCIONES AUXILIARES =====
-
-/**
- * Cerrar menú al hacer clic fuera en móvil
- */
 function setupClickOutside() {
     const overlay = document.querySelector('.menu-overlay');
-    if (overlay) {
-        overlay.addEventListener('click', toggleMenu);
-    }
+    if (overlay) overlay.addEventListener('click', toggleMenu);
 }
 
-/**
- * Prevenir navegación en enlaces vacíos
- */
 function setupEmptyLinks() {
     document.querySelectorAll('a[href="#"]').forEach(link => {
-        link.addEventListener('click', (e) => e.preventDefault());
+        link.addEventListener('click', e => e.preventDefault());
     });
 }
 
-/**
- * Guardar el estado del menú al redimensionar
- */
 function setupResizeHandler() {
     window.addEventListener('resize', function () {
         const menu = document.getElementById('sideMenu');
@@ -191,41 +204,27 @@ function setupResizeHandler() {
         if (!menu || !mainContent) return;
 
         if (window.innerWidth <= 768) {
-            // En móvil: resetear clases de colapso
             menu.classList.remove('collapsed');
             mainContent.classList.remove('expanded');
-
-            // Cerrar menú si está abierto
-            if (menu.classList.contains('open')) {
-                toggleMenu();
-            }
+            if (menu.classList.contains('open')) toggleMenu();
         } else {
-            // En PC: restaurar estado guardado
             const savedState = localStorage.getItem('menuCollapsed') === 'true';
             if (savedState !== isMenuCollapsed) {
                 isMenuCollapsed = savedState;
                 if (isMenuCollapsed) {
                     menu.classList.add('collapsed');
                     mainContent.classList.add('expanded');
-                    const collapseBtn = document.querySelector('.menu-collapse-btn');
-                    if (collapseBtn) collapseBtn.innerHTML = '▶';
                 } else {
                     menu.classList.remove('collapsed');
                     mainContent.classList.remove('expanded');
-                    const collapseBtn = document.querySelector('.menu-collapse-btn');
-                    if (collapseBtn) collapseBtn.innerHTML = '◀';
                 }
             }
         }
     });
 }
 
-/**
- * Cargar preferencias guardadas
- */
 function loadSavedPreferences() {
     try {
-        // Recuperar estado del menú
         const savedMenuState = localStorage.getItem('menuCollapsed');
 
         if (savedMenuState !== null && window.innerWidth > 768) {
@@ -252,29 +251,42 @@ function loadSavedPreferences() {
     }
 }
 
-// ===== INICIALIZACIÓN =====
+function playMovie(path) {
+    window.location.href = `/play/${path}`;
+}
+
+// =========================
+//  CARGA DE DATOS DEL BACKEND
+// =========================
+
+function loadContent() {
+    fetch("/api/movies")
+        .then(r => r.json())
+        .then(data => {
+            renderMoviesByCategory(data.categorias);
+            renderSeries(data.series);
+        })
+        .catch(err => console.error("Error cargando contenido:", err));
+}
+
+// =========================
+//  INICIALIZACIÓN
+// =========================
+
 document.addEventListener('DOMContentLoaded', function () {
     console.log('✅ Script cargado correctamente');
 
-    // Configurar event listeners
     setupClickOutside();
     setupEmptyLinks();
     setupResizeHandler();
-
-    // Cargar preferencias guardadas
     loadSavedPreferences();
 
-    // Asegurar que la pestaña activa sea 'movies' al inicio
     showTab('movies');
 
-    // Inicializar collapsibles de series (por defecto cerrados)
-    document.querySelectorAll('.collapsible-content').forEach(content => {
-        content.style.display = 'none';
-    });
+    loadContent();
 });
 
-// ===== EXPORTAR FUNCIONES PARA USO GLOBAL =====
-// (útil si usas módulos, aunque con funciones globales no es necesario)
+// Exportar funciones globales
 window.toggleMenu = toggleMenu;
 window.toggleCollapse = toggleCollapse;
 window.showTab = showTab;

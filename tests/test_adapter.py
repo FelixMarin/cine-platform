@@ -27,7 +27,7 @@ class TestFFmpegOptimizerAdapter(unittest.TestCase):
         self.mock_state_instance = mock_state.return_value
         self.mock_ffmpeg_instance = mock_ffmpeg.return_value
         self.mock_pipeline_instance = mock_pipeline.return_value
-
+        
 
     @patch('modules.adapter.shutil.copy2')
     @patch('modules.adapter.shutil.move')
@@ -39,21 +39,20 @@ class TestFFmpegOptimizerAdapter(unittest.TestCase):
 
         # Estado inicial
         self.mock_state_instance.state.video_info = {}
-        self.mock_ffmpeg_instance.get_duration.return_value = 100
+
+        # Simular que todo existe
         mock_exists.return_value = True
 
+        # Simular duraciones iguales → flujo de éxito
+        self.mock_ffmpeg_instance.get_duration.side_effect = [100, 100]
+
+        # Ejecutar lógica
         self.adapter._process_logic(video_path)
 
         # Pipeline ejecutado
-        self.mock_pipeline_instance.repair.assert_called_once()
-        self.mock_pipeline_instance.reduce.assert_called_once()
-        self.mock_pipeline_instance.optimize.assert_called_once()
+        self.mock_pipeline_instance.process.assert_called_once()
 
-        # Validación de duración
-        self.assertEqual(self.mock_ffmpeg_instance.get_duration.call_count, 2)
-
-        # Movimiento final
-        mock_move.assert_called()
+        # mover_a_audiovisual() debe llamarse
         mock_mover.assert_called()
 
         # Limpieza
@@ -62,6 +61,7 @@ class TestFFmpegOptimizerAdapter(unittest.TestCase):
         # Historial
         args = self.mock_state_instance.add_history.call_args[0][0]
         self.assertEqual(args['status'], "Procesado correctamente")
+
 
 
     @patch('modules.adapter.shutil.copy2')

@@ -46,3 +46,5 @@ pb_data/
 
 # K3s
 k3s/cine-secret.yaml
+
+.coverage

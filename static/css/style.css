@@ -213,12 +213,6 @@ body {
     margin-bottom: 15px;
 }
 
-.collapsible-content.active {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 15px;
-}
-
 /* ===== RESPONSIVE PARA MÓVIL ===== */
 @media (max-width: 768px) {
     .container {
@@ -349,3 +343,141 @@ body {
     color: #81c784;
     border: 1px solid #4caf50;
 }
+
+/* ============================
+   CATEGORÍAS DE PELÍCULAS
+   ============================ */
+
+.category-section {
+    margin-bottom: 40px;
+    padding: 10px 0;
+}
+
+.category-title {
+    font-size: 1.8rem;
+    font-weight: 700;
+    margin: 10px 0 20px 0;
+    padding-left: 5px;
+    color: var(--text-primary);
+    border-left: 6px solid var(--accent-color);
+}
+
+/* Grid de películas dentro de cada categoría */
+.movies-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 20px;
+}
+
+/* Tarjeta de película */
+.movie-card {
+    background-color: var(--bg-card);
+    border-radius: var(--border-radius);
+    overflow: hidden;
+    border: 1px solid var(--border-color);
+    box-shadow: var(--shadow);
+    cursor: pointer;
+    transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+}
+
+.movie-card:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.6);
+    border-color: var(--accent-color);
+}
+
+/* Miniatura */
+.movie-thumb {
+    width: 100%;
+    height: 240px;
+    object-fit: cover;
+    border-bottom: 1px solid var(--border-color);
+}
+
+/* Título */
+.movie-title {
+    padding: 12px;
+    text-align: center;
+    font-size: 1.1rem;
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+/* ============================
+   RESPONSIVE
+   ============================ */
+
+@media (max-width: 768px) {
+    .movies-grid {
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        gap: 15px;
+    }
+
+    .movie-thumb {
+        height: 180px;
+    }
+
+    .movie-title {
+        font-size: 1rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .movies-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .movie-thumb {
+        height: 200px;
+    }
+}
+
+/* ============================
+   CATEGORÍAS COLAPSABLES
+   ============================ */
+
+.category-section {
+    margin-bottom: 25px;
+}
+
+.category-section .collapsible-header {
+    background-color: var(--bg-secondary);
+    border-radius: var(--border-radius);
+    margin-top: 15px;
+}
+
+.category-section .collapsible-content {
+    display: none;
+    padding: 20px;
+    background-color: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-top: none;
+    border-radius: 0 0 var(--border-radius) var(--border-radius);
+}
+
+.category-content {
+    display: none;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 20px;
+}
+
+.category-content.active {
+    display: grid;
+}
+
+/* SERIES: restaurar estilos originales */
+.series-section .collapsible-content {
+    display: none;
+    padding: 20px;
+    background-color: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-top: none;
+    border-radius: 0 0 var(--border-radius) var(--border-radius);
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+}
+
+.series-section .collapsible-content.active {
+    display: grid;
+}
+

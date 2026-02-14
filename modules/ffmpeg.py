@@ -1,3 +1,4 @@
+# modules/ffmpeg.py
 import os
 import subprocess
 import json
@@ -29,6 +30,7 @@ class FFmpegHandler:
             bufsize=1
         ) as process:
             for line in process.stdout:
+                logger.debug(line.strip())
                 line = line.strip()
                 if "frame=" in line or "time=" in line:
                     stats = [x for x in line.split() if "=" in x]
@@ -41,16 +43,24 @@ class FFmpegHandler:
 
     def get_video_info(self, video_path):
         try:
-            cmd = ["ffprobe", "-v", "quiet", "-print_format", "json", "-show_format", "-show_streams", video_path]
+            cmd = [
+                "ffprobe", "-v", "quiet",
+                "-print_format", "json",
+                "-show_format",
+                "-show_streams",
+                video_path
+            ]
+
             result = subprocess.run(cmd, capture_output=True, text=True, check=True)
             data = json.loads(result.stdout)
-            
+
             format_info = data.get("format", {})
             streams = data.get("streams", [])
             v_stream = next((s for s in streams if s.get("codec_type") == "video"), {})
             a_stream = next((s for s in streams if s.get("codec_type") == "audio"), {})
+
             size_mb = round(int(format_info.get("size", 0)) / (1024 * 1024), 2)
-            
+
             return {
                 "name": os.path.basename(video_path),
                 "duration": format_info.get("duration", "0"),
@@ -58,8 +68,12 @@ class FFmpegHandler:
                 "format": format_info.get("format_name", "desconocido"),
                 "vcodec": v_stream.get("codec_name", "desconocido"),
                 "acodec": a_stream.get("codec_name", "desconocido"),
+                "pix_fmt": v_stream.get("pix_fmt", ""),
+                "bit_depth": v_stream.get("bits_per_raw_sample", ""),
+                "color_space": v_stream.get("color_space", ""),
                 "size": f"{size_mb} MB"
             }
+
         except Exception as e:
             logger.error(f"Error info video: {e}")
             return {}
@@ -73,3 +87,4 @@ class FFmpegHandler:
             return float(result.stdout.strip())
         except subprocess.CalledProcessError:
             return 0.0
+            
