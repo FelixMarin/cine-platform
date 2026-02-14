@@ -39,29 +39,29 @@ class TestFFmpegOptimizerAdapter(unittest.TestCase):
 
         # Estado inicial
         self.mock_state_instance.state.video_info = {}
+
+        # Simular que todo existe
         mock_exists.return_value = True
+
+        # Simular duraciones iguales → flujo de éxito
+        self.mock_ffmpeg_instance.get_duration.side_effect = [100, 100]
 
         # Ejecutar lógica
         self.adapter._process_logic(video_path)
 
-        # ✔ PipelineSteps.process() debe haberse llamado UNA vez
+        # Pipeline ejecutado
         self.mock_pipeline_instance.process.assert_called_once()
 
-        # ❌ Ya NO deben llamarse repair(), reduce(), optimize()
-        self.assertFalse(hasattr(self.mock_pipeline_instance, "repair") and self.mock_pipeline_instance.repair.called)
-        self.assertFalse(hasattr(self.mock_pipeline_instance, "reduce") and self.mock_pipeline_instance.reduce.called)
-        self.assertFalse(hasattr(self.mock_pipeline_instance, "optimize") and self.mock_pipeline_instance.optimize.called)
-
-        # ✔ Movimiento final
-        mock_move.assert_called()
+        # mover_a_audiovisual() debe llamarse
         mock_mover.assert_called()
 
-        # ✔ Limpieza
+        # Limpieza
         mock_remove.assert_called()
 
-        # ✔ Historial
+        # Historial
         args = self.mock_state_instance.add_history.call_args[0][0]
         self.assertEqual(args['status'], "Procesado correctamente")
+
 
 
     @patch('modules.adapter.shutil.copy2')

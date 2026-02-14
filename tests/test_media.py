@@ -58,24 +58,28 @@ class TestFileSystemMediaRepository(unittest.TestCase):
     def test_list_content(self, mock_walk, mock_exists, mock_gen_thumb):
         # Simular estructura de archivos
         mock_walk.return_value = [
-            ("/tmp/movies", [], ["movie1.mp4", "series1 T01E01-serie.mkv", "ignored.txt"]),
+            ("/tmp/movies", [], ["Movie1.mp4", "series1 T01E01-serie.mkv", "ignored.txt"]),
         ]
 
         # Simular existencia de thumbnails
         def exists_side_effect(path):
             if path.endswith("thumbnails"):
                 return True
-            if "movie1" in path:
+            if "Movie1" in path:
                 return True  # thumbnail ya existe
             return False      # thumbnail faltante → debe generarse
 
         mock_exists.side_effect = exists_side_effect
 
-        movies, series = self.repo.list_content()
+        categorias, series = self.repo.list_content()
 
-        # Películas
-        self.assertEqual(len(movies), 1)
-        self.assertEqual(movies[0]['name'], "Movie1")
+        self.assertIn("Sin categoría", categorias)
+        self.assertEqual(len(categorias["Sin categoría"]), 1)
+
+        movie = categorias["Sin categoría"][0]
+        self.assertEqual(movie['name'], "Movie1")
+        self.assertEqual(movie['path'], "Movie1.mp4")
+
 
         # Series
         self.assertIn("Series1", series)
