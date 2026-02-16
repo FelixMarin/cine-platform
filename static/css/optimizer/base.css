@@ -1,0 +1,32 @@
+/* base.css - Estilos base */
+body {
+    background-color: #121212;
+    font-family: 'Inter', sans-serif;
+    color: #e0e0e0;
+    margin: 0;
+    padding: 0;
+}
+
+h1, h4, h5, h6 {
+    font-weight: 600;
+    color: #ffffff;
+}
+
+.text-muted {
+    color: #a0a0a0 !important;
+}
+
+.text-white {
+    color: #ffffff !important;
+}
+
+.text-dark {
+    color: #e0e0e0 !important;
+}
+
+hr, .divider {
+    border: none;
+    height: 1px;
+    background-color: #333333;
+    margin: 20px 0;
+}

@@ -1,0 +1,180 @@
+/* ===== RESPONSIVE ===== */
+@media (max-width: 1024px) {
+    .carousel-item {
+        width: 170px;
+    }
+    
+    .carousel-item .movie-thumb {
+        height: 220px;
+    }
+}
+
+@media (max-width: 768px) {
+    .container {
+        padding: 16px;
+    }
+    
+    .tabs {
+        flex-wrap: wrap;
+    }
+    
+    .tab, .tab-link {
+        padding: 14px 8px;
+        font-size: 1.1rem;
+        flex-basis: 50%;
+    }
+    
+    /* Ajustes carrusel para tablet */
+    .carousel-btn {
+        opacity: 0.7;
+        width: 35px;
+        height: 35px;
+        font-size: 20px;
+    }
+    
+    .carousel-btn.prev {
+        left: -5px;
+    }
+    
+    .carousel-btn.next {
+        right: -5px;
+    }
+    
+    .carousel-item {
+        width: 150px;
+    }
+    
+    .carousel-item .movie-thumb {
+        height: 200px;
+    }
+    
+    .carousel-item .movie-title {
+        font-size: 0.9rem;
+        padding: 10px 6px;
+    }
+    
+    .category-title {
+        font-size: 1.3rem;
+    }
+    
+    .card-container {
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        gap: 15px;
+    }
+    
+    .card {
+        max-width: 100%;
+    }
+    
+    .card img {
+        height: 140px;
+    }
+    
+    .card a {
+        padding: 12px;
+        font-size: 1rem;
+    }
+    
+    .collapsible-header {
+        padding: 16px;
+        font-size: 1.1rem;
+    }
+    
+    .movie-thumb {
+        height: 200px;
+    }
+}
+
+@media (max-width: 480px) {
+    .container {
+        padding: 12px;
+    }
+    
+    .tab, .tab-link {
+        flex-basis: 100%;
+        padding: 16px;
+        border-right: none;
+        border-bottom: 1px solid var(--border-color);
+    }
+    
+    .tab:last-child, .tab-link:last-child {
+        border-bottom: none;
+    }
+    
+    /* Ajustes carrusel para móvil */
+    .carousel-container {
+        padding: 0;
+    }
+    
+    .carousel-btn {
+        width: 32px;
+        height: 32px;
+        font-size: 18px;
+        opacity: 0.6;
+    }
+    
+    .carousel-btn.prev {
+        left: 2px;
+    }
+    
+    .carousel-btn.next {
+        right: 2px;
+    }
+    
+    .carousel-item {
+        width: 130px;
+    }
+    
+    .carousel-item .movie-thumb {
+        height: 170px;
+    }
+    
+    .carousel-item .movie-title {
+        font-size: 0.85rem;
+        padding: 8px 4px;
+    }
+    
+    .category-title {
+        font-size: 1.2rem;
+        padding-left: 8px;
+    }
+    
+    .category-section {
+        margin-bottom: 30px;
+    }
+    
+    .card-container {
+        grid-template-columns: 1fr;
+        gap: 16px;
+    }
+    
+    .card {
+        max-width: 100%;
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .card img {
+        height: 180px;
+    }
+    
+    .card a {
+        padding: 14px;
+        font-size: 1.1rem;
+    }
+    
+    .movie-thumb {
+        height: 170px;
+    }
+}
+
+/* Mejora de scroll para móviles */
+@media (hover: none) and (pointer: coarse) {
+    .carousel-track {
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    .carousel-btn {
+        display: none; /* Ocultar botones en dispositivos táctiles, usar scroll nativo */
+    }
+}

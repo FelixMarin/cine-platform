@@ -1,0 +1,72 @@
+/* profiles.css - Selector de perfiles */
+.profile-selector {
+    background: var(--bg-tertiary);
+    border-radius: var(--border-radius);
+    padding: 15px;
+    margin-bottom: 20px;
+}
+
+.profile-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 5px;
+    padding: 15px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    height: 100%;
+}
+
+.profile-card:hover {
+    transform: translateY(-2px);
+    border-color: var(--accent-color);
+    box-shadow: var(--shadow);
+}
+
+.profile-card.selected {
+    border: 2px solid var(--accent-color);
+    background: linear-gradient(145deg, var(--bg-card), var(--bg-tertiary));
+}
+
+.profile-icon {
+    font-size: 2rem;
+    margin-bottom: 10px;
+    color: var(--accent-color);
+}
+
+.profile-title {
+    font-weight: 700;
+    font-size: 1.1rem;
+    margin-bottom: 5px;
+    color: var(--text-primary);
+}
+
+.profile-description {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    margin-bottom: 10px;
+}
+
+.profile-badge {
+    display: inline-block;
+    padding: 3px 8px;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    margin-right: 5px;
+    margin-bottom: 5px;
+}
+
+.badge-speed { 
+    background: #28a745; 
+    color: white; 
+}
+
+.badge-quality { 
+    background: #ffc107; 
+    color: black; 
+}
+
+.badge-size { 
+    background: #17a2b8; 
+    color: white; 
+}

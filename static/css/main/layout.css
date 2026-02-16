@@ -1,0 +1,32 @@
+/* ===== ESPACIADO PRINCIPAL ===== */
+.main-content {
+    transition: margin-left 0.3s ease;
+    padding: 20px;
+}
+
+.main-content.expanded {
+    margin-left: 80px;
+}
+
+/* ===== SCROLL PERSONALIZADO ===== */
+::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--bg-secondary);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--accent-color);
+    border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--accent-hover);
+}
+
+html {
+    scroll-behavior: smooth;
+}

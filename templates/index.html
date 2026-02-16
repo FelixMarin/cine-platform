@@ -5,9 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.5">
     <title>Cine Platform</title>
     <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/menu.css') }}">
-    <script src="{{ url_for('static', filename='js/script.js') }}?v={{ range(1, 10000) | random }}" defer></script>
+    <!-- Estilos principales -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main/main.css') }}?v={{ range(1, 10000) | random }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/menu.css') }}?v={{ range(1, 10000) | random }}">
 </head>
 
 <body class="dark-mode">
@@ -103,24 +103,16 @@
 
     </main>
 
-    <script>
-        // Verificar estado de thumbnails cada 5 segundos
-        setInterval(() => {
-            fetch('/api/thumbnail-status')
-                .then(r => r.json())
-                .then(data => {
-                    const progressDiv = document.getElementById('thumbnail-progress');
-                    const countSpan = document.getElementById('thumbnail-count');
-                    
-                    if (data.queue_size > 0) {
-                        countSpan.textContent = data.queue_size;
-                        progressDiv.style.display = 'block';
-                    } else {
-                        progressDiv.style.display = 'none';
-                    }
-                })
-                .catch(err => console.log('Error checking thumbnail status'));
-        }, 5000);
-    </script>    
+    <!-- Cargar módulos en orden -->
+    <script src="{{ url_for('static', filename='js/main/cache.js') }}?v={{ range(1, 10000) | random }}" defer></script>
+    <script src="{{ url_for('static', filename='js/main/thumbnailManager.js') }}?v={{ range(1, 10000) | random }}" defer></script>
+    <script src="{{ url_for('static', filename='js/main/categoryUtils.js') }}?v={{ range(1, 10000) | random }}" defer></script>
+    <script src="{{ url_for('static', filename='js/main/cardCreators.js') }}?v={{ range(1, 10000) | random }}" defer></script>
+    <script src="{{ url_for('static', filename='js/main/carousel.js') }}?v={{ range(1, 10000) | random }}" defer></script>
+    <script src="{{ url_for('static', filename='js/main/tabs.js') }}?v={{ range(1, 10000) | random }}" defer></script>
+    <script src="{{ url_for('static', filename='js/main/menu.js') }}?v={{ range(1, 10000) | random }}" defer></script>
+    <script src="{{ url_for('static', filename='js/main/utils.js') }}?v={{ range(1, 10000) | random }}" defer></script>
+    <script src="{{ url_for('static', filename='js/main/api.js') }}?v={{ range(1, 10000) | random }}" defer></script>
+    <script src="{{ url_for('static', filename='js/main/init.js') }}?v={{ range(1, 10000) | random }}" defer></script>
 </body>
 </html>

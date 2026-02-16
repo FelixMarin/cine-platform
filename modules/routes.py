@@ -406,6 +406,25 @@ def create_blueprints(auth_service, media_service, optimizer_service):
         response.headers['Cache-Control'] = 'no-cache'  # No cachear esta respuesta
         return response
 
+    @bp.route('/cancel-process', methods=['POST'])
+    def cancel_process():
+        """Cancela el proceso de optimización en curso"""
+        if not is_logged_in() or not is_admin():
+            return jsonify({"error": "No autorizado"}), 403
+        
+        try:
+            # Aquí debes implementar la lógica para cancelar el proceso
+            # Depende de cómo tengas implementado el optimizer_service
+            if hasattr(optimizer_service, 'cancel_current_process'):
+                optimizer_service.cancel_current_process()
+                return jsonify({"message": "Proceso cancelado"})
+            else:
+                # Si no hay método de cancelación, devolver error
+                return jsonify({"error": "No se puede cancelar el proceso"}), 400
+        except Exception as e:
+            print(f"Error cancelando proceso: {e}")
+            return jsonify({"error": str(e)}), 500
+    
     # --- After request handler para UTF-8 en todas las respuestas JSON ---
     @bp.after_request
     def add_charset(response):

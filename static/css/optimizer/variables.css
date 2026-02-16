@@ -1,0 +1,15 @@
+/* variables.css - Variables globales */
+:root {
+    --bg-primary: #1a1a1a;
+    --bg-secondary: #333;
+    --bg-tertiary: #222;
+    --bg-card: #2c2c2c;
+    --accent-color: #e50914;
+    --accent-hover: #b20710;
+    --border-color: #444;
+    --text-primary: #ffffff;
+    --text-secondary: #cccccc;
+    --shadow: 0 8px 16px rgba(0, 0, 0, 0.4);
+    --border-radius: 12px;
+    --border-radius-sm: 8px;
+}

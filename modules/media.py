@@ -342,7 +342,7 @@ class FileSystemMediaRepository(IMediaRepository):
                                 "jpg": None,
                                 "webp": None
                             }
-                            primary_thumbnail = "/static/thumbnails/default.jpg"
+                            primary_thumbnail = "/static/images/default.jpg"
                         else:
                             webp_path = os.path.join(self.thumbnails_folder, f"{base_name}.webp")
                             thumbnail_urls = {

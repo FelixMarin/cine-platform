@@ -1,0 +1,14 @@
+/* responsive.css - Media queries */
+@media (max-width: 768px) {
+    .profile-card {
+        margin-bottom: 15px;
+    }
+    
+    .metric {
+        margin-bottom: 10px;
+    }
+    
+    #cancel-process-btn {
+        width: 100%;
+    }
+}
