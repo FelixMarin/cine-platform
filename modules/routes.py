@@ -1,6 +1,8 @@
 import os
 import jwt
 import unicodedata
+import threading  # <-- FALTABA ESTA IMPORTACIÓN
+import time
 from flask import Blueprint, render_template, request, redirect, url_for, session, jsonify, Response, send_from_directory, make_response
 
 def create_blueprints(auth_service, media_service, optimizer_service):
@@ -169,6 +171,149 @@ def create_blueprints(auth_service, media_service, optimizer_service):
             return "Acceso denegado", 403
         return render_template("optimizer.html")
 
+    @bp.route('/optimizer/profiles', methods=['GET'])
+    def get_profiles():
+        """Devuelve los perfiles de optimización disponibles"""
+        if not is_logged_in() or not is_admin():
+            return jsonify({"error": "No autorizado"}), 403
+        
+        try:
+            # Intentar obtener perfiles del pipeline
+            if hasattr(optimizer_service, 'pipeline') and hasattr(optimizer_service.pipeline, 'get_profiles'):
+                profiles = optimizer_service.pipeline.get_profiles()
+            else:
+                # Perfiles por defecto si no existe el método
+                profiles = {
+                    "ultra_fast": {
+                        "name": "Ultra Rápido",
+                        "description": "⚡ Máxima velocidad - Calidad baja",
+                        "preset": "ultrafast",
+                        "crf": 28,
+                        "resolution": "480p"
+                    },
+                    "fast": {
+                        "name": "Rápido",
+                        "description": "🚀 Rápido - Calidad media-baja",
+                        "preset": "veryfast",
+                        "crf": 26,
+                        "resolution": "540p"
+                    },
+                    "balanced": {
+                        "name": "Balanceado",
+                        "description": "⚖️ Balanceado - Buena calidad/velocidad",
+                        "preset": "medium",
+                        "crf": 23,
+                        "resolution": "720p"
+                    },
+                    "high_quality": {
+                        "name": "Alta Calidad",
+                        "description": "🎯 Alta calidad - Más lento",
+                        "preset": "slow",
+                        "crf": 20,
+                        "resolution": "1080p"
+                    },
+                    "master": {
+                        "name": "Master",
+                        "description": "💎 Calidad original - Muy lento",
+                        "preset": "veryslow",
+                        "crf": 18,
+                        "resolution": "Original"
+                    }
+                }
+            
+            return jsonify(profiles)
+            
+        except Exception as e:
+            print(f"Error obteniendo perfiles: {e}")
+            return jsonify({"error": str(e)}), 500
+
+    @bp.route('/optimizer/estimate', methods=['POST'])
+    def estimate_optimization():
+        """Estima el tamaño según perfil"""
+        if not is_logged_in() or not is_admin():
+            return jsonify({"error": "No autorizado"}), 403
+        
+        try:
+            data = request.get_json()
+            filepath = data.get('filepath')
+            profile = data.get('profile', 'balanced')
+            
+            if not filepath:
+                return jsonify({"error": "filepath requerido"}), 400
+            
+            # Verificar si existe el archivo (puede ser solo nombre)
+            full_path = os.path.join(optimizer_service.get_upload_folder(), filepath)
+            if os.path.exists(full_path):
+                filepath = full_path
+            
+            # Estimación básica si no hay método específico
+            if hasattr(optimizer_service, 'pipeline') and hasattr(optimizer_service.pipeline, 'estimate_size'):
+                estimate = optimizer_service.pipeline.estimate_size(filepath, profile)
+            else:
+                # Estimación por defecto
+                size_mb = os.path.getsize(filepath) / (1024 * 1024) if os.path.exists(filepath) else 100
+                estimate = {
+                    "original_mb": size_mb,
+                    "estimated_mb": size_mb * 0.15 if profile == 'ultra_fast' else
+                                   size_mb * 0.12 if profile == 'fast' else
+                                   size_mb * 0.10 if profile == 'balanced' else
+                                   size_mb * 0.25 if profile == 'high_quality' else
+                                   size_mb * 0.50,
+                    "compression_ratio": "85%" if profile == 'ultra_fast' else
+                                        "88%" if profile == 'fast' else
+                                        "90%" if profile == 'balanced' else
+                                        "75%" if profile == 'high_quality' else "50%"
+                }
+            
+            return jsonify(estimate)
+            
+        except Exception as e:
+            print(f"Error estimando: {e}")
+            return jsonify({"error": str(e)}), 500
+
+    @bp.route('/optimizer/process', methods=['POST'])
+    def process_with_profile():
+        """Procesa con perfil específico"""
+        if not is_logged_in() or not is_admin():
+            return jsonify({"error": "No autorizado"}), 403
+        
+        try:
+            data = request.get_json()
+            filepath = data.get('filepath')
+            profile = data.get('profile', 'balanced')
+            output_path = data.get('output_path')
+            
+            if not filepath or not os.path.exists(filepath):
+                return jsonify({"error": "Archivo no encontrado"}), 404
+            
+            if not output_path:
+                # Generar nombre de salida
+                base, ext = os.path.splitext(filepath)
+                output_path = f"{base}_optimized_{profile}{ext}"
+            
+            # Procesar en segundo plano
+            def process_task():
+                try:
+                    if hasattr(optimizer_service, 'pipeline') and hasattr(optimizer_service.pipeline, 'process'):
+                        optimizer_service.pipeline.process(filepath, output_path, profile)
+                    else:
+                        optimizer_service.process_file(filepath)
+                except Exception as e:
+                    print(f"Error en procesamiento: {e}")
+            
+            thread = threading.Thread(target=process_task)
+            thread.daemon = True
+            thread.start()
+            
+            return jsonify({
+                "message": f"Procesando con perfil: {profile}",
+                "output": output_path
+            })
+            
+        except Exception as e:
+            print(f"Error iniciando procesamiento: {e}")
+            return jsonify({"error": str(e)}), 500
+        
     @bp.route("/process-file", methods=["POST"])
     def process_file():
         if not is_logged_in() or not is_admin():
@@ -254,7 +399,6 @@ def create_blueprints(auth_service, media_service, optimizer_service):
         status = media_service.get_thumbnail_status()
         
         # Añadir timestamp para saber cuándo se actualizó
-        import time
         status["timestamp"] = time.time()
         
         response = jsonify(status)

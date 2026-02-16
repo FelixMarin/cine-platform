@@ -7,8 +7,115 @@
   <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
   <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css"/>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/menu.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/optimizer-dark.css') }}"/>
+  <style>
+    /* Estilos adicionales para los perfiles */
+    .profile-selector {
+      background: var(--bg-tertiary);
+      border-radius: var(--border-radius);
+      padding: 15px;
+      margin-bottom: 20px;
+    }
+    
+    .profile-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 5px;
+      padding: 15px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      height: 100%;
+    }
+    
+    .profile-card:hover {
+      transform: translateY(-2px);
+      border-color: var(--accent-color);
+      box-shadow: var(--shadow);
+    }
+    
+    .profile-card.selected {
+      border: 2px solid #010101;
+      background: linear-gradient(145deg, var(--bg-card), var(--bg-tertiary));
+    }
+    
+    .profile-icon {
+      font-size: 2rem;
+      margin-bottom: 10px;
+      color: var(--accent-color);
+    }
+    
+    .profile-title {
+      font-weight: 700;
+      font-size: 1.1rem;
+      margin-bottom: 5px;
+      color: var(--text-primary);
+    }
+    
+    .profile-description {
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+      margin-bottom: 10px;
+    }
+    
+    .profile-badge {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 12px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      margin-right: 5px;
+      margin-bottom: 5px;
+    }
+    
+    .badge-speed { background: #28a745; color: white; }
+    .badge-quality { background: #ffc107; color: black; }
+    .badge-size { background: #17a2b8; color: white; }
+    
+    .estimate-info {
+      background: var(--bg-tertiary);
+      border-radius: var(--border-radius-sm);
+      padding: 15px;
+      margin-top: 15px;
+      display: none;
+    }
+    
+    .estimate-info.show {
+      display: block;
+      animation: slideIn 0.3s ease;
+    }
+    
+    .metric {
+      text-align: center;
+      padding: 10px;
+      background: var(--bg-card);
+      border-radius: var(--border-radius-sm);
+    }
+    
+    .metric-value {
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: var(--accent-color);
+    }
+    
+    .metric-label {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+    }
+    
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateY(-10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+  </style>
 </head>
 <body>
 
@@ -70,16 +177,72 @@
         <div class="optimizer-container">
             <img src="/static/images/optimizer.svg" alt="Optimizer" class="app-logo">
 
+            <!-- Selector de Perfiles (NUEVO) -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <i class="fas fa-sliders-h"></i> Perfil de Optimización
+                    </h5>
+                    <p class="text-muted">Selecciona el equilibrio entre velocidad y calidad</p>
+                    
+                    <div class="profile-selector">
+                        <div class="row" id="profile-container">
+                            <!-- Los perfiles se cargarán dinámicamente -->
+                            <div class="col-12 text-center">
+                                <div class="spinner"></div>
+                                <p class="mt-2">Cargando perfiles...</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Estimación de tamaño -->
+                    <div id="estimate-info" class="estimate-info">
+                        <h6 class="mb-3"><i class="fas fa-calculator"></i> Estimación de tamaño</h6>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="metric">
+                                    <div class="metric-value" id="estimate-original">0 MB</div>
+                                    <div class="metric-label">Original</div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="metric">
+                                    <div class="metric-value" id="estimate-final">0 MB</div>
+                                    <div class="metric-label">Estimado final</div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="metric">
+                                    <div class="metric-value" id="estimate-ratio">0%</div>
+                                    <div class="metric-label">Compresión</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Subida -->
             <div class="card shadow-sm mb-4">
               <div class="card-body">
                 <h5 class="card-title">📤 Subir archivo de video</h5>
                 <form id="upload-form">
-                  <label for="video-input" class="custom-file-upload">
-                    <i class="fas fa-file-upload"></i> Elegir archivo
-                  </label>
-                  <input type="file" id="video-input" name="video" accept=".mkv,.mp4,.avi,.mov,.flv,.wmv" required style="display:none" />
-                  <button type="submit" id="upload-btn" class="btn btn-success ml-2">Subir</button>
+                  <div class="form-row align-items-center">
+                    <div class="col-auto">
+                      <label for="video-input" class="custom-file-upload btn btn-primary">
+                        <i class="fas fa-file-upload"></i> Elegir archivo
+                      </label>
+                      <input type="file" id="video-input" name="video" accept=".mkv,.mp4,.avi,.mov,.flv,.wmv" required style="display:none" />
+                    </div>
+                    <div class="col">
+                      <span id="selected-file" class="text-muted">Ningún archivo seleccionado</span>
+                    </div>
+                    <div class="col-auto">
+                      <button type="submit" id="upload-btn" class="btn btn-success">
+                        <i class="fas fa-cloud-upload-alt"></i> Subir
+                      </button>
+                    </div>
+                  </div>
                 </form>
 
                 <div id="video-preview-container" class="mt-3 text-center" style="display:none;">
@@ -88,11 +251,15 @@
                 </div>
 
                 <div id="upload-status" class="mt-3" style="display:none;">
-                  <span class="spinner"></span>
-                  <span id="status-text">Preparando subida…</span>
-                  <div class="progress-bar"><div></div></div>
+                  <div class="d-flex align-items-center">
+                    <span class="spinner mr-2"></span>
+                    <span id="status-text">Preparando subida…</span>
+                  </div>
+                  <div class="progress-bar mt-2"><div></div></div>
                   <span id="upload-percent">0%</span>
-                  <button id="cancel-upload-btn" class="btn btn-sm btn-danger mt-2" style="display:none;">Cancelar subida</button>
+                  <button id="cancel-upload-btn" class="btn btn-sm btn-danger mt-2" style="display:none;">
+                    <i class="fas fa-times"></i> Cancelar subida
+                  </button>
                 </div>
               </div>
             </div>
@@ -107,6 +274,13 @@
                 </div>
 
                 <div id="progressText" class="progress-text"></div>
+                
+                <!-- Perfil actual en proceso -->
+                <div id="current-profile-badge" class="mt-2 text-center" style="display:none;">
+                    <span class="badge badge-info p-2">
+                        <i class="fas fa-sliders-h"></i> <span id="processing-profile"></span>
+                    </span>
+                </div>
               </div>
             </div>
 
@@ -164,9 +338,11 @@
                   <thead class="thead-dark">
                     <tr>
                         <th>Nombre del Video</th>
+                        <th>Perfil</th>
                         <th>Estado</th>
                         <th>Fecha/Hora Fin</th>
                         <th>Duración Proceso</th>
+                        <th>Tamaño</th>
                     </tr>
                   </thead>
                   <tbody id="history"></tbody>
@@ -178,6 +354,33 @@
     </main>
 
     <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.16.0/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
     <script src="{{ url_for('static', filename='js/optimizer.js') }}?v={{ range(1, 10000) | random }}"></script>
+    
+    <script>
+        // Función para el menú (necesaria)
+        function toggleMenu() {
+            const menu = document.getElementById('sideMenu');
+            const overlay = document.querySelector('.menu-overlay');
+            menu.classList.toggle('open');
+            overlay.classList.toggle('active');
+        }
+
+        function toggleCollapse() {
+            const menu = document.getElementById('sideMenu');
+            const mainContent = document.getElementById('mainContent');
+            const collapseBtn = document.querySelector('.menu-collapse-btn');
+            
+            menu.classList.toggle('collapsed');
+            mainContent.classList.toggle('expanded');
+            
+            if (menu.classList.contains('collapsed')) {
+                collapseBtn.innerHTML = '▶';
+            } else {
+                collapseBtn.innerHTML = '◀';
+            }
+        }
+    </script>
 </body> 
 </html>
