@@ -1,89 +1,332 @@
+const thumbnailCache = new Map();
+
 // =========================
 //  UTILIDADES DE CATEGORÍAS
 // =========================
 
 function formatCategoryName(cat) {
-    return cat
-        .replace(/_/g, " ")
-        .replace(/\b\w/g, c => c.toUpperCase());
+    // Si contiene /, tomar la parte después de la última /
+    let cleanName = cat.includes('/') ? cat.split('/').pop() : cat;
+
+    // Reemplazar guiones bajos por espacios
+    cleanName = cleanName.replace(/_/g, " ");
+
+    // Capitalizar cada palabra respetando acentos
+    return cleanName.split(' ').map(word => {
+        if (word.length === 0) return word;
+        // Preservar la primera letra con su acento y poner el resto en minúsculas
+        return word.charAt(0).toLocaleUpperCase() + word.slice(1).toLocaleLowerCase();
+    }).join(' ');
+}
+
+// Función para obtener la URL del thumbnail con detección de formato
+async function getThumbnailUrl(movie) {
+    const name = movie.name || movie.title || '';
+    const cleanName = name.trim().replace(/\s+/g, ' ');
+    const cacheKey = cleanName;
+
+    // Si ya está en caché, devolverlo
+    if (thumbnailCache.has(cacheKey)) {
+        return thumbnailCache.get(cacheKey);
+    }
+
+    // Si ya tiene thumbnail en los datos, usarlo
+    if (movie.thumbnail) {
+        thumbnailCache.set(cacheKey, movie.thumbnail);
+        return movie.thumbnail;
+    }
+
+    const encodedName = encodeURIComponent(cleanName);
+
+    // Verificar soporte WebP (una sola vez)
+    if (!window.supportsWebP) {
+        window.supportsWebP = await checkWebPSupport();
+    }
+
+    let thumbnailUrl;
+
+    // Si soporta WebP, intentar obtener versión WebP
+    if (window.supportsWebP) {
+        try {
+            const response = await fetch(`/thumbnails/detect/${encodedName}-optimized.jpg`);
+            const data = await response.json();
+
+            if (data.has_webp) {
+                thumbnailUrl = data.webp_url;
+            } else if (data.has_jpg) {
+                thumbnailUrl = data.jpg_url;
+            } else {
+                thumbnailUrl = `/thumbnails/${encodedName}-optimized.jpg`;
+            }
+        } catch (error) {
+            console.log('Error detectando formato, usando JPG');
+            thumbnailUrl = `/thumbnails/${encodedName}-optimized.jpg`;
+        }
+    } else {
+        thumbnailUrl = `/thumbnails/${encodedName}-optimized.jpg`;
+    }
+
+    // Guardar en caché
+    thumbnailCache.set(cacheKey, thumbnailUrl);
+    return thumbnailUrl;
+}
+
+// Función para verificar soporte de WebP
+function checkWebPSupport() {
+    return new Promise(resolve => {
+        const webP = new Image();
+        webP.onload = webP.onerror = function () {
+            resolve(webP.height === 2);
+        };
+        webP.src = 'data:image/webp;base64,UklGRjoAAABXRUJQVlA4IC4AAACyAgCdASoCAAIALmk0mk0iIiIiIgBoSygABc6WWgAA/veff/0PP8bA//LwYAAA';
+    });
 }
 
 function createMovieCard(movie) {
     const card = document.createElement("div");
     card.classList.add("movie-card");
 
-    card.innerHTML = `
-        <img src="${movie.thumbnail}" class="movie-thumb">
-        <div class="movie-title">${movie.name}</div>
-    `;
+    const title = movie.name || movie.title || 'Sin título';
 
-    card.onclick = () => playMovie(movie.path);
+    // Si el thumbnail está pendiente, mostrar un placeholder con estilo
+    if (movie.thumbnail_pending) {
+        card.classList.add("thumbnail-pending");
+    }
+
+    const thumbnailUrl = movie.thumbnail || '/static/images/default.jpg';
+
+    const img = document.createElement('img');
+    img.className = 'movie-thumb';
+    img.alt = title;
+    img.src = thumbnailUrl;
+    img.onerror = function () {
+        this.src = '/static/images/default.jpg';
+        this.onerror = null;
+    };
+
+    const titleDiv = document.createElement('div');
+    titleDiv.className = 'movie-title';
+    titleDiv.textContent = title;
+
+    card.appendChild(img);
+    card.appendChild(titleDiv);
+
+    const playPath = movie.path || movie.id || movie.file;
+    card.onclick = () => playMovie(playPath);
+
     return card;
 }
 
-function renderMoviesByCategory(categorias) {
+// Nueva función asíncrona para crear tarjetas de series
+async function createSerieCard(episodio) {
+    const card = document.createElement("div");
+    card.classList.add("movie-card");
+
+    const title = episodio.name || episodio.title || 'Sin título';
+
+    // Determinar la URL del thumbnail
+    let thumbnailUrl;
+    if (episodio.thumbnail) {
+        thumbnailUrl = episodio.thumbnail;
+    } else {
+        // Intentar usar getThumbnailUrl para series también
+        thumbnailUrl = await getThumbnailUrl(episodio);
+    }
+
+    // Crear imagen
+    const img = document.createElement('img');
+    img.className = 'movie-thumb';
+    img.alt = title;
+    img.src = thumbnailUrl;
+    img.onerror = function () {
+        console.log('Error en serie, usando default:', this.src);
+        this.src = '/static/images/default.jpg';
+        this.onerror = null;
+    };
+
+    const titleDiv = document.createElement('div');
+    titleDiv.className = 'movie-title';
+    titleDiv.textContent = title;
+
+    card.appendChild(img);
+    card.appendChild(titleDiv);
+
+    const playPath = episodio.path || episodio.id || episodio.file;
+    card.onclick = () => playMovie(playPath);
+
+    return card;
+}
+
+// Función para desplazar el carrusel
+function scrollCarousel(button, direction) {
+    const carouselContainer = button.closest('.carousel-container');
+    const track = carouselContainer.querySelector('.carousel-track');
+
+    if (!track) return;
+
+    const scrollAmount = 400;
+
+    if (direction === 'prev') {
+        track.scrollBy({
+            left: -scrollAmount,
+            behavior: 'smooth'
+        });
+    } else {
+        track.scrollBy({
+            left: scrollAmount,
+            behavior: 'smooth'
+        });
+    }
+}
+
+// Función para renderizar películas en carruseles
+async function renderMoviesByCategory(categorias) {
     const moviesDiv = document.getElementById("movies");
+    if (!moviesDiv) {
+        console.error("No se encontró el contenedor de películas");
+        return;
+    }
+
     moviesDiv.innerHTML = "";
 
+    if (!categorias || Object.keys(categorias).length === 0) {
+        moviesDiv.innerHTML = '<div class="no-content-message">No hay películas disponibles</div>';
+        return;
+    }
+
     for (const categoria in categorias) {
+        const peliculas = categorias[categoria];
+
+        if (!peliculas || peliculas.length === 0) continue;
+
         const section = document.createElement("div");
         section.classList.add("category-section");
 
-        // Header colapsable
-        const header = document.createElement("h3");
-        header.classList.add("collapsible-header");
-        header.textContent = formatCategoryName(categoria);
-        header.onclick = () => toggleSeries(header); // Reutilizamos la misma función
+        const header = document.createElement("div");
+        header.classList.add("category-header");
+        header.innerHTML = `<h3 class="category-title">${formatCategoryName(categoria)}</h3>`;
 
-        // Contenido colapsable
-        const content = document.createElement("div");
-        content.classList.add("category-content", "collapsible-content");
-        content.style.display = "none";
+        const carouselContainer = document.createElement("div");
+        carouselContainer.classList.add("carousel-container");
 
-        categorias[categoria].forEach(movie => {
-            const card = createMovieCard(movie);
-            content.appendChild(card);
+        const carouselId = `carousel-${categoria.replace(/\s+/g, '-')}`;
+
+        const prevBtn = document.createElement("button");
+        prevBtn.classList.add("carousel-btn", "prev");
+        prevBtn.innerHTML = "❮";
+        prevBtn.setAttribute("aria-label", "Anterior");
+        prevBtn.onclick = (e) => {
+            e.stopPropagation();
+            scrollCarousel(prevBtn, 'prev');
+        };
+
+        const nextBtn = document.createElement("button");
+        nextBtn.classList.add("carousel-btn", "next");
+        nextBtn.innerHTML = "❯";
+        nextBtn.setAttribute("aria-label", "Siguiente");
+        nextBtn.onclick = (e) => {
+            e.stopPropagation();
+            scrollCarousel(nextBtn, 'next');
+        };
+
+        const track = document.createElement("div");
+        track.classList.add("carousel-track");
+        track.id = carouselId;
+
+        // Crear todas las tarjetas de forma asíncrona
+        const cardPromises = peliculas.map(movie => createMovieCard(movie));
+        const cards = await Promise.all(cardPromises);
+
+        cards.forEach(card => {
+            const item = document.createElement("div");
+            item.classList.add("carousel-item");
+            item.appendChild(card);
+            track.appendChild(item);
         });
 
+        carouselContainer.appendChild(prevBtn);
+        carouselContainer.appendChild(track);
+        carouselContainer.appendChild(nextBtn);
+
         section.appendChild(header);
-        section.appendChild(content);
+        section.appendChild(carouselContainer);
         moviesDiv.appendChild(section);
     }
 }
 
-function renderSeries(series) {
+// Función para renderizar series en carruseles (AHORA ASÍNCRONA)
+async function renderSeries(series) {
     const seriesDiv = document.getElementById("seriesContainer");
+    if (!seriesDiv) {
+        console.error("No se encontró el contenedor de series");
+        return;
+    }
+
     seriesDiv.innerHTML = "";
 
-    for (const serie in series) {
+    if (!series || Object.keys(series).length === 0) {
+        seriesDiv.innerHTML = '<div class="no-content-message">No hay series disponibles</div>';
+        return;
+    }
+
+    console.log("Series recibidas:", series);
+
+    for (const serieName in series) {
+        const episodios = series[serieName];
+
+        if (!episodios || episodios.length === 0) continue;
+
         const section = document.createElement("div");
-        section.classList.add("series-section");
+        section.classList.add("category-section");
 
-        const header = document.createElement("h3");
-        header.classList.add("collapsible-header");
-        header.textContent = serie;
-        header.setAttribute("role", "button");
-        header.setAttribute("aria-expanded", "false");
-        header.onclick = () => toggleSeries(header);
+        const header = document.createElement("div");
+        header.classList.add("category-header");
+        header.innerHTML = `<h3 class="category-title">${serieName}</h3>`;
 
-        const content = document.createElement("div");
-        content.classList.add("card-container", "collapsible-content");
-        content.style.display = "none";
+        const carouselContainer = document.createElement("div");
+        carouselContainer.classList.add("carousel-container");
 
-        series[serie].forEach(ep => {
-            const card = document.createElement("article");
-            card.classList.add("card");
+        const carouselId = `carousel-series-${serieName.replace(/\s+/g, '-')}`;
 
-            card.innerHTML = `
-                <img src="${ep.thumbnail}" alt="${ep.name}" loading="lazy">
-                <a href="/play/${ep.path}" class="card-link">${ep.name}</a>
-            `;
+        const prevBtn = document.createElement("button");
+        prevBtn.classList.add("carousel-btn", "prev");
+        prevBtn.innerHTML = "❮";
+        prevBtn.setAttribute("aria-label", "Anterior");
+        prevBtn.onclick = (e) => {
+            e.stopPropagation();
+            scrollCarousel(prevBtn, 'prev');
+        };
 
-            content.appendChild(card);
+        const nextBtn = document.createElement("button");
+        nextBtn.classList.add("carousel-btn", "next");
+        nextBtn.innerHTML = "❯";
+        nextBtn.setAttribute("aria-label", "Siguiente");
+        nextBtn.onclick = (e) => {
+            e.stopPropagation();
+            scrollCarousel(nextBtn, 'next');
+        };
+
+        const track = document.createElement("div");
+        track.classList.add("carousel-track");
+        track.id = carouselId;
+
+        // Crear todas las tarjetas de series de forma asíncrona
+        const cardPromises = episodios.map(ep => createSerieCard(ep));
+        const cards = await Promise.all(cardPromises);
+
+        cards.forEach(card => {
+            const item = document.createElement("div");
+            item.classList.add("carousel-item");
+            item.appendChild(card);
+            track.appendChild(item);
         });
 
+        carouselContainer.appendChild(prevBtn);
+        carouselContainer.appendChild(track);
+        carouselContainer.appendChild(nextBtn);
+
         section.appendChild(header);
-        section.appendChild(content);
+        section.appendChild(carouselContainer);
         seriesDiv.appendChild(section);
     }
 }
@@ -121,22 +364,6 @@ function showTab(tabName) {
     }
 
     return false;
-}
-
-// =========================
-//  SERIES
-// =========================
-
-function toggleSeries(header) {
-    if (!header) return;
-
-    header.classList.toggle('active');
-    const content = header.nextElementSibling;
-
-    if (content) {
-        content.classList.toggle('active');
-        content.style.display = content.classList.contains('active') ? 'grid' : 'none';
-    }
 }
 
 // =========================
@@ -252,6 +479,10 @@ function loadSavedPreferences() {
 }
 
 function playMovie(path) {
+    if (!path) {
+        console.error('Ruta de reproducción no válida');
+        return;
+    }
     window.location.href = `/play/${path}`;
 }
 
@@ -260,13 +491,37 @@ function playMovie(path) {
 // =========================
 
 function loadContent() {
+    console.log('Cargando contenido...');
+
     fetch("/api/movies")
-        .then(r => r.json())
-        .then(data => {
-            renderMoviesByCategory(data.categorias);
-            renderSeries(data.series);
+        .then(r => {
+            if (!r.ok) {
+                throw new Error(`Error HTTP: ${r.status}`);
+            }
+            return r.json();
         })
-        .catch(err => console.error("Error cargando contenido:", err));
+        .then(async data => {  // Hacer esta función async
+            console.log('Datos recibidos:', data);
+
+            if (data.categorias) {
+                await renderMoviesByCategory(data.categorias);
+            } else {
+                console.warn('No hay categorías en los datos');
+                document.getElementById('movies').innerHTML = '<div class="no-content-message">No hay películas disponibles</div>';
+            }
+
+            if (data.series) {
+                await renderSeries(data.series);
+            } else {
+                console.warn('No hay series en los datos');
+                document.getElementById('seriesContainer').innerHTML = '<div class="no-content-message">No hay series disponibles</div>';
+            }
+        })
+        .catch(err => {
+            console.error("Error cargando contenido:", err);
+            document.getElementById('movies').innerHTML = '<div class="no-content-message">Error al cargar las películas</div>';
+            document.getElementById('seriesContainer').innerHTML = '<div class="no-content-message">Error al cargar las series</div>';
+        });
 }
 
 // =========================
@@ -286,8 +541,36 @@ document.addEventListener('DOMContentLoaded', function () {
     loadContent();
 });
 
+document.addEventListener('DOMContentLoaded', function () {
+    const activeTab = document.querySelector('.menu-item.active');
+    if (!activeTab || activeTab.getAttribute('data-tab') !== 'movies') {
+        window.showTab('movies');
+    }
+});
+
+// Prevenir comportamiento predeterminado de enlaces vacíos
+document.addEventListener('click', function (e) {
+    if (e.target.tagName === 'A' && e.target.getAttribute('href') === '#') {
+        e.preventDefault();
+    }
+});
+
+// Permitir scroll horizontal con la rueda del ratón sobre los carruseles
+document.addEventListener('DOMContentLoaded', function () {
+    const carousels = document.querySelectorAll('.carousel-track');
+
+    carousels.forEach(carousel => {
+        carousel.addEventListener('wheel', function (e) {
+            if (Math.abs(e.deltaX) < Math.abs(e.deltaY)) {
+                e.preventDefault();
+                this.scrollLeft += e.deltaY;
+            }
+        });
+    });
+});
+
 // Exportar funciones globales
 window.toggleMenu = toggleMenu;
 window.toggleCollapse = toggleCollapse;
 window.showTab = showTab;
-window.toggleSeries = toggleSeries;
+window.scrollCarousel = scrollCarousel;

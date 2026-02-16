@@ -164,7 +164,7 @@ body {
     color: var(--text-primary);
 }
 
-/* ===== SECCIONES COLAPSABLES ===== */
+/* ===== SECCIONES COLAPSABLES (MANTENIDAS POR COMPATIBILIDAD) ===== */
 .collapsible-header {
     background-color: var(--bg-secondary);  /* Mismo color que la caja del login */
     color: var(--text-primary);
@@ -213,7 +213,245 @@ body {
     margin-bottom: 15px;
 }
 
-/* ===== RESPONSIVE PARA MÓVIL ===== */
+/* ===== NUEVOS ESTILOS PARA CARRUSELES (ESTILO NETFLIX) ===== */
+
+.category-section {
+    margin-bottom: 40px;
+    position: relative;
+    width: 100%;
+}
+
+.category-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 15px;
+    padding-left: 5px;
+}
+
+.category-title {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0;
+    display: inline-block;
+    border-left: 4px solid var(--accent-color);
+    padding-left: 12px;
+}
+
+/* Contenedor del carrusel */
+.carousel-container {
+    position: relative;
+    width: 100%;
+    margin: 10px 0 25px;
+    padding: 0 5px;
+}
+
+/* Pista del carrusel (contenedor de tarjetas) */
+.carousel-track {
+    display: flex;
+    gap: 15px;
+    overflow-x: auto;
+    scroll-behavior: smooth;
+    padding: 15px 0;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE/Edge */
+}
+
+.carousel-track::-webkit-scrollbar {
+    display: none; /* Chrome/Safari */
+}
+
+/* Tarjetas del carrusel */
+.carousel-item {
+    flex: 0 0 auto;
+    width: 180px;
+    transition: transform 0.3s ease;
+}
+
+.carousel-item:hover {
+    transform: scale(1.05);
+    z-index: 5;
+}
+
+/* Botones de navegación del carrusel */
+.carousel-btn {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 45px;
+    height: 45px;
+    background-color: rgba(20, 20, 20, 0.8);
+    border: 2px solid var(--border-color);
+    border-radius: 50%;
+    color: white;
+    font-size: 24px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+    opacity: 0;
+    transition: opacity 0.3s ease, background-color 0.3s ease, transform 0.2s ease;
+    border: none;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+}
+
+.carousel-container:hover .carousel-btn {
+    opacity: 1;
+}
+
+.carousel-btn:hover {
+    background-color: var(--accent-color);
+    transform: translateY(-50%) scale(1.1);
+}
+
+.carousel-btn.prev {
+    left: -15px;
+}
+
+.carousel-btn.next {
+    right: -15px;
+}
+
+/* Movie card dentro del carrusel */
+.carousel-item .movie-card {
+    width: 100%;
+    margin: 0;
+    background-color: var(--bg-card);
+    border-radius: var(--border-radius);
+    overflow: hidden;
+    border: 1px solid var(--border-color);
+    box-shadow: var(--shadow);
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.carousel-item .movie-card:hover {
+    transform: scale(1.05);
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.8);
+    border-color: var(--accent-color);
+}
+
+.carousel-item .movie-thumb {
+    width: 100%;
+    height: 240px;
+    object-fit: cover;
+    border-bottom: 2px solid transparent;
+    transition: border-color 0.3s ease;
+}
+
+.carousel-item .movie-card:hover .movie-thumb {
+    border-bottom-color: var(--accent-color);
+}
+
+.carousel-item .movie-title {
+    padding: 12px 8px;
+    text-align: center;
+    font-size: 0.95rem;
+    font-weight: 500;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: color 0.3s ease;
+}
+
+.carousel-item .movie-card:hover .movie-title {
+    color: var(--accent-color);
+}
+
+/* Indicadores de posición (opcional - para futura implementación) */
+.carousel-indicators {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 15px;
+}
+
+.carousel-indicator {
+    width: 30px;
+    height: 4px;
+    background-color: var(--border-color);
+    cursor: pointer;
+    transition: background-color 0.3s ease, width 0.3s ease;
+    border-radius: 2px;
+}
+
+.carousel-indicator.active {
+    background-color: var(--accent-color);
+    width: 45px;
+}
+
+.carousel-indicator:hover {
+    background-color: var(--text-secondary);
+}
+
+/* ===== CATEGORÍAS DE PELÍCULAS (ESTILOS ORIGINALES MODIFICADOS) ===== */
+.movies-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 20px;
+}
+
+.movie-card {
+    background-color: var(--bg-card);
+    border-radius: var(--border-radius);
+    overflow: hidden;
+    border: 1px solid var(--border-color);
+    box-shadow: var(--shadow);
+    cursor: pointer;
+    transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+}
+
+.movie-card:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.6);
+    border-color: var(--accent-color);
+}
+
+.movie-thumb {
+    width: 100%;
+    height: 240px;
+    object-fit: cover;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.movie-title {
+    padding: 12px;
+    text-align: center;
+    font-size: 1.1rem;
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+/* ===== SERIES (ESTILOS ORIGINALES) ===== */
+.series-section .collapsible-content {
+    display: none;
+    padding: 20px;
+    background-color: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-top: none;
+    border-radius: 0 0 var(--border-radius) var(--border-radius);
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+}
+
+.series-section .collapsible-content.active {
+    display: grid;
+}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 1024px) {
+    .carousel-item {
+        width: 170px;
+    }
+    
+    .carousel-item .movie-thumb {
+        height: 220px;
+    }
+}
+
 @media (max-width: 768px) {
     .container {
         padding: 16px;
@@ -227,6 +465,39 @@ body {
         padding: 14px 8px;
         font-size: 1.1rem;
         flex-basis: 50%;
+    }
+    
+    /* Ajustes carrusel para tablet */
+    .carousel-btn {
+        opacity: 0.7;
+        width: 35px;
+        height: 35px;
+        font-size: 20px;
+    }
+    
+    .carousel-btn.prev {
+        left: -5px;
+    }
+    
+    .carousel-btn.next {
+        right: -5px;
+    }
+    
+    .carousel-item {
+        width: 150px;
+    }
+    
+    .carousel-item .movie-thumb {
+        height: 200px;
+    }
+    
+    .carousel-item .movie-title {
+        font-size: 0.9rem;
+        padding: 10px 6px;
+    }
+    
+    .category-title {
+        font-size: 1.3rem;
     }
     
     .card-container {
@@ -251,12 +522,6 @@ body {
         padding: 16px;
         font-size: 1.1rem;
     }
-    
-    .collapsible-content.active {
-        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-        gap: 12px;
-        padding: 16px;
-    }
 }
 
 @media (max-width: 480px) {
@@ -273,6 +538,48 @@ body {
     
     .tab:last-child, .tab-link:last-child {
         border-bottom: none;
+    }
+    
+    /* Ajustes carrusel para móvil */
+    .carousel-container {
+        padding: 0;
+    }
+    
+    .carousel-btn {
+        width: 32px;
+        height: 32px;
+        font-size: 18px;
+        opacity: 0.6;
+    }
+    
+    .carousel-btn.prev {
+        left: 2px;
+    }
+    
+    .carousel-btn.next {
+        right: 2px;
+    }
+    
+    .carousel-item {
+        width: 130px;
+    }
+    
+    .carousel-item .movie-thumb {
+        height: 170px;
+    }
+    
+    .carousel-item .movie-title {
+        font-size: 0.85rem;
+        padding: 8px 4px;
+    }
+    
+    .category-title {
+        font-size: 1.2rem;
+        padding-left: 8px;
+    }
+    
+    .category-section {
+        margin-bottom: 30px;
     }
     
     .card-container {
@@ -293,10 +600,6 @@ body {
     .card a {
         padding: 14px;
         font-size: 1.1rem;
-    }
-    
-    .collapsible-content.active {
-        grid-template-columns: 1fr;
     }
 }
 
@@ -344,140 +647,188 @@ body {
     border: 1px solid #4caf50;
 }
 
-/* ============================
-   CATEGORÍAS DE PELÍCULAS
-   ============================ */
+/* ===== ANIMACIONES ADICIONALES ===== */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
 
 .category-section {
-    margin-bottom: 40px;
-    padding: 10px 0;
+    animation: fadeIn 0.5s ease-out;
 }
 
-.category-title {
-    font-size: 1.8rem;
+/* Efecto de gradiente en los bordes del carrusel (opcional) */
+.carousel-track {
+    mask-image: linear-gradient(
+        to right,
+        transparent,
+        black 5%,
+        black 95%,
+        transparent
+    );
+    -webkit-mask-image: linear-gradient(
+        to right,
+        transparent,
+        black 5%,
+        black 95%,
+        transparent
+    );
+}
+
+/* Mejora de scroll para móviles */
+@media (hover: none) and (pointer: coarse) {
+    .carousel-track {
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    .carousel-btn {
+        display: none; /* Ocultar botones en dispositivos táctiles, usar scroll nativo */
+    }
+}
+
+/* Ajustes menores para los títulos de sección */
+#movies h2, #series h2 {
+    font-size: 2rem;
+    margin-top: 0;
+    margin-bottom: 30px;
     font-weight: 700;
-    margin: 10px 0 20px 0;
-    padding-left: 5px;
-    color: var(--text-primary);
-    border-left: 6px solid var(--accent-color);
+    letter-spacing: -0.5px;
 }
 
-/* Grid de películas dentro de cada categoría */
-.movies-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    gap: 20px;
+/* Espaciado para el contenedor principal */
+.main-content {
+    transition: margin-left 0.3s ease;
+    padding: 20px;
 }
 
-/* Tarjeta de película */
-.movie-card {
-    background-color: var(--bg-card);
-    border-radius: var(--border-radius);
+/* Ajuste para cuando el menú está colapsado */
+.main-content.expanded {
+    margin-left: 80px;
+}
+
+/* Animación de entrada para las categorías */
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateX(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+.category-section {
+    animation: slideIn 0.4s ease-out forwards;
+}
+
+/* Efecto de brillo en hover para las tarjetas */
+.carousel-item .movie-card {
+    position: relative;
     overflow: hidden;
-    border: 1px solid var(--border-color);
-    box-shadow: var(--shadow);
-    cursor: pointer;
-    transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
 }
 
-.movie-card:hover {
-    transform: translateY(-6px);
-    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.6);
-    border-color: var(--accent-color);
+.carousel-item .movie-card::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 100%);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    pointer-events: none;
+    border-radius: var(--border-radius);
 }
 
-/* Miniatura */
+.carousel-item .movie-card:hover::after {
+    opacity: 1;
+}
+
+/* Mejora para el scroll suave en toda la página */
+html {
+    scroll-behavior: smooth;
+}
+
+/* Personalización de la barra de scroll para navegadores que lo soportan */
+::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--bg-secondary);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--accent-color);
+    border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--accent-hover);
+}
+
+/* Estilo para mensaje de "no hay contenido" */
+.no-content-message {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text-secondary);
+    font-size: 1.2rem;
+    background: var(--bg-tertiary);
+    border-radius: var(--border-radius);
+    margin: 40px 0;
+}
+
+/* Asegurar que las imágenes se muestren correctamente */
 .movie-thumb {
     width: 100%;
     height: 240px;
     object-fit: cover;
-    border-bottom: 1px solid var(--border-color);
+    display: block;
+    background-color: var(--bg-secondary);
 }
 
-/* Título */
-.movie-title {
-    padding: 12px;
-    text-align: center;
-    font-size: 1.1rem;
-    font-weight: 500;
-    color: var(--text-primary);
-}
-
-/* ============================
-   RESPONSIVE
-   ============================ */
-
+/* Responsive para las imágenes */
 @media (max-width: 768px) {
-    .movies-grid {
-        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-        gap: 15px;
-    }
-
-    .movie-thumb {
-        height: 180px;
-    }
-
-    .movie-title {
-        font-size: 1rem;
-    }
-}
-
-@media (max-width: 480px) {
-    .movies-grid {
-        grid-template-columns: 1fr;
-    }
-
     .movie-thumb {
         height: 200px;
     }
 }
 
-/* ============================
-   CATEGORÍAS COLAPSABLES
-   ============================ */
-
-.category-section {
-    margin-bottom: 25px;
+@media (max-width: 480px) {
+    .movie-thumb {
+        height: 170px;
+    }
 }
 
-.category-section .collapsible-header {
-    background-color: var(--bg-secondary);
-    border-radius: var(--border-radius);
-    margin-top: 15px;
+/* Estilo para thumbnails pendientes */
+.movie-card.thumbnail-pending {
+    position: relative;
 }
 
-.category-section .collapsible-content {
-    display: none;
-    padding: 20px;
-    background-color: var(--bg-tertiary);
-    border: 1px solid var(--border-color);
-    border-top: none;
-    border-radius: 0 0 var(--border-radius) var(--border-radius);
+.movie-card.thumbnail-pending::before {
+    content: "⏳ Generando...";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(0, 0, 0, 0.7);
+    color: white;
+    padding: 5px 10px;
+    border-radius: 4px;
+    font-size: 12px;
+    z-index: 2;
 }
 
-.category-content {
-    display: none;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    gap: 20px;
+.movie-card.thumbnail-pending .movie-thumb {
+    filter: blur(2px);
+    opacity: 0.7;
 }
-
-.category-content.active {
-    display: grid;
-}
-
-/* SERIES: restaurar estilos originales */
-.series-section .collapsible-content {
-    display: none;
-    padding: 20px;
-    background-color: var(--bg-tertiary);
-    border: 1px solid var(--border-color);
-    border-top: none;
-    border-radius: 0 0 var(--border-radius) var(--border-radius);
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 15px;
-}
-
-.series-section .collapsible-content.active {
-    display: grid;
-}
-

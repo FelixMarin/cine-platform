@@ -9,37 +9,33 @@ logger = setup_logging(os.environ.get("LOG_FOLDER"))
 class FFmpegHandler:
     def __init__(self, state_manager):
         self.state_manager = state_manager
-
-    def get_gpu_decoder(self):
-        if os.path.exists("/usr/lib/aarch64-linux-gnu/tegra"):
-            return "h264_nvv4l2dec"
-        return None
-
-    def get_gpu_encoder(self):
-        if os.path.exists("/usr/lib/aarch64-linux-gnu/tegra"):
-            return "libx264" 
-        return "libx264"
-
-    def execute(self, cmd_args):
-        logger.debug(f"CMD: {' '.join(cmd_args)}")
-        with subprocess.Popen(
-            cmd_args, 
-            stdout=subprocess.PIPE, 
-            stderr=subprocess.STDOUT,
-            universal_newlines=True, 
-            bufsize=1
-        ) as process:
-            for line in process.stdout:
-                logger.debug(line.strip())
-                line = line.strip()
-                if "frame=" in line or "time=" in line:
-                    stats = [x for x in line.split() if "=" in x]
-                    log_line = " | ".join(stats).replace("frame=", "frames=")
-                    self.state_manager.update_log(log_line)
+        self.is_jetson = os.path.exists("/usr/lib/aarch64-linux-gnu/tegra")
         
-        if process.returncode != 0:
-            raise subprocess.CalledProcessError(process.returncode, cmd_args)
-        self.state_manager.update_log("")
+        if self.is_jetson:
+            logger.info("✅ Dispositivo Jetson detectado")
+            self._check_nvmpi_decoders()
+
+    def _check_nvmpi_decoders(self):
+        """Verifica qué decodificadores NVMPI están disponibles"""
+        try:
+            result = subprocess.run(
+                ["ffmpeg", "-decoders"],
+                capture_output=True,
+                text=True
+            )
+            decoders = result.stdout
+            
+            self.has_nvmpi_h264 = "h264_nvmpi" in decoders
+            self.has_nvmpi_hevc = "hevc_nvmpi" in decoders
+            self.has_nvmpi_vp9 = "vp9_nvmpi" in decoders
+            
+            logger.info(f"📊 Decodificadores NVMPI: H264={self.has_nvmpi_h264}, HEVC={self.has_nvmpi_hevc}, VP9={self.has_nvmpi_vp9}")
+            
+        except Exception as e:
+            logger.error(f"Error verificando decodificadores: {e}")
+            self.has_nvmpi_h264 = False
+            self.has_nvmpi_hevc = False
+            self.has_nvmpi_vp9 = False
 
     def get_video_info(self, video_path):
         try:
@@ -51,40 +47,95 @@ class FFmpegHandler:
                 video_path
             ]
 
-            result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+            result = subprocess.run(
+                cmd, 
+                capture_output=True, 
+                text=True, 
+                check=True,
+                timeout=30
+            )
             data = json.loads(result.stdout)
 
             format_info = data.get("format", {})
             streams = data.get("streams", [])
+            
             v_stream = next((s for s in streams if s.get("codec_type") == "video"), {})
             a_stream = next((s for s in streams if s.get("codec_type") == "audio"), {})
 
-            size_mb = round(int(format_info.get("size", 0)) / (1024 * 1024), 2)
+            size_bytes = int(format_info.get("size", 0))
+            size_mb = round(size_bytes / (1024 * 1024), 2) if size_bytes else 0
 
-            return {
+            pix_fmt = v_stream.get("pix_fmt", "").lower()
+            is_10bit = any(x in pix_fmt for x in ["10", "yuv420p10", "yuv422p10", "yuv444p10"])
+
+            info = {
                 "name": os.path.basename(video_path),
                 "duration": format_info.get("duration", "0"),
                 "resolution": f"{v_stream.get('width', '??')}x{v_stream.get('height', '??')}",
                 "format": format_info.get("format_name", "desconocido"),
                 "vcodec": v_stream.get("codec_name", "desconocido"),
                 "acodec": a_stream.get("codec_name", "desconocido"),
-                "pix_fmt": v_stream.get("pix_fmt", ""),
-                "bit_depth": v_stream.get("bits_per_raw_sample", ""),
-                "color_space": v_stream.get("color_space", ""),
-                "size": f"{size_mb} MB"
+                "pix_fmt": pix_fmt,
+                "is_10bit": is_10bit,
+                "size": f"{size_mb} MB",
+                "size_bytes": size_bytes
             }
+            
+            logger.debug(f"Info video: {info['name']} - {info['resolution']} - {info['vcodec']}")
+            return info
 
         except Exception as e:
             logger.error(f"Error info video: {e}")
             return {}
 
+    def execute(self, cmd_args):
+        cmd_str = ' '.join(str(arg) for arg in cmd_args)
+        logger.debug(f"CMD: {cmd_str}")
+        
+        try:
+            process = subprocess.Popen(
+                cmd_args,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                universal_newlines=True,
+                bufsize=1
+            )
+            
+            for line in process.stdout:
+                line = line.strip()
+                if line:
+                    logger.debug(line)
+                    
+                    if "frame=" in line or "time=" in line:
+                        stats = [x for x in line.split() if "=" in x]
+                        if stats:
+                            self.state_manager.update_log(" | ".join(stats))
+            
+            process.wait()
+            
+            if process.returncode != 0:
+                logger.error(f"❌ FFmpeg error code: {process.returncode}")
+                return False
+                
+            return True
+            
+        except Exception as e:
+            logger.error(f"❌ Error: {e}")
+            return False
+
     def get_duration(self, video_path):
         try:
             result = subprocess.run(
-                ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", video_path],
-                stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=True,
+                ["ffprobe", "-v", "error", "-show_entries", 
+                 "format=duration", "-of", 
+                 "default=noprint_wrappers=1:nokey=1", 
+                 video_path],
+                stdout=subprocess.PIPE, 
+                stderr=subprocess.PIPE, 
+                text=True, 
+                check=True,
+                timeout=10
             )
             return float(result.stdout.strip())
-        except subprocess.CalledProcessError:
+        except:
             return 0.0
-            

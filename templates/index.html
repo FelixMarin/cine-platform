@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.5">
-    <title>Películas - Cine Platform</title>
+    <title>Cine Platform</title>
     <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/menu.css') }}">
@@ -67,6 +67,11 @@
         </a>
     </div>
 
+    <!-- Añade esto donde quieras mostrar el progreso -->
+    <div id="thumbnail-progress" style="display: none; position: fixed; bottom: 20px; right: 20px; background: var(--bg-secondary); padding: 10px; border-radius: var(--border-radius); border-left: 4px solid var(--accent-color); z-index: 1000;">
+        <span>Generando miniaturas: <span id="thumbnail-count">0</span> pendientes</span>
+    </div>
+
     <!-- Contenido principal -->
     <main class="main-content" id="mainContent" role="main">
 
@@ -80,9 +85,9 @@
         <!--      SECCIÓN PELÍCULAS    -->
         <!-- ========================= -->
         <section id="movies" class="tab-content" style="display: block;" role="tabpanel" aria-labelledby="moviesTab">
-            <h2>Películas</h2>
+            <h2 style="margin-bottom: 25px; border-left: 6px solid var(--accent-color); padding-left: 15px;">Películas</h2>
 
-            <!-- El JS insertará aquí las categorías dinámicamente -->
+            <!-- El JS insertará aquí las categorías en carruseles -->
             <div id="movies" class="categories-container"></div>
         </section>
 
@@ -90,23 +95,32 @@
         <!--        SECCIÓN SERIES     -->
         <!-- ========================= -->
         <section id="series" class="tab-content" style="display: none;" role="tabpanel" aria-labelledby="seriesTab">
-            <h2>Series</h2>
+            <h2 style="margin-bottom: 25px; border-left: 6px solid var(--accent-color); padding-left: 15px;">Series</h2>
 
-            <!-- El JS insertará aquí las series dinámicamente -->
+            <!-- El JS insertará aquí las series en carruseles -->
             <div id="seriesContainer"></div>
         </section>
 
     </main>
 
-    <!-- Script adicional -->
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const activeTab = document.querySelector('.menu-item.active');
-            if (!activeTab || activeTab.getAttribute('data-tab') !== 'movies') {
-                window.showTab('movies');
-            }
-        });
-    </script>
-
+        // Verificar estado de thumbnails cada 5 segundos
+        setInterval(() => {
+            fetch('/api/thumbnail-status')
+                .then(r => r.json())
+                .then(data => {
+                    const progressDiv = document.getElementById('thumbnail-progress');
+                    const countSpan = document.getElementById('thumbnail-count');
+                    
+                    if (data.queue_size > 0) {
+                        countSpan.textContent = data.queue_size;
+                        progressDiv.style.display = 'block';
+                    } else {
+                        progressDiv.style.display = 'none';
+                    }
+                })
+                .catch(err => console.log('Error checking thumbnail status'));
+        }, 5000);
+    </script>    
 </body>
 </html>
