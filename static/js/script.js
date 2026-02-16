@@ -82,23 +82,25 @@ function checkWebPSupport() {
     });
 }
 
-async function createMovieCard(movie) {
+function createMovieCard(movie) {
     const card = document.createElement("div");
     card.classList.add("movie-card");
 
     const title = movie.name || movie.title || 'Sin título';
 
-    // Obtener la URL del thumbnail (ahora asíncrona)
-    const thumbnailUrl = await getThumbnailUrl(movie);
+    // Si el thumbnail está pendiente, mostrar un placeholder con estilo
+    if (movie.thumbnail_pending) {
+        card.classList.add("thumbnail-pending");
+    }
 
-    // Crear la imagen
+    const thumbnailUrl = movie.thumbnail || '/static/images/default.jpg';
+
     const img = document.createElement('img');
     img.className = 'movie-thumb';
     img.alt = title;
     img.src = thumbnailUrl;
     img.onerror = function () {
-        console.log('Error cargando imagen, usando default:', this.src);
-        this.src = '/static/thumbnails/default.jpg';
+        this.src = '/static/images/default.jpg';
         this.onerror = null;
     };
 
@@ -138,7 +140,7 @@ async function createSerieCard(episodio) {
     img.src = thumbnailUrl;
     img.onerror = function () {
         console.log('Error en serie, usando default:', this.src);
-        this.src = '/static/thumbnails/default.jpg';
+        this.src = '/static/images/default.jpg';
         this.onerror = null;
     };
 

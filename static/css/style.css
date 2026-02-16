@@ -808,3 +808,27 @@ html {
         height: 170px;
     }
 }
+
+/* Estilo para thumbnails pendientes */
+.movie-card.thumbnail-pending {
+    position: relative;
+}
+
+.movie-card.thumbnail-pending::before {
+    content: "⏳ Generando...";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(0, 0, 0, 0.7);
+    color: white;
+    padding: 5px 10px;
+    border-radius: 4px;
+    font-size: 12px;
+    z-index: 2;
+}
+
+.movie-card.thumbnail-pending .movie-thumb {
+    filter: blur(2px);
+    opacity: 0.7;
+}

@@ -67,6 +67,11 @@
         </a>
     </div>
 
+    <!-- Añade esto donde quieras mostrar el progreso -->
+    <div id="thumbnail-progress" style="display: none; position: fixed; bottom: 20px; right: 20px; background: var(--bg-secondary); padding: 10px; border-radius: var(--border-radius); border-left: 4px solid var(--accent-color); z-index: 1000;">
+        <span>Generando miniaturas: <span id="thumbnail-count">0</span> pendientes</span>
+    </div>
+
     <!-- Contenido principal -->
     <main class="main-content" id="mainContent" role="main">
 
@@ -97,5 +102,25 @@
         </section>
 
     </main>
+
+    <script>
+        // Verificar estado de thumbnails cada 5 segundos
+        setInterval(() => {
+            fetch('/api/thumbnail-status')
+                .then(r => r.json())
+                .then(data => {
+                    const progressDiv = document.getElementById('thumbnail-progress');
+                    const countSpan = document.getElementById('thumbnail-count');
+                    
+                    if (data.queue_size > 0) {
+                        countSpan.textContent = data.queue_size;
+                        progressDiv.style.display = 'block';
+                    } else {
+                        progressDiv.style.display = 'none';
+                    }
+                })
+                .catch(err => console.log('Error checking thumbnail status'));
+        }, 5000);
+    </script>    
 </body>
 </html>

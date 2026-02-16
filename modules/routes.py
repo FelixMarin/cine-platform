@@ -1,7 +1,7 @@
 import os
 import jwt
 import unicodedata
-from flask import Blueprint, render_template, request, redirect, url_for, session, jsonify, Response, send_from_directory
+from flask import Blueprint, render_template, request, redirect, url_for, session, jsonify, Response, send_from_directory, make_response
 
 def create_blueprints(auth_service, media_service, optimizer_service):
     bp = Blueprint('main', __name__)
@@ -243,6 +243,23 @@ def create_blueprints(auth_service, media_service, optimizer_service):
         })
         response.headers['Content-Type'] = 'application/json; charset=utf-8'
         
+        return response
+
+    @bp.route('/api/thumbnail-status')
+    def thumbnail_status():
+        """Endpoint para ver el estado de generación de thumbnails"""
+        if not is_logged_in():
+            return jsonify({"error": "No autorizado"}), 401
+        
+        status = media_service.get_thumbnail_status()
+        
+        # Añadir timestamp para saber cuándo se actualizó
+        import time
+        status["timestamp"] = time.time()
+        
+        response = jsonify(status)
+        response.headers['Content-Type'] = 'application/json; charset=utf-8'
+        response.headers['Cache-Control'] = 'no-cache'  # No cachear esta respuesta
         return response
 
     # --- After request handler para UTF-8 en todas las respuestas JSON ---
