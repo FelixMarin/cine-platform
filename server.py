@@ -50,6 +50,8 @@ def create_app():
     # ============================
     secret = os.environ["SECRET_KEY"]
     app.secret_key = secret
+    app.config['JSON_AS_ASCII'] = False
+    app.config['JSONIFY_PRETTYPRINT_REGULAR'] = True
     logger.info(f"[CONFIG] SECRET_KEY cargada: {secret[:8]}********")
 
     # ============================

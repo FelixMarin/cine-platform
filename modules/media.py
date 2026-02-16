@@ -29,50 +29,35 @@ class FileSystemMediaRepository(IMediaRepository):
             # Verificar si debemos usar WebP
             use_webp = thumbnail_path.endswith('.webp')
             
-            # Parámetros comunes
+            # Parámetros comunes - Cambiar a 2 minutos (120 segundos)
             base_cmd = [
                 "ffmpeg", "-i", video_path,
-                "-ss", "00:00:10",  # Capturar en el segundo 10
+                "-ss", "00:02:00",  # Capturar a los 2 minutos
                 "-vframes", "1",      # Un solo frame
                 "-vf", "scale=320:-1", # Escalar a ancho 320, alto automático
             ]
             
             if use_webp:
-                # Optimización para WebP
                 cmd = base_cmd + [
-                    "-c:v", "libwebp",   # Codec WebP
-                    "-lossless", "0",     # Compresión con pérdida (más pequeño)
-                    "-compression_level", "6",  # Nivel de compresión (0-6)
-                    "-q:v", "75",         # Calidad (0-100)
-                    "-preset", "picture",  # Preset para fotos
+                    "-c:v", "libwebp",
+                    "-lossless", "0",
+                    "-compression_level", "6",
+                    "-q:v", "75",
+                    "-preset", "picture",
                     thumbnail_path
                 ]
             else:
-                # Optimización para JPG
                 cmd = base_cmd + [
-                    "-q:v", "5",          # Calidad (2-31, menor = mejor)
-                    "-pix_fmt", "yuvj420p", # Formato de píxeles
+                    "-q:v", "5",
+                    "-pix_fmt", "yuvj420p",
                     thumbnail_path
                 ]
             
             logger.debug(f"Generando thumbnail: {' '.join(cmd)}")
             
             subprocess.run(cmd, check=True, 
-                         stdout=subprocess.DEVNULL, 
-                         stderr=subprocess.DEVNULL)
-            
-            # Si generamos WebP, también crear una versión JPG como fallback
-            if use_webp:
-                jpg_path = thumbnail_path.replace('.webp', '.jpg')
-                if not os.path.exists(jpg_path):
-                    jpg_cmd = [
-                        "ffmpeg", "-i", thumbnail_path,
-                        "-q:v", "5",
-                        jpg_path
-                    ]
-                    subprocess.run(jpg_cmd, check=True,
-                                 stdout=subprocess.DEVNULL,
-                                 stderr=subprocess.DEVNULL)
+                        stdout=subprocess.DEVNULL, 
+                        stderr=subprocess.DEVNULL)
             
             logger.info(f"Thumbnail generado: {thumbnail_path}")
             
@@ -105,14 +90,25 @@ class FileSystemMediaRepository(IMediaRepository):
         # Reemplazar separadores por espacios
         name = name.replace("-", " ").replace("_", " ").replace(".", " ")
 
-        # Capitalizar sin romper códigos tipo S01e01
+        # Capitalizar respetando acentos
         def smart_cap(word):
-            # Si contiene números, solo capitaliza la primera letra
-            if any(c.isdigit() for c in word):
-                return word[0].upper() + word[1:]
-            return word.capitalize()
+            if not word:
+                return word
+            # Preservar acentos en la primera letra
+            first = word[0].upper()
+            rest = word[1:].lower() if len(word) > 1 else ""
+            return first + rest
 
-        return " ".join(smart_cap(w) for w in name.split())
+        # Procesar palabra por palabra
+        words = []
+        for w in name.split():
+            # Si parece un código (contiene números), capitalizar solo primera letra
+            if any(c.isdigit() for c in w):
+                words.append(smart_cap(w))
+            else:
+                words.append(w.capitalize())
+        
+        return " ".join(words)
 
     def list_content(self):
         categorias = {}

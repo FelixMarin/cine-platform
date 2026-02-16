@@ -1,6 +1,7 @@
 import os
 import jwt
-from flask import Blueprint, render_template, request, redirect, url_for, session, jsonify, Response, send_from_directory, make_response
+import unicodedata
+from flask import Blueprint, render_template, request, redirect, url_for, session, jsonify, Response, send_from_directory
 
 def create_blueprints(auth_service, media_service, optimizer_service):
     bp = Blueprint('main', __name__)
@@ -102,7 +103,6 @@ def create_blueprints(auth_service, media_service, optimizer_service):
         Sirve thumbnails con soporte para WebP y cabeceras de caché
         """
         if not is_logged_in():
-            # Redirigir al login si no está autenticado
             return redirect(url_for('main.login'))
         
         thumbnails_folder = media_service.get_thumbnails_folder()
@@ -118,20 +118,13 @@ def create_blueprints(auth_service, media_service, optimizer_service):
             
             if os.path.exists(webp_path):
                 response = make_response(send_from_directory(thumbnails_folder, webp_filename))
-                # Cachear por 30 días (2592000 segundos)
                 response.headers['Cache-Control'] = 'public, max-age=2592000, immutable'
-                response.headers['X-Image-Format'] = 'webp'  # Header informativo
+                response.headers['X-Image-Format'] = 'webp'
                 return response
         
-        # Servir el archivo solicitado (puede ser .jpg o .webp)
+        # Servir el archivo solicitado
         response = make_response(send_from_directory(thumbnails_folder, filename))
-        
-        # Cabeceras de caché agresivas para thumbnails
-        # 30 días para imágenes que no cambian frecuentemente
         response.headers['Cache-Control'] = 'public, max-age=2592000, immutable'
-        response.headers['Expires'] = 'Sun, 16 Feb 2030 00:00:00 GMT'  # Fecha lejana
-        
-        # Header para debugging
         response.headers['X-Image-Format'] = 'jpg' if filename.endswith('.jpg') else 'webp'
         
         return response
@@ -140,7 +133,6 @@ def create_blueprints(auth_service, media_service, optimizer_service):
     def detect_thumbnail_format(filename):
         """
         Endpoint para detectar qué formatos de thumbnail existen
-        Útil para que el frontend decida qué formato usar
         """
         if not is_logged_in():
             return jsonify({"error": "No autorizado"}), 401
@@ -230,10 +222,36 @@ def create_blueprints(auth_service, media_service, optimizer_service):
             return jsonify({"error": "No autorizado"}), 401
 
         categorias, series = media_service.list_content()
+        
+        # Normalizar todas las claves y valores a NFC
+        def normalize_dict(d):
+            if isinstance(d, dict):
+                return {unicodedata.normalize('NFC', k): normalize_dict(v) for k, v in d.items()}
+            elif isinstance(d, list):
+                return [normalize_dict(item) for item in d]
+            elif isinstance(d, str):
+                return unicodedata.normalize('NFC', d)
+            else:
+                return d
+        
+        categorias = normalize_dict(categorias)
+        series = normalize_dict(series)
 
-        return jsonify({
+        response = jsonify({
             "categorias": categorias,
             "series": series
         })
+        response.headers['Content-Type'] = 'application/json; charset=utf-8'
+        
+        return response
 
+    # --- After request handler para UTF-8 en todas las respuestas JSON ---
+    @bp.after_request
+    def add_charset(response):
+        """Añade charset UTF-8 a todas las respuestas JSON"""
+        if response.content_type == 'application/json':
+            response.headers['Content-Type'] = 'application/json; charset=utf-8'
+        return response
+
+    # --- IMPORTANTE: Devolver el blueprint ---
     return bp

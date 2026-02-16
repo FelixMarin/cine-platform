@@ -6,12 +6,17 @@ const thumbnailCache = new Map();
 
 function formatCategoryName(cat) {
     // Si contiene /, tomar la parte después de la última /
-    const cleanName = cat.includes('/') ? cat.split('/').pop() : cat;
+    let cleanName = cat.includes('/') ? cat.split('/').pop() : cat;
 
-    // Formatear: guiones bajos a espacios y capitalizar
-    return cleanName
-        .replace(/_/g, " ")
-        .replace(/\b\w/g, c => c.toUpperCase());
+    // Reemplazar guiones bajos por espacios
+    cleanName = cleanName.replace(/_/g, " ");
+
+    // Capitalizar cada palabra respetando acentos
+    return cleanName.split(' ').map(word => {
+        if (word.length === 0) return word;
+        // Preservar la primera letra con su acento y poner el resto en minúsculas
+        return word.charAt(0).toLocaleUpperCase() + word.slice(1).toLocaleLowerCase();
+    }).join(' ');
 }
 
 // Función para obtener la URL del thumbnail con detección de formato
