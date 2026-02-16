@@ -14,16 +14,85 @@ class FileSystemMediaRepository(IMediaRepository):
         if not os.path.exists(self.thumbnails_folder):
             os.makedirs(self.thumbnails_folder)
 
+    def _check_ffmpeg_webp_support(self):
+        """Verifica si ffmpeg soporta WebP"""
+        try:
+            result = subprocess.run([
+                "ffmpeg", "-encoders"
+            ], capture_output=True, text=True)
+            return "libwebp" in result.stdout
+        except:
+            return False
+
     def _generate_thumbnail(self, video_path, thumbnail_path):
         try:
-            subprocess.run([
+            # Verificar si debemos usar WebP
+            use_webp = thumbnail_path.endswith('.webp')
+            
+            # Parámetros comunes
+            base_cmd = [
                 "ffmpeg", "-i", video_path,
-                "-ss", "00:00:10", "-vframes", "1",
-                "-vf", "scale=320:-1",
-                thumbnail_path
-            ], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        except Exception as e:
+                "-ss", "00:00:10",  # Capturar en el segundo 10
+                "-vframes", "1",      # Un solo frame
+                "-vf", "scale=320:-1", # Escalar a ancho 320, alto automático
+            ]
+            
+            if use_webp:
+                # Optimización para WebP
+                cmd = base_cmd + [
+                    "-c:v", "libwebp",   # Codec WebP
+                    "-lossless", "0",     # Compresión con pérdida (más pequeño)
+                    "-compression_level", "6",  # Nivel de compresión (0-6)
+                    "-q:v", "75",         # Calidad (0-100)
+                    "-preset", "picture",  # Preset para fotos
+                    thumbnail_path
+                ]
+            else:
+                # Optimización para JPG
+                cmd = base_cmd + [
+                    "-q:v", "5",          # Calidad (2-31, menor = mejor)
+                    "-pix_fmt", "yuvj420p", # Formato de píxeles
+                    thumbnail_path
+                ]
+            
+            logger.debug(f"Generando thumbnail: {' '.join(cmd)}")
+            
+            subprocess.run(cmd, check=True, 
+                         stdout=subprocess.DEVNULL, 
+                         stderr=subprocess.DEVNULL)
+            
+            # Si generamos WebP, también crear una versión JPG como fallback
+            if use_webp:
+                jpg_path = thumbnail_path.replace('.webp', '.jpg')
+                if not os.path.exists(jpg_path):
+                    jpg_cmd = [
+                        "ffmpeg", "-i", thumbnail_path,
+                        "-q:v", "5",
+                        jpg_path
+                    ]
+                    subprocess.run(jpg_cmd, check=True,
+                                 stdout=subprocess.DEVNULL,
+                                 stderr=subprocess.DEVNULL)
+            
+            logger.info(f"Thumbnail generado: {thumbnail_path}")
+            
+        except subprocess.CalledProcessError as e:
             logger.error(f"Error al generar miniatura para {video_path}: {e}")
+        except Exception as e:
+            logger.error(f"Error inesperado al generar miniatura: {e}")
+
+    def _generate_all_formats(self, video_path, base_name):
+        """Genera thumbnails en múltiples formatos"""
+        # Generar JPG (formato por defecto)
+        jpg_path = os.path.join(self.thumbnails_folder, f"{base_name}.jpg")
+        if not os.path.exists(jpg_path):
+            self._generate_thumbnail(video_path, jpg_path)
+        
+        # Generar WebP si ffmpeg lo soporta
+        if self._check_ffmpeg_webp_support():
+            webp_path = os.path.join(self.thumbnails_folder, f"{base_name}.webp")
+            if not os.path.exists(webp_path):
+                self._generate_thumbnail(video_path, webp_path)
 
     def _clean_filename(self, filename):
         name = os.path.splitext(filename)[0]
@@ -48,6 +117,10 @@ class FileSystemMediaRepository(IMediaRepository):
     def list_content(self):
         categorias = {}
         series = {}
+        
+        # Verificar soporte WebP al inicio
+        webp_supported = self._check_ffmpeg_webp_support()
+        logger.info(f"Soporte WebP en ffmpeg: {webp_supported}")
 
         for root, _, files in os.walk(self.movies_folder):
             categoria = os.path.relpath(root, self.movies_folder).replace("\\", "/")
@@ -60,19 +133,32 @@ class FileSystemMediaRepository(IMediaRepository):
                 if file.endswith(('.mkv', '.mp4', '.avi')):
                     full_path = os.path.join(root, file)
                     relative_path = os.path.relpath(full_path, self.movies_folder).replace("\\", "/")
-
-                    thumbnail_path = os.path.join(
-                        self.thumbnails_folder,
-                        f"{os.path.splitext(file)[0]}.jpg"
-                    )
-
-                    if not os.path.exists(thumbnail_path):
-                        self._generate_thumbnail(full_path, thumbnail_path)
+                    
+                    base_name = os.path.splitext(file)[0]
+                    
+                    # Verificar si existe WebP, si no, generar ambos formatos
+                    webp_path = os.path.join(self.thumbnails_folder, f"{base_name}.webp")
+                    jpg_path = os.path.join(self.thumbnails_folder, f"{base_name}.jpg")
+                    
+                    if not os.path.exists(webp_path) and not os.path.exists(jpg_path):
+                        # No existe ningún thumbnail, generar ambos
+                        self._generate_all_formats(full_path, base_name)
+                    
+                    # Determinar qué thumbnail servir
+                    # En el listado, enviamos ambos formatos para que el frontend decida
+                    thumbnail_urls = {
+                        "jpg": f"/thumbnails/{base_name}.jpg" if os.path.exists(jpg_path) else None,
+                        "webp": f"/thumbnails/{base_name}.webp" if os.path.exists(webp_path) else None
+                    }
+                    
+                    # Usar JPG como fallback si no hay WebP
+                    primary_thumbnail = thumbnail_urls["webp"] or thumbnail_urls["jpg"]
 
                     item = {
                         "name": self._clean_filename(file),
                         "path": relative_path,
-                        "thumbnail": f"/thumbnails/{os.path.basename(thumbnail_path)}"
+                        "thumbnail": primary_thumbnail,
+                        "thumbnails": thumbnail_urls  # Enviar ambos para detección en frontend
                     }
 
                     # Detectar series por sufijo
@@ -98,13 +184,19 @@ class FileSystemMediaRepository(IMediaRepository):
             for k, v in sorted(series.items())
         }
 
+        # Estadísticas de formatos
+        webp_count = sum(1 for cat in categorias.values() 
+                        for m in cat if m.get("thumbnails", {}).get("webp"))
+        jpg_count = sum(1 for cat in categorias.values() 
+                       for m in cat if m.get("thumbnails", {}).get("jpg"))
+        
         logger.info(
             f"Escaneo completado: {sum(len(v) for v in categorias.values())} películas "
-            f"en {len(categorias)} categorías, {len(series)} series."
+            f"en {len(categorias)} categorías, {len(series)} series. "
+            f"Thumbnails: {webp_count} WebP, {jpg_count} JPG"
         )
 
         return categorias, series
-
 
     def get_safe_path(self, filename):
         """

@@ -1,3 +1,5 @@
+const thumbnailCache = new Map();
+
 // =========================
 //  UTILIDADES DE CATEGORÍAS
 // =========================
@@ -12,26 +14,77 @@ function formatCategoryName(cat) {
         .replace(/\b\w/g, c => c.toUpperCase());
 }
 
-// Función para obtener la URL correcta del thumbnail
-function getThumbnailUrl(movie) {
-    // Si ya tiene thumbnail, usarlo directamente
+// Función para obtener la URL del thumbnail con detección de formato
+async function getThumbnailUrl(movie) {
+    const name = movie.name || movie.title || '';
+    const cleanName = name.trim().replace(/\s+/g, ' ');
+    const cacheKey = cleanName;
+
+    // Si ya está en caché, devolverlo
+    if (thumbnailCache.has(cacheKey)) {
+        return thumbnailCache.get(cacheKey);
+    }
+
+    // Si ya tiene thumbnail en los datos, usarlo
     if (movie.thumbnail) {
+        thumbnailCache.set(cacheKey, movie.thumbnail);
         return movie.thumbnail;
     }
 
-    // Si no, construir la URL basada en el nombre
-    const name = movie.name || movie.title || '';
-    // Limpiar el nombre y codificar para URL
-    const cleanName = name.trim().replace(/\s+/g, ' ');
-    return `/thumbnails/${encodeURIComponent(cleanName)}-optimized.jpg`;
+    const encodedName = encodeURIComponent(cleanName);
+
+    // Verificar soporte WebP (una sola vez)
+    if (!window.supportsWebP) {
+        window.supportsWebP = await checkWebPSupport();
+    }
+
+    let thumbnailUrl;
+
+    // Si soporta WebP, intentar obtener versión WebP
+    if (window.supportsWebP) {
+        try {
+            const response = await fetch(`/thumbnails/detect/${encodedName}-optimized.jpg`);
+            const data = await response.json();
+
+            if (data.has_webp) {
+                thumbnailUrl = data.webp_url;
+            } else if (data.has_jpg) {
+                thumbnailUrl = data.jpg_url;
+            } else {
+                thumbnailUrl = `/thumbnails/${encodedName}-optimized.jpg`;
+            }
+        } catch (error) {
+            console.log('Error detectando formato, usando JPG');
+            thumbnailUrl = `/thumbnails/${encodedName}-optimized.jpg`;
+        }
+    } else {
+        thumbnailUrl = `/thumbnails/${encodedName}-optimized.jpg`;
+    }
+
+    // Guardar en caché
+    thumbnailCache.set(cacheKey, thumbnailUrl);
+    return thumbnailUrl;
 }
 
-function createMovieCard(movie) {
+// Función para verificar soporte de WebP
+function checkWebPSupport() {
+    return new Promise(resolve => {
+        const webP = new Image();
+        webP.onload = webP.onerror = function () {
+            resolve(webP.height === 2);
+        };
+        webP.src = 'data:image/webp;base64,UklGRjoAAABXRUJQVlA4IC4AAACyAgCdASoCAAIALmk0mk0iIiIiIgBoSygABc6WWgAA/veff/0PP8bA//LwYAAA';
+    });
+}
+
+async function createMovieCard(movie) {
     const card = document.createElement("div");
     card.classList.add("movie-card");
 
     const title = movie.name || movie.title || 'Sin título';
-    const thumbnailUrl = getThumbnailUrl(movie);
+
+    // Obtener la URL del thumbnail (ahora asíncrona)
+    const thumbnailUrl = await getThumbnailUrl(movie);
 
     // Crear la imagen
     const img = document.createElement('img');
@@ -44,7 +97,6 @@ function createMovieCard(movie) {
         this.onerror = null;
     };
 
-    // Título
     const titleDiv = document.createElement('div');
     titleDiv.className = 'movie-title';
     titleDiv.textContent = title;
@@ -53,6 +105,46 @@ function createMovieCard(movie) {
     card.appendChild(titleDiv);
 
     const playPath = movie.path || movie.id || movie.file;
+    card.onclick = () => playMovie(playPath);
+
+    return card;
+}
+
+// Nueva función asíncrona para crear tarjetas de series
+async function createSerieCard(episodio) {
+    const card = document.createElement("div");
+    card.classList.add("movie-card");
+
+    const title = episodio.name || episodio.title || 'Sin título';
+
+    // Determinar la URL del thumbnail
+    let thumbnailUrl;
+    if (episodio.thumbnail) {
+        thumbnailUrl = episodio.thumbnail;
+    } else {
+        // Intentar usar getThumbnailUrl para series también
+        thumbnailUrl = await getThumbnailUrl(episodio);
+    }
+
+    // Crear imagen
+    const img = document.createElement('img');
+    img.className = 'movie-thumb';
+    img.alt = title;
+    img.src = thumbnailUrl;
+    img.onerror = function () {
+        console.log('Error en serie, usando default:', this.src);
+        this.src = '/static/thumbnails/default.jpg';
+        this.onerror = null;
+    };
+
+    const titleDiv = document.createElement('div');
+    titleDiv.className = 'movie-title';
+    titleDiv.textContent = title;
+
+    card.appendChild(img);
+    card.appendChild(titleDiv);
+
+    const playPath = episodio.path || episodio.id || episodio.file;
     card.onclick = () => playMovie(playPath);
 
     return card;
@@ -81,7 +173,7 @@ function scrollCarousel(button, direction) {
 }
 
 // Función para renderizar películas en carruseles
-function renderMoviesByCategory(categorias) {
+async function renderMoviesByCategory(categorias) {
     const moviesDiv = document.getElementById("movies");
     if (!moviesDiv) {
         console.error("No se encontró el contenedor de películas");
@@ -94,8 +186,6 @@ function renderMoviesByCategory(categorias) {
         moviesDiv.innerHTML = '<div class="no-content-message">No hay películas disponibles</div>';
         return;
     }
-
-    console.log("Categorías recibidas:", categorias);
 
     for (const categoria in categorias) {
         const peliculas = categorias[categoria];
@@ -136,11 +226,13 @@ function renderMoviesByCategory(categorias) {
         track.classList.add("carousel-track");
         track.id = carouselId;
 
-        peliculas.forEach((movie) => {
+        // Crear todas las tarjetas de forma asíncrona
+        const cardPromises = peliculas.map(movie => createMovieCard(movie));
+        const cards = await Promise.all(cardPromises);
+
+        cards.forEach(card => {
             const item = document.createElement("div");
             item.classList.add("carousel-item");
-
-            const card = createMovieCard(movie);
             item.appendChild(card);
             track.appendChild(item);
         });
@@ -155,8 +247,8 @@ function renderMoviesByCategory(categorias) {
     }
 }
 
-// Función para renderizar series en carruseles
-function renderSeries(series) {
+// Función para renderizar series en carruseles (AHORA ASÍNCRONA)
+async function renderSeries(series) {
     const seriesDiv = document.getElementById("seriesContainer");
     if (!seriesDiv) {
         console.error("No se encontró el contenedor de series");
@@ -211,46 +303,13 @@ function renderSeries(series) {
         track.classList.add("carousel-track");
         track.id = carouselId;
 
-        episodios.forEach(ep => {
+        // Crear todas las tarjetas de series de forma asíncrona
+        const cardPromises = episodios.map(ep => createSerieCard(ep));
+        const cards = await Promise.all(cardPromises);
+
+        cards.forEach(card => {
             const item = document.createElement("div");
             item.classList.add("carousel-item");
-
-            const card = document.createElement("div");
-            card.classList.add("movie-card");
-
-            const title = ep.name || ep.title || 'Sin título';
-
-            // Construir URL del thumbnail para series
-            let thumbnailUrl;
-            if (ep.thumbnail) {
-                thumbnailUrl = ep.thumbnail;
-            } else {
-                // Para series, el formato parece ser diferente
-                const cleanTitle = title.trim().replace(/\s+/g, ' ');
-                thumbnailUrl = `/thumbnails/${encodeURIComponent(cleanTitle)}-serie-optimized.jpg`;
-            }
-
-            // Crear imagen
-            const img = document.createElement('img');
-            img.className = 'movie-thumb';
-            img.alt = title;
-            img.src = thumbnailUrl;
-            img.onerror = function () {
-                console.log('Error en serie, usando default:', this.src);
-                this.src = '/static/thumbnails/default.jpg';
-                this.onerror = null;
-            };
-
-            const titleDiv = document.createElement('div');
-            titleDiv.className = 'movie-title';
-            titleDiv.textContent = title;
-
-            card.appendChild(img);
-            card.appendChild(titleDiv);
-
-            const playPath = ep.path || ep.id || ep.file;
-            card.onclick = () => playMovie(playPath);
-
             item.appendChild(card);
             track.appendChild(item);
         });
@@ -434,18 +493,18 @@ function loadContent() {
             }
             return r.json();
         })
-        .then(data => {
+        .then(async data => {  // Hacer esta función async
             console.log('Datos recibidos:', data);
 
             if (data.categorias) {
-                renderMoviesByCategory(data.categorias);
+                await renderMoviesByCategory(data.categorias);
             } else {
                 console.warn('No hay categorías en los datos');
                 document.getElementById('movies').innerHTML = '<div class="no-content-message">No hay películas disponibles</div>';
             }
 
             if (data.series) {
-                renderSeries(data.series);
+                await renderSeries(data.series);
             } else {
                 console.warn('No hay series en los datos');
                 document.getElementById('seriesContainer').innerHTML = '<div class="no-content-message">No hay series disponibles</div>';

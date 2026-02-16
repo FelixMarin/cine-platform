@@ -1,6 +1,6 @@
 import os
 import jwt
-from flask import Blueprint, render_template, request, redirect, url_for, session, jsonify, Response, send_from_directory
+from flask import Blueprint, render_template, request, redirect, url_for, session, jsonify, Response, send_from_directory, make_response
 
 def create_blueprints(auth_service, media_service, optimizer_service):
     bp = Blueprint('main', __name__)
@@ -98,7 +98,66 @@ def create_blueprints(auth_service, media_service, optimizer_service):
 
     @bp.route('/thumbnails/<filename>')
     def serve_thumbnail(filename):
-        return send_from_directory(media_service.get_thumbnails_folder(), filename)
+        """
+        Sirve thumbnails con soporte para WebP y cabeceras de caché
+        """
+        if not is_logged_in():
+            # Redirigir al login si no está autenticado
+            return redirect(url_for('main.login'))
+        
+        thumbnails_folder = media_service.get_thumbnails_folder()
+        
+        # Verificar si el navegador acepta WebP
+        accept_webp = 'image/webp' in request.headers.get('Accept', '')
+        
+        # Si el archivo solicitado es .jpg pero el navegador acepta WebP,
+        # intentar servir la versión WebP si existe
+        if filename.endswith('.jpg') and accept_webp:
+            webp_filename = filename.replace('.jpg', '.webp')
+            webp_path = os.path.join(thumbnails_folder, webp_filename)
+            
+            if os.path.exists(webp_path):
+                response = make_response(send_from_directory(thumbnails_folder, webp_filename))
+                # Cachear por 30 días (2592000 segundos)
+                response.headers['Cache-Control'] = 'public, max-age=2592000, immutable'
+                response.headers['X-Image-Format'] = 'webp'  # Header informativo
+                return response
+        
+        # Servir el archivo solicitado (puede ser .jpg o .webp)
+        response = make_response(send_from_directory(thumbnails_folder, filename))
+        
+        # Cabeceras de caché agresivas para thumbnails
+        # 30 días para imágenes que no cambian frecuentemente
+        response.headers['Cache-Control'] = 'public, max-age=2592000, immutable'
+        response.headers['Expires'] = 'Sun, 16 Feb 2030 00:00:00 GMT'  # Fecha lejana
+        
+        # Header para debugging
+        response.headers['X-Image-Format'] = 'jpg' if filename.endswith('.jpg') else 'webp'
+        
+        return response
+
+    @bp.route('/thumbnails/detect/<filename>')
+    def detect_thumbnail_format(filename):
+        """
+        Endpoint para detectar qué formatos de thumbnail existen
+        Útil para que el frontend decida qué formato usar
+        """
+        if not is_logged_in():
+            return jsonify({"error": "No autorizado"}), 401
+        
+        thumbnails_folder = media_service.get_thumbnails_folder()
+        base_name = os.path.splitext(filename)[0]
+        
+        jpg_path = os.path.join(thumbnails_folder, f"{base_name}.jpg")
+        webp_path = os.path.join(thumbnails_folder, f"{base_name}.webp")
+        
+        return jsonify({
+            "base_name": base_name,
+            "has_jpg": os.path.exists(jpg_path),
+            "has_webp": os.path.exists(webp_path),
+            "jpg_url": f"/thumbnails/{base_name}.jpg" if os.path.exists(jpg_path) else None,
+            "webp_url": f"/thumbnails/{base_name}.webp" if os.path.exists(webp_path) else None
+        })
 
     @bp.route('/download/<path:filename>')
     def download_file(filename):
