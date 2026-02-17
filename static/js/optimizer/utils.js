@@ -14,7 +14,7 @@ function updateStatusIcon(logLine) {
     const $icon = $('#statusIcon');
     const line = logLine || '';
 
-    let emoji = '🟢';
+    let emoji = '⚪';
 
     if (line.toLowerCase().includes('error')) {
         emoji = '❌';

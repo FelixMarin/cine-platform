@@ -1,0 +1,64 @@
+/* ===== MENÚ COLAPSADO ===== */
+.side-menu.collapsed {
+    width: var(--menu-width-collapsed);
+}
+
+.side-menu.collapsed .menu-header h2 span,
+.side-menu.collapsed .menu-user-email,
+.side-menu.collapsed .menu-user-role,
+.side-menu.collapsed .menu-section-title,
+.side-menu.collapsed .menu-item span:last-child,
+.side-menu.collapsed .menu-logout span:last-child {
+    display: none;
+}
+
+.side-menu.collapsed .menu-header h2 {
+    font-size: 1.2rem;
+    text-align: center;
+    margin: 0;
+    padding: 0;
+}
+
+.side-menu.collapsed .menu-header {
+    padding: 0 0 24px 0;
+    text-align: center;
+    border-bottom: 1px solid var(--menu-border-color);
+}
+
+.side-menu.collapsed .menu-user {
+    padding: 0 0 20px 0;
+    text-align: center;
+    border-bottom: 1px solid var(--menu-border-color);
+}
+
+.side-menu.collapsed .menu-item,
+.side-menu.collapsed .menu-logout {
+    justify-content: center;
+    padding: 14px 0;
+    margin: 0 8px;
+}
+
+.side-menu.collapsed .menu-item span:first-child,
+.side-menu.collapsed .menu-logout span:first-child {
+    margin: 0;
+    font-size: 1.4rem;
+}
+
+.side-menu.collapsed .menu-title-full {
+    display: none;
+}
+
+.side-menu.collapsed .menu-icon-collapsed {
+    display: block !important;
+    font-size: 2rem;
+    line-height: 1;
+}
+
+/* Icono colapsado (visible solo en estado colapsado) */
+.menu-icon-collapsed {
+    display: none;
+}
+
+.menu-title-full {
+    display: block;
+}

@@ -1,0 +1,67 @@
+/* ===== MENÚ LATERAL COLAPSABLE ===== */
+.side-menu {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    width: var(--menu-width-expanded);
+    background: var(--menu-bg);
+    border-right: 1px solid var(--menu-border-color);
+    padding: 24px 0;
+    display: flex;
+    flex-direction: column;
+    z-index: 1000;
+    transition: width var(--menu-transition), transform var(--menu-transition);
+    box-shadow: var(--shadow);
+    overflow-x: hidden;
+    overflow-y: auto;
+}
+
+/* Scrollbar personalizada para el menú */
+.side-menu::-webkit-scrollbar {
+    width: 4px;
+}
+
+.side-menu::-webkit-scrollbar-track {
+    background: var(--bg-tertiary);
+}
+
+.side-menu::-webkit-scrollbar-thumb {
+    background: var(--accent-color);
+    border-radius: 4px;
+}
+
+.side-menu::-webkit-scrollbar-thumb:hover {
+    background: var(--accent-hover);
+}
+
+/* Ajuste del contenido principal */
+.main-content {
+    margin-left: var(--menu-width-expanded);
+    transition: margin-left var(--menu-transition);
+    min-height: 100vh;
+    background: var(--bg-primary);
+    padding: 20px;
+    box-sizing: border-box;
+}
+
+.main-content.expanded {
+    margin-left: var(--menu-width-collapsed);
+}
+
+/* Overlay para móvil */
+.menu-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    z-index: 999;
+    backdrop-filter: blur(3px);
+}
+
+.menu-overlay.active {
+    display: block;
+}

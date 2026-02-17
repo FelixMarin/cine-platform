@@ -1,0 +1,60 @@
+/* ===== ITEMS DEL MENÚ ===== */
+.menu-items {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 0 12px;
+}
+
+.menu-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: var(--menu-item-padding);
+    color: var(--menu-text);
+    text-decoration: none;
+    border-radius: var(--border-radius);
+    transition: all 0.2s ease;
+    font-weight: 500;
+    font-size: 1rem;
+    white-space: nowrap;
+}
+
+.menu-item:hover {
+    background: var(--menu-hover-bg);
+    color: var(--menu-text-hover);
+}
+
+.menu-item.active {
+    background: var(--menu-active-bg);
+    color: var(--menu-text-active);
+}
+
+.menu-item.active:hover {
+    background: var(--accent-hover);
+}
+
+.menu-item i, 
+.menu-item span:first-child {
+    font-size: 1.2rem;
+    min-width: 24px;
+    text-align: center;
+}
+
+/* Secciones del menú */
+.menu-section {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid var(--menu-border-color);
+}
+
+.menu-section-title {
+    padding: 8px 16px;
+    color: var(--text-muted);
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-weight: 600;
+    white-space: nowrap;
+}

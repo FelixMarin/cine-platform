@@ -1,0 +1,14 @@
+/* Fondo general */
+body {
+    font-family: sans-serif;
+    background: var(--login-bg);
+    color: white;
+    margin: 0;
+    padding: 16px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    min-height: 100dvh;
+    box-sizing: border-box;
+}

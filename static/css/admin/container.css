@@ -1,0 +1,22 @@
+/* ===== CONTENEDOR PRINCIPAL ===== */
+.admin-container {
+    max-width: var(--admin-max-width);
+    margin: 50px auto;
+    padding: 20px;
+}
+
+/* Ajuste para cuando el menú está colapsado en PC */
+.main-content {
+    padding: 20px;
+}
+
+/* Estado vacío o de carga */
+.admin-loading {
+    text-align: center;
+    padding: 40px;
+    color: var(--text-secondary);
+}
+
+.admin-loading .spinner {
+    margin-bottom: 15px;
+}

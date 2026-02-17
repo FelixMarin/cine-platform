@@ -1,0 +1,69 @@
+/* ===== RESPONSIVE ===== */
+@media (max-width: 768px) {
+    .admin-container {
+        margin: 20px auto;
+        padding: 15px;
+    }
+
+    .admin-header {
+        padding: 20px;
+    }
+
+    .admin-header h1 {
+        font-size: 1.5rem;
+    }
+
+    .admin-section {
+        padding: 20px;
+    }
+
+    .admin-section h2 {
+        font-size: 1.3rem;
+    }
+
+    .stat-card h3 {
+        font-size: 2rem;
+    }
+
+    .stat-card p {
+        font-size: 1rem;
+    }
+
+    .back-btn {
+        padding: 10px 20px;
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+@media (max-width: 480px) {
+    .admin-container {
+        margin: 10px auto;
+        padding: 10px;
+    }
+
+    .admin-stats {
+        grid-template-columns: 1fr;
+        gap: 15px;
+    }
+
+    .admin-header h1 {
+        font-size: 1.3rem;
+    }
+
+    .admin-section ul {
+        padding-left: 15px;
+    }
+}
+
+@media (max-width: 768px) {
+    .admin-container {
+        padding: 20px;
+    }
+}
+
+@media (max-width: 480px) {
+    .admin-container {
+        padding: 15px;
+    }
+}

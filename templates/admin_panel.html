@@ -5,11 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.5">
     <title>Panel de Administración - Cine Platform</title>
     <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/menu.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin_panel.css') }}">
-    <script src="{{ url_for('static', filename='js/script.js') }}?v={{ range(1, 10000) | random }}" defer></script>
-    <script src="{{ url_for('static', filename='js/admin_panel.js') }}?v={{ range(1, 10000) | random }}" defer></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main/main.css') }}?v={{ range(1, 10000) | random }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin/admin_panel.css') }}?v={{ range(1, 10000) | random }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/menu/menu.css') }}?v={{ range(1, 10000) | random }}">
 </head>
 <body class="dark-mode">
 
@@ -125,17 +123,6 @@
         </div>
     </main>
 
-    <script>
-        // Pequeño script para asegurar que el menú mantiene el estado
-        document.addEventListener('DOMContentLoaded', function() {
-            // Marcar el item activo correctamente
-            const currentPath = window.location.pathname;
-            document.querySelectorAll('.menu-item').forEach(item => {
-                if (item.getAttribute('href') === currentPath) {
-                    item.classList.add('active');
-                }
-            });
-        });
-    </script>
+    <script src="{{ url_for('static', filename='js/admin_panel.js') }}?v={{ range(1, 10000) | random }}" defer></script>
 </body>
 </html>

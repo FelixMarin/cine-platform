@@ -1,0 +1,80 @@
+/* ===== RESPONSIVE ===== */
+/* Detectar móviles por el ancho */
+@media (max-width: 768px) {
+    body {
+        padding: 12px;
+    }
+    
+    .login-box {
+        padding: 45px 30px;
+        max-width: 100%;
+        border-radius: 28px;
+    }
+    
+    .login-box h2 {
+        font-size: 2.6rem;
+        margin-bottom: 40px;
+    }
+    
+    .login-box input {
+        padding: 20px;
+        font-size: 1.4rem;
+        margin-bottom: 22px;
+        border-radius: 20px;
+    }
+    
+    .login-box button {
+        padding: 20px;
+        font-size: 1.6rem;
+        border-radius: 20px;
+        margin-top: 15px;
+    }
+    
+    .error-msg {
+        font-size: 1.2rem;
+        margin-bottom: 25px;
+    }
+}
+
+/* Para móviles muy pequeños */
+@media (max-width: 380px) {
+    .login-box {
+        padding: 35px 25px;
+    }
+    
+    .login-box h2 {
+        font-size: 2.2rem;
+    }
+    
+    .login-box input {
+        padding: 16px;
+        font-size: 1.2rem;
+    }
+    
+    .login-box button {
+        padding: 16px;
+        font-size: 1.4rem;
+    }
+}
+
+/* Para tablets en vertical */
+@media (min-width: 769px) and (max-width: 1024px) {
+    .login-box {
+        max-width: 600px;
+        padding: 50px 40px;
+    }
+    
+    .login-box h2 {
+        font-size: 2.8rem;
+    }
+    
+    .login-box input {
+        padding: 22px;
+        font-size: 1.5rem;
+    }
+    
+    .login-box button {
+        padding: 22px;
+        font-size: 1.7rem;
+    }
+}

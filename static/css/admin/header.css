@@ -1,0 +1,24 @@
+/* ===== CABECERA ===== */
+.admin-header {
+    background: var(--bg-secondary);
+    padding: 25px 30px;
+    border-radius: var(--admin-border-radius);
+    margin-bottom: 30px;
+    border-left: 4px solid var(--accent-color);
+    box-shadow: var(--admin-shadow);
+}
+
+.admin-header h1 {
+    margin: 0;
+    color: var(--text-primary);
+    font-size: 2rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.admin-header p {
+    color: var(--text-secondary);
+    margin: 10px 0 0 0;
+    font-size: 1rem;
+}

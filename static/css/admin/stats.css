@@ -1,0 +1,36 @@
+/* ===== GRID DE ESTADÍSTICAS ===== */
+.admin-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 20px;
+    margin-top: 20px;
+}
+
+.stat-card {
+    background: var(--bg-tertiary);
+    padding: 25px 20px;
+    border-radius: var(--admin-border-radius);
+    text-align: center;
+    transition: transform var(--admin-transition), box-shadow var(--admin-transition);
+    border: 1px solid var(--border-color);
+}
+
+.stat-card:hover {
+    transform: translateY(-5px);
+    box-shadow: var(--shadow-hover);
+    border-color: var(--accent-color);
+}
+
+.stat-card h3 {
+    margin: 0 0 15px 0;
+    color: var(--accent-color);
+    font-size: 2.5rem;
+    line-height: 1;
+}
+
+.stat-card p {
+    margin: 0;
+    color: var(--text-primary);
+    font-weight: 500;
+    font-size: 1.1rem;
+}

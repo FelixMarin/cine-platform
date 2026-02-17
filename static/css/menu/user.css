@@ -1,0 +1,23 @@
+/* ===== INFO DEL USUARIO ===== */
+.menu-user {
+    padding: 0 20px 20px 20px;
+    margin-bottom: 20px;
+    border-bottom: 1px solid var(--menu-border-color);
+}
+
+.menu-user-email {
+    color: var(--text-primary);
+    font-weight: 500;
+    margin-bottom: 4px;
+    word-break: break-all;
+    font-size: 0.9rem;
+    white-space: nowrap;
+}
+
+.menu-user-role {
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+}

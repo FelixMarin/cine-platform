@@ -1,0 +1,9 @@
+/* Variables específicas del panel de administración */
+:root {
+    --admin-max-width: 1200px;
+    --admin-spacing: 30px;
+    --admin-section-spacing: 25px;
+    --admin-border-radius: var(--border-radius);
+    --admin-shadow: var(--shadow);
+    --admin-transition: 0.3s ease;
+}

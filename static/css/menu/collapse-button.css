@@ -1,0 +1,36 @@
+/* ===== BOTÓN PARA COLAPSAR/EXPANDIR ===== */
+.menu-collapse-btn {
+    position: absolute;
+    top: 25px;
+    transform: translateY(-50%);
+    right: -7px;
+    width: 24px;
+    height: 24px;
+    background: var(--accent-color);
+    border: 2px solid var(--bg-primary);
+    border-radius: 50%;
+    color: red;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 1001;
+    transition: all 0.3s ease;
+    box-shadow: var(--shadow-sm);
+}
+
+.menu-collapse-btn:hover {
+    background: var(--accent-hover);
+    transform: translateY(-50%) scale(1.1);
+}
+
+/* Cuando el menú está colapsado, el botón se mueve con él */
+.side-menu.collapsed .menu-collapse-btn {
+    right: -12px;
+    transform: translateY(-50%) rotate(180deg);
+}
+
+.side-menu.collapsed .menu-collapse-btn:hover {
+    transform: translateY(-50%) rotate(180deg) scale(1.1);
+}

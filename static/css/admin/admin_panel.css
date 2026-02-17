@@ -1,0 +1,9 @@
+/* Archivo principal del panel de administración */
+@import url('variables.css');
+@import url('container.css');
+@import url('header.css');
+@import url('sections.css');
+@import url('stats.css');
+@import url('buttons.css');
+@import url('animations.css');
+@import url('responsive.css');

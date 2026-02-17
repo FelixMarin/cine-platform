@@ -1,0 +1,22 @@
+/* ===== BOTÓN DE LOGOUT ===== */
+.menu-logout {
+    margin: 20px 12px;
+    padding: var(--menu-item-padding);
+    background: transparent;
+    border: 1px solid var(--menu-border-color);
+    border-radius: var(--border-radius);
+    color: var(--menu-text);
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    transition: all 0.2s ease;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.menu-logout:hover {
+    background: rgba(229, 9, 20, 0.1);
+    border-color: var(--accent-color);
+    color: var(--accent-color);
+}

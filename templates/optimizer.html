@@ -8,7 +8,7 @@
   <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css"/>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/menu.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/menu/menu.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/optimizer/main.css') }}?v={{ range(1, 10000) | random }}"/>
 </head>
 <body>
@@ -201,14 +201,14 @@
               <div class="card-body">
                 <div class="d-flex justify-content-between align-items-center">
                   <h5 class="mb-0">📊 Estado de procesamiento</h5>
-                  <span id="statusIcon" style="font-size:1.5em;">🟢</span>
+                  <span id="statusIcon" style="font-size:1.5em;">⚪</span>
                 </div>
 
                 <p class="mt-2 mb-1"><strong>Archivo en proceso:</strong> <span id="currentFile">Ninguno</span></p>
 
                 <div class="table-responsive-wrapper">
                   <table class="table table-sm table-bordered text-center mt-3">
-                    <thead class="thead-light">
+                    <thead class="thead-dark">
                       <tr>
                         <th>Frames</th>
                         <th>FPS</th>

@@ -1,0 +1,14 @@
+/* Variables específicas del menú */
+:root {
+    --menu-width-expanded: 260px;
+    --menu-width-collapsed: 80px;
+    --menu-transition: 0.3s ease;
+    --menu-item-padding: 14px 16px;
+    --menu-border-color: var(--border-color);
+    --menu-bg: var(--bg-secondary);
+    --menu-hover-bg: var(--bg-tertiary);
+    --menu-active-bg: var(--accent-color);
+    --menu-text: var(--text-secondary);
+    --menu-text-hover: var(--text-primary);
+    --menu-text-active: white;
+}

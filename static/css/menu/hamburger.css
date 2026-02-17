@@ -1,0 +1,19 @@
+/* ===== BOTÓN HAMBURGUESA ===== */
+.menu-toggle {
+    display: none;
+    position: fixed;
+    top: 16px;
+    left: 16px;
+    z-index: 1001;
+    background: var(--accent-color);
+    color: white;
+    border: none;
+    border-radius: var(--border-radius-sm);
+    width: 44px;
+    height: 44px;
+    font-size: 24px;
+    cursor: pointer;
+    box-shadow: var(--shadow);
+    align-items: center;
+    justify-content: center;
+}

@@ -187,3 +187,13 @@ window.addEventListener('beforeunload', function () {
         clearTimeout(loadingTimeout);
     }
 });
+
+document.addEventListener('DOMContentLoaded', function () {
+    // Marcar el item activo correctamente
+    const currentPath = window.location.pathname;
+    document.querySelectorAll('.menu-item').forEach(item => {
+        if (item.getAttribute('href') === currentPath) {
+            item.classList.add('active');
+        }
+    });
+});

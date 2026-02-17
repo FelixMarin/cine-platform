@@ -5,7 +5,7 @@
     }
     
     .carousel-item .movie-thumb {
-        height: 220px;
+        height: 9em;
     }
 }
 
@@ -45,7 +45,7 @@
     }
     
     .carousel-item .movie-thumb {
-        height: 200px;
+        height: 8em;
     }
     
     .carousel-item .movie-title {
@@ -81,7 +81,7 @@
     }
     
     .movie-thumb {
-        height: 200px;
+        height: 10em;
     }
 }
 
@@ -126,7 +126,7 @@
     }
     
     .carousel-item .movie-thumb {
-        height: 170px;
+        height: 6em;
     }
     
     .carousel-item .movie-title {

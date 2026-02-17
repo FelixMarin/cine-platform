@@ -1,0 +1,21 @@
+/* Caja del login */
+.login-box {
+    background: var(--login-box-bg);
+    padding: var(--login-padding);
+    border-radius: var(--login-border-radius);
+    width: 100%;
+    max-width: var(--login-max-width);
+    margin: auto;
+    box-sizing: border-box;
+    box-shadow: var(--login-shadow);
+}
+
+/* Título */
+.login-box h2 {
+    margin-top: 0;
+    margin-bottom: 35px;
+    text-align: center;
+    font-size: 2.4rem;
+    font-weight: 600;
+    letter-spacing: 1px;
+}

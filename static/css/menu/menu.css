@@ -1,0 +1,11 @@
+/* Archivo principal del menú que importa todos los módulos */
+@import url('variables.css');
+@import url('base.css');
+@import url('collapsed.css');
+@import url('collapse-button.css');
+@import url('header.css');
+@import url('user.css');
+@import url('items.css');
+@import url('logout.css');
+@import url('hamburger.css');
+@import url('responsive.css');

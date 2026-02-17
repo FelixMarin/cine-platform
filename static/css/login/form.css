@@ -1,0 +1,36 @@
+/* Inputs */
+.login-box input {
+    margin-bottom: 20px;
+    padding: 18px;
+    font-size: 1.3rem;
+    width: 100%;
+    border-radius: var(--login-border-radius-sm);
+    border: none;
+    box-sizing: border-box;
+    background: var(--login-input-bg);
+    color: white;
+    outline: none;
+}
+
+/* Botón */
+.login-box button {
+    padding: 18px;
+    background: var(--login-accent);
+    color: white;
+    border: none;
+    cursor: pointer;
+    font-size: 1.4rem;
+    font-weight: 600;
+    border-radius: var(--login-border-radius-sm);
+    width: 100%;
+    margin-top: 10px;
+}
+
+/* Error */
+.error-msg {
+    color: var(--login-error);
+    margin-bottom: 20px;
+    text-align: center;
+    font-size: 1.1rem;
+    font-weight: 500;
+}
