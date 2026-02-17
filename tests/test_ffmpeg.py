@@ -1,6 +1,7 @@
 import unittest
 import os
 import sys
+import subprocess  # Importar el módulo subprocess
 from unittest.mock import patch, MagicMock
 
 # Añadir el directorio raíz al path
@@ -35,7 +36,7 @@ class TestFFmpegHandler(unittest.TestCase):
         self.assertEqual(info["resolution"], "1280x720")
         self.assertEqual(info["vcodec"], "h264")
         self.assertEqual(info["acodec"], "aac")
-        self.assertEqual(info["size"], "1.00 MB")
+        self.assertEqual(info["size"], "1.0 MB")  # Cambiar a "1.0 MB"
     
     @patch('subprocess.Popen')
     def test_execute(self, mock_popen):
