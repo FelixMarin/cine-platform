@@ -140,15 +140,15 @@ class FFmpegOptimizerAdapter(IOptimizerService):
         threading.Thread(target=_folder_worker).start()
 
     def get_status(self):
-        s = self.state_manager.state
+        """Devuelve el estado actual del procesamiento"""
         return {
-            "current_video": s.current_video,
-            "current_step": s.current_step,
-            "history": s.history,
-            "log_line": s.log_line,
-            "video_info": s.video_info
+            "current_video": self.state.state.current_video if hasattr(self.state, 'state') else None,
+            "current_step": self.state.state.current_step if hasattr(self.state, 'state') else 0,
+            "log_line": getattr(self.state.state, 'log_line', ''),
+            "history": self.state.state.history[-20:] if hasattr(self.state, 'state') else [],
+            "video_info": self.state.state.video_info if hasattr(self.state, 'state') else {}
         }
-
+    
     def get_output_folder(self):
         return self.output_folder
 

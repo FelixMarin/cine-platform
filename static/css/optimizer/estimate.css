@@ -1,0 +1,43 @@
+/* estimate.css - Estimación de tamaño */
+.estimate-info {
+    background: var(--bg-tertiary);
+    border-radius: var(--border-radius-sm);
+    padding: 15px;
+    margin-top: 15px;
+    display: none;
+}
+
+.estimate-info.show {
+    display: block;
+    animation: slideIn 0.3s ease;
+}
+
+.metric {
+    text-align: center;
+    padding: 10px;
+    background: var(--bg-card);
+    border-radius: var(--border-radius-sm);
+}
+
+.metric-value {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: var(--accent-color);
+}
+
+.metric-label {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}

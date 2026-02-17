@@ -1,0 +1,10 @@
+/* Archivo principal que importa todos los módulos */
+@import url('variables.css');
+@import url('base.css');
+@import url('tabs.css');
+@import url('cards.css');
+@import url('carousel.css');
+@import url('series.css');
+@import url('layout.css');
+@import url('animations.css');
+@import url('responsive.css');

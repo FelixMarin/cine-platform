@@ -1,0 +1,63 @@
+/* ===== SECCIONES COLAPSABLES (SERIES) ===== */
+.collapsible-header {
+    background-color: var(--bg-secondary);
+    color: var(--text-primary);
+    padding: 18px 20px;
+    margin: 15px 0 2px 0;
+    cursor: pointer;
+    border-radius: var(--border-radius);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: all 0.3s ease;
+    border: 1px solid transparent;
+    font-size: 1.2rem;
+    font-weight: 600;
+}
+
+.collapsible-header:hover {
+    background-color: var(--accent-color);
+    border-color: var(--accent-hover);
+}
+
+.collapsible-header::after {
+    content: '\25BC';
+    font-size: 14px;
+    transition: transform 0.3s ease;
+    color: var(--text-primary);
+}
+
+.collapsible-header.active {
+    background-color: var(--accent-color);
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+}
+
+.collapsible-header.active::after {
+    transform: rotate(-180deg);
+}
+
+.collapsible-content {
+    display: none;
+    padding: 20px;
+    border: 1px solid var(--border-color);
+    border-top: none;
+    border-radius: 0 0 var(--border-radius) var(--border-radius);
+    background-color: var(--bg-tertiary);
+    margin-bottom: 15px;
+}
+
+.series-section .collapsible-content {
+    display: none;
+    padding: 20px;
+    background-color: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-top: none;
+    border-radius: 0 0 var(--border-radius) var(--border-radius);
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+}
+
+.series-section .collapsible-content.active {
+    display: grid;
+}

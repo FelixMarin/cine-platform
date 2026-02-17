@@ -1,0 +1,15 @@
+/* ===== VARIABLES GLOBALES ===== */
+:root {
+    --bg-primary: #1a1a1a;        /* Fondo principal - igual que login */
+    --bg-secondary: #333;          /* Fondos secundarios - igual que login */
+    --bg-tertiary: #222;          /* Fondos terciarios - inputs */
+    --bg-card: #2c2c2c;          /* Tarjetas y elementos */
+    --accent-color: #e50914;      /* Rojo característico del login */
+    --accent-hover: #b20710;      /* Rojo hover del login */
+    --border-color: #444;         /* Bordes */
+    --text-primary: #ffffff;      /* Texto blanco */
+    --text-secondary: #cccccc;    /* Texto gris claro */
+    --shadow: 0 8px 16px rgba(0, 0, 0, 0.4);
+    --border-radius: 12px;        /* Bordes redondeados como login */
+    --border-radius-sm: 8px;      /* Bordes pequeños */
+}

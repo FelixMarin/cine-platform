@@ -1,0 +1,28 @@
+/* forms.css - Formularios e inputs */
+input, select, textarea {
+    background-color: #2d2d2d;
+    color: #e0e0e0;
+    border: 1px solid #404040;
+    border-radius: 4px;
+    padding: 8px 12px;
+    font-family: 'Inter', sans-serif;
+}
+
+input:focus, select:focus, textarea:focus {
+    outline: none;
+    border-color: #5d9aff;
+    box-shadow: 0 0 0 2px rgba(93, 154, 255, 0.2);
+}
+
+input::placeholder {
+    color: #888;
+}
+
+/* Video preview */
+#video-preview {
+    border: 1px solid #404040;
+    background-color: #000;
+    border-radius: 4px;
+    max-width: 100%;
+    max-height: 250px;
+}

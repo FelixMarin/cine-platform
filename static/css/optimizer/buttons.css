@@ -1,0 +1,79 @@
+/* buttons.css - Botones */
+.custom-file-upload {
+    background: linear-gradient(135deg, #5d9aff, #2b6ee0);
+    color: white;
+    padding: 10px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: 0.3s;
+    display: inline-block;
+    margin-right: 8px;
+    border: none;
+}
+
+.custom-file-upload:hover {
+    background: linear-gradient(135deg, #2b6ee0, #5d9aff);
+}
+
+#upload-btn {
+    background: #00b894;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 16px;
+    color: #fff;
+    font-weight: 500;
+    transition: background 0.3s;
+}
+
+#upload-btn:hover {
+    background: #00a187;
+}
+
+#cancel-upload-btn {
+    display: none;
+    padding: 4px 12px;
+    font-size: 0.85rem;
+    background-color: #404040;
+    color: #e0e0e0;
+    border: 1px solid #555;
+    border-radius: 4px;
+}
+
+#cancel-upload-btn:hover {
+    background-color: #4d4d4d;
+}
+
+#cancel-process-btn {
+    box-shadow: 0 4px 6px rgba(220, 53, 69, 0.3);
+    transition: all 0.3s ease;
+}
+
+#cancel-process-btn:hover {
+    transform: scale(1.05);
+    box-shadow: 0 6px 8px rgba(220, 53, 69, 0.4);
+}
+
+#cancel-process-btn:active {
+    transform: scale(0.95);
+}
+
+.back-btn {
+    position: fixed;
+    top: 20px;
+    left: 20px;
+    background: #3a8cff;
+    color: white;
+    padding: 10px 20px;
+    border-radius: 5px;
+    text-decoration: none;
+    font-weight: 600;
+    z-index: 1000;
+    border: none;
+}
+
+.back-btn:hover {
+    background: #2b6ee0;
+    color: white;
+    text-decoration: none;
+}

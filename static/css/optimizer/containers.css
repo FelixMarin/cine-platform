@@ -1,0 +1,21 @@
+/* containers.css - Contenedores principales */
+.container, .container-fluid {
+    background-color: transparent;
+}
+
+.card, .panel, .well, .jumbotron {
+    background-color: #1e1e1e;
+    border: 1px solid #333333;
+    color: #e0e0e0;
+}
+
+.optimizer-container {
+    background-color: #1a1a1a;
+    border-radius: 8px;
+    padding: 20px;
+    border: 1px solid #333333;
+}
+
+.bg-white, .bg-light {
+    background-color: #1e1e1e !important;
+}

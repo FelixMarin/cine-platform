@@ -1,0 +1,166 @@
+/* ===== SECCIONES DE CATEGORÍA ===== */
+.category-section {
+    margin-bottom: 40px;
+    position: relative;
+    width: 100%;
+    animation: slideIn 0.4s ease-out forwards;
+}
+
+.category-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 15px;
+    padding-left: 5px;
+}
+
+.category-title {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0;
+    display: inline-block;
+    border-left: 4px solid var(--accent-color);
+    padding-left: 12px;
+}
+
+/* ===== CARRUSEL ===== */
+.carousel-container {
+    position: relative;
+    width: 100%;
+    margin: 10px 0 25px;
+    padding: 0 5px;
+}
+
+.carousel-track {
+    display: flex;
+    gap: 15px;
+    overflow-x: auto;
+    scroll-behavior: smooth;
+    padding: 15px 0;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    mask-image: linear-gradient(
+        to right,
+        transparent,
+        black 5%,
+        black 95%,
+        transparent
+    );
+    -webkit-mask-image: linear-gradient(
+        to right,
+        transparent,
+        black 5%,
+        black 95%,
+        transparent
+    );
+}
+
+.carousel-track::-webkit-scrollbar {
+    display: none;
+}
+
+.carousel-item {
+    flex: 0 0 auto;
+    width: 180px;
+    transition: transform 0.3s ease;
+}
+
+.carousel-item:hover {
+    transform: scale(1.05);
+    z-index: 5;
+}
+
+/* Estilos para las tarjetas dentro del carrusel */
+.carousel-item .movie-card {
+    width: 100%;
+    margin: 0;
+}
+
+.carousel-item .movie-thumb {
+    height: 240px;
+    border-bottom: 2px solid transparent;
+    transition: border-color 0.3s ease;
+}
+
+.carousel-item .movie-card:hover .movie-thumb {
+    border-bottom-color: var(--accent-color);
+}
+
+.carousel-item .movie-title {
+    padding: 12px 8px;
+    font-size: 0.95rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.carousel-item .movie-card:hover .movie-title {
+    color: var(--accent-color);
+}
+
+/* ===== BOTONES DE NAVEGACIÓN ===== */
+.carousel-btn {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 45px;
+    height: 45px;
+    background-color: rgba(20, 20, 20, 0.8);
+    border: 2px solid var(--border-color);
+    border-radius: 50%;
+    color: white;
+    font-size: 24px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+    opacity: 0;
+    transition: opacity 0.3s ease, background-color 0.3s ease, transform 0.2s ease;
+    border: none;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+}
+
+.carousel-container:hover .carousel-btn {
+    opacity: 1;
+}
+
+.carousel-btn:hover {
+    background-color: var(--accent-color);
+    transform: translateY(-50%) scale(1.1);
+}
+
+.carousel-btn.prev {
+    left: -15px;
+}
+
+.carousel-btn.next {
+    right: -15px;
+}
+
+/* ===== INDICADORES ===== */
+.carousel-indicators {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 15px;
+}
+
+.carousel-indicator {
+    width: 30px;
+    height: 4px;
+    background-color: var(--border-color);
+    cursor: pointer;
+    transition: background-color 0.3s ease, width 0.3s ease;
+    border-radius: 2px;
+}
+
+.carousel-indicator.active {
+    background-color: var(--accent-color);
+    width: 45px;
+}
+
+.carousel-indicator:hover {
+    background-color: var(--text-secondary);
+}
