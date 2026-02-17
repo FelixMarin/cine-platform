@@ -56,6 +56,28 @@ class FileSystemMediaRepository(IMediaRepository):
         
         self._start_background_processor()
 
+    def get_movies_folder(self):
+        """Devuelve la carpeta base de películas"""
+        return self.movies_folder
+
+    def is_path_safe(self, requested_path):
+        """
+        Verifica que una ruta solicitada está dentro de la carpeta base permitida
+        """
+        if not requested_path:
+            return False
+        
+        try:
+            # Normalizar rutas
+            abs_requested = os.path.abspath(requested_path)
+            abs_base = os.path.abspath(self.movies_folder)
+            
+            # Verificar que la ruta solicitada está dentro de la carpeta base
+            return os.path.commonpath([abs_requested, abs_base]) == abs_base
+        except Exception as e:
+            logger.error(f"Error validando ruta: {e}")
+            return False
+
     def _start_background_processor(self):
         """Inicia el thread de procesamiento en segundo plano"""
         if self.processing_active:
@@ -164,11 +186,16 @@ class FileSystemMediaRepository(IMediaRepository):
             return False
 
     def _generate_thumbnail(self, video_path, thumbnail_path):
-        """Genera un thumbnail en la ruta especificada"""
+        """Genera un thumbnail en la ruta especificada - VERSIÓN SEGURA"""
         try:
             # Verificar que el video existe
             if not os.path.exists(video_path):
                 logger.error(f"Video no encontrado: {video_path}")
+                return False
+            
+            # Verificar que la ruta del thumbnail está dentro de la carpeta permitida
+            if not self.is_path_safe(video_path):
+                logger.error(f"Ruta de video no permitida: {video_path}")
                 return False
             
             # Obtener duración del video
@@ -186,8 +213,10 @@ class FileSystemMediaRepository(IMediaRepository):
             
             use_webp = thumbnail_path.endswith('.webp')
             
+            # CONSTRUCCIÓN SEGURA: Siempre usar lista, NUNCA shell=True
             base_cmd = [
-                "ffmpeg", "-y",  # -y para sobrescribir sin preguntar
+                "ffmpeg", 
+                "-y",
                 "-i", video_path,
                 "-ss", time_str,
                 "-vframes", "1",
@@ -210,11 +239,11 @@ class FileSystemMediaRepository(IMediaRepository):
                     thumbnail_path
                 ]
             
-            # Ejecutar con timeout
+            # Ejecutar con timeout - usando lista (seguro)
             result = subprocess.run(
                 cmd, 
                 check=True, 
-                timeout=30,  # Timeout de 30 segundos
+                timeout=30,
                 stdout=subprocess.DEVNULL, 
                 stderr=subprocess.DEVNULL
             )
@@ -232,22 +261,42 @@ class FileSystemMediaRepository(IMediaRepository):
             return False
 
     def _get_video_duration(self, video_path):
-        """Obtiene la duración del video en segundos usando ffprobe"""
+        """Obtiene la duración del video en segundos usando ffprobe - VERSIÓN SEGURA"""
         try:
+            # Verificar que la ruta es segura
+            if not self.is_path_safe(video_path):
+                logger.error(f"Ruta no permitida para obtener duración: {video_path}")
+                return None
+            
             cmd = [
-                "ffprobe", "-v", "error", "-show_entries",
-                "format=duration", "-of", "default=noprint_wrappers=1:nokey=1",
+                "ffprobe", 
+                "-v", "error", 
+                "-show_entries", "format=duration", 
+                "-of", "default=noprint_wrappers=1:nokey=1",
                 video_path
             ]
             result = subprocess.run(
                 cmd, 
                 capture_output=True, 
                 text=True,
-                timeout=10
+                timeout=10,
+                check=False  # No usar check=True para manejar errores
             )
+            
+            if result.returncode != 0:
+                logger.error(f"Error en ffprobe: {result.stderr}")
+                return None
+                
             duration = float(result.stdout.strip())
             return duration
-        except:
+        except ValueError:
+            logger.error(f"Error convirtiendo duración a float: {result.stdout}")
+            return None
+        except subprocess.TimeoutExpired:
+            logger.error(f"Timeout obteniendo duración de {video_path}")
+            return None
+        except Exception as e:
+            logger.error(f"Error obteniendo duración: {e}")
             return None
 
     def _clean_filename(self, filename):

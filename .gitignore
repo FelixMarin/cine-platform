@@ -48,3 +48,4 @@ pb_data/
 k3s/cine-secret.yaml
 
 .coverage
+htmlcov/

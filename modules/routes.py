@@ -5,9 +5,13 @@ import threading
 import time
 import queue
 import json
+import logging
 from flask import Blueprint, render_template, request, redirect, url_for, session, jsonify, Response, send_from_directory, make_response
 from werkzeug.utils import secure_filename
 from modules.worker import start_worker
+
+# Configurar logger
+logger = logging.getLogger(__name__)
 
 def create_blueprints(auth_service, media_service, optimizer_service):
     bp = Blueprint('main', __name__)
@@ -37,6 +41,33 @@ def create_blueprints(auth_service, media_service, optimizer_service):
     def is_admin():
         return session.get('user_role') == 'admin'
 
+    def validate_folder_path(folder_path):
+        """
+        Valida que una ruta de carpeta sea segura y exista
+        """
+        if not folder_path or not isinstance(folder_path, str):
+            return None
+        
+        # Normalizar ruta
+        try:
+            abs_path = os.path.abspath(folder_path)
+            
+            # Verificar que la ruta existe
+            if not os.path.exists(abs_path) or not os.path.isdir(abs_path):
+                return None
+            
+            # Verificar que está dentro de un directorio permitido
+            # Esto depende de tu configuración - aquí asumimos /data/media
+            allowed_base = os.path.abspath("/data/media")
+            if os.path.commonpath([abs_path, allowed_base]) != allowed_base:
+                logger.warning(f"Intento de acceso a ruta no permitida: {folder_path}")
+                return None
+            
+            return abs_path
+        except Exception as e:
+            logger.error(f"Error validando ruta: {e}")
+            return None
+
     # --- AUTH ---
     @bp.route('/login', methods=['GET', 'POST'])
     def login():
@@ -44,14 +75,22 @@ def create_blueprints(auth_service, media_service, optimizer_service):
             username = request.form.get('email')
             password = request.form.get('password')
 
+            if not username or not password:
+                return render_template("login.html", error="Usuario y contraseña requeridos")
+
             success, info = auth_service.login(username, password)
 
             if success:
                 token = auth_service.token
-                decoded = jwt.decode(token, options={"verify_signature": False})
+                try:
+                    decoded = jwt.decode(token, options={"verify_signature": False})
+                except jwt.DecodeError:
+                    logger.error("Error decodificando token JWT")
+                    return render_template("login.html", error="Error de autenticación")
 
                 session['logged_in'] = True
                 session['user_email'] = decoded.get("user_name", username)
+                session.permanent = True  # Usar session permanente con timeout
 
                 authorities = decoded.get("authorities", [])
                 session['user_role'] = "admin" if "ROLE_ADMIN" in authorities else "user"
@@ -79,25 +118,53 @@ def create_blueprints(auth_service, media_service, optimizer_service):
     def play(filename):
         if not is_logged_in():
             return redirect(url_for('main.login'))
-        sanitized_name = os.path.basename(filename).replace("-", " ").replace("_", " ").rsplit(".", 1)[0].title()
-        return render_template("play.html", filename=filename, sanitized_name=sanitized_name)
+        
+        # Validar filename para evitar path traversal
+        if '..' in filename or filename.startswith('/'):
+            logger.warning(f"Intento de path traversal en play: {filename}")
+            return "Nombre de archivo inválido", 400
+        
+        # Verificar que el archivo existe antes de mostrar el reproductor
+        file_path = media_service.get_safe_path(filename)
+        if not file_path or not os.path.exists(file_path):
+            logger.warning(f"Archivo no encontrado en play: {filename}")
+            return "Archivo no encontrado", 404
+        
+        # Usar el nombre base y limpiarlo para mostrar (título)
+        base_name = os.path.basename(filename)
+        # Eliminar "-optimized" del nombre si existe
+        base_name = base_name.replace("-optimized", "").replace("_optimized", "").replace("optimized", "")
+        base_name =base_name.replace(".", " ").replace("mkv", "")
+        display_name = base_name.replace("-", " ").replace("_", " ").rsplit(".", 1)[0].title()
+        
+        # Pasar el filename ORIGINAL (con ruta completa) al template
+        return render_template("play.html", filename=filename, sanitized_name=display_name)
 
     @bp.route('/stream/<path:filename>')
     def stream_video(filename):
         if not is_logged_in():
             return redirect(url_for('main.login'))
 
+        # Usar get_safe_path que ya valida path traversal
         file_path = media_service.get_safe_path(filename)
         if not file_path or not os.path.exists(file_path):
+            logger.warning(f"Archivo no encontrado o acceso no autorizado: {filename}")
             return "Archivo no encontrado", 404
 
         file_size = os.path.getsize(file_path)
         range_header = request.headers.get('Range', None)
 
         if range_header:
-            byte_range = range_header.replace("bytes=", "").split("-")
-            start = int(byte_range[0])
-            end = int(byte_range[1]) if byte_range[1] else file_size - 1
+            try:
+                byte_range = range_header.replace("bytes=", "").split("-")
+                start = int(byte_range[0])
+                end = int(byte_range[1]) if byte_range[1] else file_size - 1
+                
+                # Validar rangos
+                if start < 0 or end >= file_size or start > end:
+                    return "Rango inválido", 416
+            except (ValueError, IndexError):
+                return "Rango inválido", 416
         else:
             start = 0
             end = file_size - 1
@@ -105,10 +172,20 @@ def create_blueprints(auth_service, media_service, optimizer_service):
         length = end - start + 1
 
         def generate():
-            with open(file_path, "rb") as video:
-                video.seek(start)
-                while chunk := video.read(1024 * 1024):
-                    yield chunk
+            try:
+                with open(file_path, "rb") as video:
+                    video.seek(start)
+                    bytes_remaining = length
+                    chunk_size = 1024 * 1024  # 1MB
+                    
+                    while bytes_remaining > 0:
+                        chunk = video.read(min(chunk_size, bytes_remaining))
+                        if not chunk:
+                            break
+                        yield chunk
+                        bytes_remaining -= len(chunk)
+            except Exception as e:
+                logger.error(f"Error en streaming: {e}")
 
         content_type = "video/mp4" if filename.endswith(".mp4") else "video/x-matroska"
 
@@ -116,12 +193,18 @@ def create_blueprints(auth_service, media_service, optimizer_service):
         response.headers.add("Content-Range", f"bytes {start}-{end}/{file_size}")
         response.headers.add("Accept-Ranges", "bytes")
         response.headers.add("Content-Length", str(length))
+        response.headers.add("X-Content-Type-Options", "nosniff")  # Seguridad
         return response
 
     @bp.route('/thumbnails/<filename>')
     def serve_thumbnail(filename):
         if not is_logged_in():
             return redirect(url_for('main.login'))
+        
+        # Validar filename para evitar path traversal
+        if '..' in filename or filename.startswith('/'):
+            logger.warning(f"Intento de path traversal en thumbnails: {filename}")
+            return "Nombre de archivo inválido", 400
         
         thumbnails_folder = media_service.get_thumbnails_folder()
         accept_webp = 'image/webp' in request.headers.get('Accept', '')
@@ -134,11 +217,13 @@ def create_blueprints(auth_service, media_service, optimizer_service):
                 response = make_response(send_from_directory(thumbnails_folder, webp_filename))
                 response.headers['Cache-Control'] = 'public, max-age=2592000, immutable'
                 response.headers['X-Image-Format'] = 'webp'
+                response.headers['X-Content-Type-Options'] = 'nosniff'
                 return response
         
         response = make_response(send_from_directory(thumbnails_folder, filename))
         response.headers['Cache-Control'] = 'public, max-age=2592000, immutable'
         response.headers['X-Image-Format'] = 'jpg' if filename.endswith('.jpg') else 'webp'
+        response.headers['X-Content-Type-Options'] = 'nosniff'
         
         return response
 
@@ -146,6 +231,11 @@ def create_blueprints(auth_service, media_service, optimizer_service):
     def detect_thumbnail_format(filename):
         if not is_logged_in():
             return jsonify({"error": "No autorizado"}), 401
+        
+        # Validar filename
+        if '..' in filename or filename.startswith('/'):
+            logger.warning(f"Intento de path traversal en detect: {filename}")
+            return jsonify({"error": "Nombre de archivo inválido"}), 400
         
         thumbnails_folder = media_service.get_thumbnails_folder()
         base_name = os.path.splitext(filename)[0]
@@ -165,10 +255,19 @@ def create_blueprints(auth_service, media_service, optimizer_service):
     def download_file(filename):
         if not is_logged_in():
             return redirect(url_for('main.login'))
+        
         file_path = media_service.get_safe_path(filename)
         if not file_path:
-            return "Error", 404
-        return send_from_directory(os.path.dirname(file_path), os.path.basename(file_path), as_attachment=True)
+            logger.warning(f"Intento de descarga no autorizada: {filename}")
+            return "Archivo no encontrado", 404
+        
+        response = send_from_directory(
+            os.path.dirname(file_path), 
+            os.path.basename(file_path), 
+            as_attachment=True
+        )
+        response.headers['X-Content-Type-Options'] = 'nosniff'
+        return response
 
     # --- OPTIMIZER ---
     @bp.route('/optimizer')
@@ -227,7 +326,7 @@ def create_blueprints(auth_service, media_service, optimizer_service):
                 }
             return jsonify(profiles)
         except Exception as e:
-            print(f"Error obteniendo perfiles: {e}")
+            logger.error(f"Error obteniendo perfiles: {e}")
             return jsonify({"error": str(e)}), 500
 
     @bp.route('/optimizer/estimate', methods=['POST'])
@@ -238,18 +337,26 @@ def create_blueprints(auth_service, media_service, optimizer_service):
         
         try:
             data = request.get_json()
-            filename = data.get('filepath')  # Esto es solo el nombre, no la ruta completa
+            if not data:
+                return jsonify({"error": "JSON inválido"}), 400
+                
+            filename = data.get('filepath')
             profile = data.get('profile', 'balanced')
             
             if not filename:
                 return jsonify({"error": "filepath requerido"}), 400
             
+            # Validar filename
+            safe_filename = secure_filename(filename)
+            if not safe_filename:
+                return jsonify({"error": "Nombre de archivo inválido"}), 400
+            
             # Buscar el archivo en la carpeta de uploads
-            filepath = os.path.join(optimizer_service.get_upload_folder(), filename)
+            filepath = os.path.join(optimizer_service.get_upload_folder(), safe_filename)
             
             # Si no existe en uploads, buscar en temp
             if not os.path.exists(filepath):
-                temp_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'temp', filename)
+                temp_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'temp', safe_filename)
                 if os.path.exists(temp_path):
                     filepath = temp_path
             
@@ -262,17 +369,17 @@ def create_blueprints(auth_service, media_service, optimizer_service):
             
             # Calcular estimación basada en el perfil
             ratios = {
-                'ultra_fast': 0.15,  # 15% del original
-                'fast': 0.12,         # 12% del original
-                'balanced': 0.10,      # 10% del original
-                'high_quality': 0.25,  # 25% del original
-                'master': 0.50         # 50% del original
+                'ultra_fast': 0.15,
+                'fast': 0.12,
+                'balanced': 0.10,
+                'high_quality': 0.25,
+                'master': 0.50
             }
             
             ratio = ratios.get(profile, 0.10)
             estimated_mb = original_mb * ratio
             
-            # Obtener duración (opcional, para cálculos más precisos)
+            # Obtener duración (opcional)
             duration = 0
             try:
                 from modules.ffmpeg import FFmpegHandler
@@ -287,11 +394,11 @@ def create_blueprints(auth_service, media_service, optimizer_service):
                 "estimated_mb": estimated_mb,
                 "compression_ratio": f"{int((1 - ratio) * 100)}%",
                 "duration": duration,
-                "filename": filename
+                "filename": safe_filename
             })
             
         except Exception as e:
-            print(f"Error estimando: {e}")
+            logger.error(f"Error estimando: {e}")
             return jsonify({"error": str(e)}), 500
 
     @bp.route("/process-file", methods=["POST"])
@@ -306,13 +413,30 @@ def create_blueprints(auth_service, media_service, optimizer_service):
         video_file = request.files["video"]
         profile = request.form.get('profile', 'balanced')
         
+        # Validar nombre de archivo
+        if not video_file.filename:
+            return jsonify({"error": "Nombre de archivo vacío"}), 400
+            
         # Asegurar nombre seguro
         safe_filename = secure_filename(video_file.filename)
+        if not safe_filename:
+            return jsonify({"error": "Nombre de archivo inválido"}), 400
+        
+        # Validar extensión
+        allowed_extensions = {'.mp4', '.mkv', '.avi', '.mov'}
+        ext = os.path.splitext(safe_filename)[1].lower()
+        if ext not in allowed_extensions:
+            return jsonify({"error": "Tipo de archivo no permitido"}), 400
+        
         save_path = os.path.join(optimizer_service.get_upload_folder(), safe_filename)
         
         # Guardar archivo
-        video_file.save(save_path)
-        print(f"✅ Archivo guardado: {save_path}")
+        try:
+            video_file.save(save_path)
+            logger.info(f"✅ Archivo guardado: {save_path}")
+        except Exception as e:
+            logger.error(f"Error guardando archivo: {e}")
+            return jsonify({"error": "Error guardando archivo"}), 500
         
         # Añadir a la cola de procesamiento
         processing_queue.put({
@@ -356,9 +480,8 @@ def create_blueprints(auth_service, media_service, optimizer_service):
                         state_data = json.load(f)
                         history = state_data.get('history', [])
             except Exception as e:
-                print(f"Error cargando historial: {e}")
+                logger.error(f"Error cargando historial: {e}")
             
-            # Devolver nuestro estado global incluyendo video_info
             return jsonify({
                 "current_video": processing_status["current"],
                 "log_line": processing_status["log_line"],
@@ -368,10 +491,10 @@ def create_blueprints(auth_service, media_service, optimizer_service):
                 "speed": processing_status["speed"],
                 "queue_size": processing_queue.qsize(),
                 "video_info": processing_status.get("video_info", {}),
-                "history": history  # <-- AHORA INCLUYE EL HISTORIAL
+                "history": history
             })
         except Exception as e:
-            print(f"Error en /status: {e}")
+            logger.error(f"Error en /status: {e}")
             return jsonify({
                 "current_video": processing_status.get("current"),
                 "log_line": f"Error: {str(e)}",
@@ -390,25 +513,41 @@ def create_blueprints(auth_service, media_service, optimizer_service):
             return jsonify({"error": "No autorizado"}), 403
 
         data = request.get_json()
+        if not data:
+            return jsonify({"error": "JSON inválido"}), 400
+            
         folder = data.get("folder")
 
-        if not folder or not os.path.exists(folder):
-            return jsonify({"error": "Ruta inválida"}), 400
+        # Validar ruta de carpeta
+        safe_folder = validate_folder_path(folder)
+        if not safe_folder:
+            logger.warning(f"Intento de procesar ruta no válida: {folder}")
+            return jsonify({"error": "Ruta de carpeta no válida"}), 400
 
-        optimizer_service.process_folder(folder)
-        return jsonify({"message": f"Procesando carpeta: {folder}"})
+        optimizer_service.process_folder(safe_folder)
+        return jsonify({"message": f"Procesando carpeta: {safe_folder}"}), 200
 
     @bp.route('/outputs/<filename>')
     def serve_output(filename):
         if not is_logged_in():
             return redirect(url_for('main.login'))
+        
+        # Validar filename
+        if '..' in filename or filename.startswith('/'):
+            logger.warning(f"Intento de path traversal en outputs: {filename}")
+            return "Nombre de archivo inválido", 400
+            
         return send_from_directory(optimizer_service.get_output_folder(), filename)
 
     # --- ADMIN ---
     @bp.route('/admin/manage')
     def admin_manage():
-        if not is_logged_in() or not is_admin():
-            return "Acceso denegado", 403
+        if not is_logged_in():
+            return redirect(url_for('main.login'))  # Redirect a login si no está autenticado
+        
+        if not is_admin():
+            return render_template("403.html"), 403  # Template de acceso denegado
+        
         return render_template("admin_panel.html")
 
     # --- API: Películas y Series ---
@@ -455,19 +594,24 @@ def create_blueprints(auth_service, media_service, optimizer_service):
             return jsonify({"error": "No autorizado"}), 403
         
         try:
-            # Marcar cancelación
             processing_status["cancelled"] = True
-            
+            logger.info("Proceso cancelado por usuario")
             return jsonify({"message": "Cancelando proceso..."}), 200
             
         except Exception as e:
-            print(f"Error cancelando proceso: {e}")
+            logger.error(f"Error cancelando proceso: {e}")
             return jsonify({"error": str(e)}), 500
 
     @bp.after_request
-    def add_charset(response):
+    def add_security_headers(response):
+        """Añadir headers de seguridad a todas las respuestas"""
+        response.headers['X-Content-Type-Options'] = 'nosniff'
+        response.headers['X-Frame-Options'] = 'SAMEORIGIN'
+        response.headers['X-XSS-Protection'] = '1; mode=block'
+        
         if response.content_type == 'application/json':
             response.headers['Content-Type'] = 'application/json; charset=utf-8'
+        
         return response
 
     return bp

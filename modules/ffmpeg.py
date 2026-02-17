@@ -22,11 +22,13 @@ class FFmpegHandler:
     def _check_nvmpi_decoders(self):
         """Verifica qué decodificadores NVMPI están disponibles"""
         try:
+            # FORMA SEGURA: Usar lista de argumentos
             result = subprocess.run(
                 ["ffmpeg", "-decoders"],
                 capture_output=True,
                 text=True,
-                timeout=10
+                timeout=10,
+                check=False  # No usar check=True para manejar errores
             )
             decoders = result.stdout
             
@@ -36,14 +38,46 @@ class FFmpegHandler:
             
             logger.info(f"📊 Decodificadores NVMPI: H264={self.has_nvmpi_h264}, HEVC={self.has_nvmpi_hevc}, VP9={self.has_nvmpi_vp9}")
             
+        except subprocess.TimeoutExpired:
+            logger.error("Timeout verificando decodificadores")
+            self._set_decoders_false()
         except Exception as e:
             logger.error(f"Error verificando decodificadores: {e}")
-            self.has_nvmpi_h264 = False
-            self.has_nvmpi_hevc = False
-            self.has_nvmpi_vp9 = False
+            self._set_decoders_false()
+
+    def _set_decoders_false(self):
+        """Helper para establecer decodificadores a False"""
+        self.has_nvmpi_h264 = False
+        self.has_nvmpi_hevc = False
+        self.has_nvmpi_vp9 = False
+
+    def _validate_video_path(self, video_path):
+        """Valida que la ruta del video sea segura"""
+        if not video_path or not isinstance(video_path, str):
+            return False
+        
+        # Prevenir path traversal
+        if '..' in video_path or video_path.startswith('/'):
+            # Solo permitir rutas absolutas si están en directorios permitidos
+            allowed_dirs = ['/data/media', '/tmp/uploads', '/tmp/temp', '/tmp/outputs']
+            abs_path = os.path.abspath(video_path)
+            for allowed in allowed_dirs:
+                if abs_path.startswith(os.path.abspath(allowed)):
+                    return True
+            logger.warning(f"Intento de acceso a ruta no permitida: {video_path}")
+            return False
+        
+        return True
 
     def get_video_info(self, video_path):
+        """Obtiene información del video de forma segura"""
+        # Validar ruta
+        if not self._validate_video_path(video_path):
+            logger.error(f"Ruta de video no válida: {video_path}")
+            return {}
+        
         try:
+            # FORMA SEGURA: Usar lista de argumentos
             cmd = [
                 "ffprobe", "-v", "quiet",
                 "-print_format", "json",
@@ -56,9 +90,14 @@ class FFmpegHandler:
                 cmd, 
                 capture_output=True, 
                 text=True, 
-                check=True,
+                check=False,  # No usar check=True para manejar errores
                 timeout=30
             )
+            
+            if result.returncode != 0:
+                logger.error(f"Error ffprobe (código {result.returncode}): {result.stderr}")
+                return {}
+
             data = json.loads(result.stdout)
 
             format_info = data.get("format", {})
@@ -100,9 +139,6 @@ class FFmpegHandler:
         except subprocess.TimeoutExpired:
             logger.error(f"Timeout obteniendo info de {video_path}")
             return {}
-        except subprocess.CalledProcessError as e:
-            logger.error(f"Error ffprobe: {e}")
-            return {}
         except json.JSONDecodeError as e:
             logger.error(f"Error decodificando JSON: {e}")
             return {}
@@ -111,19 +147,34 @@ class FFmpegHandler:
             return {}
 
     def execute(self, cmd_args):
+        """
+        Ejecuta un comando FFmpeg de forma segura
+        cmd_args DEBE ser una lista, NUNCA una cadena
+        """
+        # Verificar que cmd_args es una lista
+        if not isinstance(cmd_args, list):
+            logger.error("cmd_args debe ser una lista")
+            return False
+        
+        # Validar que todos los argumentos son cadenas seguras
+        for arg in cmd_args:
+            if not isinstance(arg, str):
+                logger.error(f"Argumento no válido: {arg}")
+                return False
+        
         cmd_str = ' '.join(str(arg) for arg in cmd_args)
         logger.debug(f"CMD: {cmd_str}")
         
         process = None
         try:
-            # Crear proceso con grupo de procesos para poder matar hijos
+            # FORMA SEGURA: Usar lista, NUNCA shell=True
             process = subprocess.Popen(
-                cmd_args,
+                cmd_args,  # Lista de argumentos (seguro)
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
                 universal_newlines=True,
                 bufsize=1,
-                preexec_fn=os.setsid  # Crear grupo de procesos
+                preexec_fn=os.setsid if hasattr(os, 'setsid') else None  # Crear grupo de procesos (si está disponible)
             )
             
             # Guardar referencia al proceso
@@ -189,20 +240,40 @@ class FFmpegHandler:
             self.current_process = None
             if self.set_process_callback:
                 self.set_process_callback(None)
-            if process and process.poll() is None:
+            self._cleanup_process(process)
+
+    def _cleanup_process(self, process):
+        """Limpia el proceso de forma segura"""
+        if process and process.poll() is None:
+            try:
                 # Intentar terminar suavemente
-                try:
+                if hasattr(os, 'killpg') and hasattr(process, 'pid'):
                     os.killpg(os.getpgid(process.pid), signal.SIGTERM)
                     process.wait(timeout=5)
-                except:
-                    # Forzar kill si no responde
-                    try:
+                else:
+                    process.terminate()
+                    process.wait(timeout=5)
+            except (subprocess.TimeoutExpired, ProcessLookupError, AttributeError):
+                # Forzar kill si no responde
+                try:
+                    if hasattr(os, 'killpg') and hasattr(process, 'pid'):
                         os.killpg(os.getpgid(process.pid), signal.SIGKILL)
-                    except:
-                        pass
+                    else:
+                        process.kill()
+                except:
+                    pass
+            except Exception as e:
+                logger.error(f"Error limpiando proceso: {e}")
 
     def get_duration(self, video_path):
+        """Obtiene la duración del video de forma segura"""
+        # Validar ruta
+        if not self._validate_video_path(video_path):
+            logger.error(f"Ruta no válida para obtener duración: {video_path}")
+            return 0.0
+        
         try:
+            # FORMA SEGURA: Usar lista de argumentos
             result = subprocess.run(
                 ["ffprobe", "-v", "error", "-show_entries", 
                  "format=duration", "-of", 
@@ -211,21 +282,25 @@ class FFmpegHandler:
                 stdout=subprocess.PIPE, 
                 stderr=subprocess.PIPE, 
                 text=True, 
-                check=True,
+                check=False,  # No usar check=True
                 timeout=10
             )
+            
+            if result.returncode != 0:
+                logger.error(f"Error ffprobe en get_duration: {result.stderr}")
+                return 0.0
+                
             duration_str = result.stdout.strip()
             if duration_str:
-                return float(duration_str)
+                try:
+                    return float(duration_str)
+                except ValueError:
+                    logger.error(f"Error convirtiendo duración a float: '{duration_str}'")
+                    return 0.0
             return 0.0
+            
         except subprocess.TimeoutExpired:
             logger.error(f"Timeout obteniendo duración de {video_path}")
-            return 0.0
-        except subprocess.CalledProcessError as e:
-            logger.error(f"Error ffprobe en get_duration: {e}")
-            return 0.0
-        except ValueError as e:
-            logger.error(f"Error convirtiendo duración a float: {e}")
             return 0.0
         except Exception as e:
             logger.error(f"Error inesperado en get_duration: {e}")
@@ -236,7 +311,10 @@ class FFmpegHandler:
         if self.current_process and self.current_process.poll() is None:
             try:
                 logger.info("🛑 Cancelando proceso FFmpeg...")
-                os.killpg(os.getpgid(self.current_process.pid), signal.SIGTERM)
+                if hasattr(os, 'killpg') and hasattr(self.current_process, 'pid'):
+                    os.killpg(os.getpgid(self.current_process.pid), signal.SIGTERM)
+                else:
+                    self.current_process.terminate()
                 return True
             except Exception as e:
                 logger.error(f"Error cancelando proceso: {e}")

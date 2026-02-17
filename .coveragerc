@@ -1,0 +1,14 @@
+[run]
+omit = 
+    tests/templates/*
+    test_profiles.py
+
+[report]
+omit = 
+    tests/templates/*
+    test_profiles.py
+
+[html]
+omit = 
+    tests/templates/*
+    test_profiles.py
