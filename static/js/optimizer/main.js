@@ -23,7 +23,7 @@ $(document).ready(function () {
                 success: function () {
                     console.log('✅ Proceso cancelado');
                     window.optimizerProgress.stopMonitoring();
-                    window.optimizerUI.resetAfterCompletion();
+                    window.optimizerUI.resetAfterCompletion('Cancel Process');
                 },
                 error: function (xhr) {
                     console.error('❌ Error cancelando:', xhr.responseJSON);

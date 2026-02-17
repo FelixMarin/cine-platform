@@ -63,6 +63,7 @@
     margin-top: 10px;
 }
 
+/* Añade esto a tu CSS para asegurar que la barra se ve */
 .upload-progress-bar {
     height: 20px;
     background: linear-gradient(90deg, var(--accent-color), #ff4d4d);
@@ -72,6 +73,7 @@
     text-align: center;
     line-height: 20px;
     font-size: 12px;
+    min-width: 30px; /* Para que se vea aunque sea pequeño */
 }
 
 /* Spinner */

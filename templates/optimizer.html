@@ -122,7 +122,7 @@
             <div class="card shadow-sm mb-4" id="upload-card">
               <div class="card-body">
                 <h5 class="card-title">📤 Subir archivo de video</h5>
-                <form id="upload-form">
+                <div id="upload-container">
                   <div class="form-row align-items-center">
                     <div class="col-auto">
                       <label for="video-input" class="custom-file-upload btn btn-primary">
@@ -134,12 +134,12 @@
                       <span id="selected-file" class="text-muted">Ningún archivo seleccionado</span>
                     </div>
                     <div class="col-auto">
-                      <button type="submit" id="upload-btn" class="btn btn-success">
+                      <button type="button" id="upload-btn" class="btn btn-success">
                         <i class="fas fa-cloud-upload-alt"></i> Subir
                       </button>
                     </div>
                   </div>
-                </form>
+                </div>
 
                 <div id="video-preview-container" class="mt-3 text-center" style="display:none;">
                   <h6 class="text-muted">Vista previa:</h6>

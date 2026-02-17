@@ -1,51 +1,80 @@
-// ui.js - Funciones de UI (mostrar/ocultar contenedores)
+// ui.js - Versión corregida
 
 function showUploadSection() {
-    $('#profile-card').fadeIn();
-    $('#upload-card').fadeIn();
-    $('#estimate-info').hide();
+    console.log('📦 Mostrando sección de subida');
+    $('#profile-card').fadeIn(300);
+    $('#upload-card').fadeIn(300);
+    // NO OCULTAR LA ESTIMACIÓN - $('#estimate-info').hide();  <-- ELIMINADO
     $('#video-preview-container').hide();
     $('#selected-file').text('Ningún archivo seleccionado');
     $('#video-input').val('');
-    window.optimizerUpload.selectedFile = null;
+
+    // Limpiar archivo seleccionado
+    if (window.optimizerUpload) {
+        window.optimizerUpload.selectedFile = null;
+    }
 }
 
 function hideUploadSection() {
-    $('#profile-card').fadeOut();
-    $('#upload-card').fadeOut();
-    $('#estimate-info').hide();
+    console.log('📦 Ocultando sección de subida');
+    $('#profile-card').hide();  // Forzar ocultación
+    $('#upload-card').fadeOut(300);
+    // NO tocar estimate-info
 }
 
 function showProgressSection() {
-    $('#progressContainer').fadeIn();
-    $('#cancel-process-container').fadeIn();
-    $('#current-profile-badge').fadeIn();
+    console.log('📊 Mostrando sección de progreso');
+    $('#progressContainer').fadeIn(300);
+    $('#cancel-process-container').fadeIn(300);
+    $('#current-profile-badge').fadeIn(300);
 }
 
 function hideProgressSection() {
-    $('#progressContainer').fadeOut();
-    $('#cancel-process-container').fadeOut();
-    $('#current-profile-badge').fadeOut();
+    console.log('📊 Ocultando sección de progreso');
+    $('#progressContainer').fadeOut(300);
+    $('#cancel-process-container').fadeOut(300);
+    $('#current-profile-badge').fadeOut(300);
 }
 
-function resetAfterCompletion() {
-    window.optimizerStatus.setProcessing(false);
-    window.optimizerStatus.setUserInitiated(false);
+function resetAfterCompletion(from) {
+    console.log('🔄 resetAfterCompletion llamado desde:', from || 'origen desconocido');
 
+    // Actualizar estados globales si existen
+    if (window.optimizerStatus) {
+        if (typeof window.optimizerStatus.setProcessing === 'function') {
+            window.optimizerStatus.setProcessing(false);
+        }
+        if (typeof window.optimizerStatus.setUserInitiated === 'function') {
+            window.optimizerStatus.setUserInitiated(false);
+        }
+    }
+
+    // Ocultar sección de progreso y mostrar sección de subida
     hideProgressSection();
     showUploadSection();
 
-    $('#progressBar').css('width', '0%');
+    // Resetear barras de progreso
+    $('#progressBar').css('width', '0%').attr('aria-valuenow', 0);
     $('#progressText').text('0%');
     $('#upload-progress-bar').css('width', '0%').text('0%');
     $('#upload-status').hide();
+    $('#cancel-upload-btn').hide();
 
-    $('#stat-frames, #stat-fps, #stat-time, #stat-bitrate, #stat-speed').text('–');
+    // Limpiar estadísticas
+    $('#stat-frames, #stat-fps, #stat-time, #stat-bitrate, #stat-speed, #currentFile').text('–');
+
+    // Limpiar información del video
     $('#info-name, #info-duration, #info-resolution, #info-format, #info-vcodec, #info-acodec, #info-size').text('–');
-    $('#currentFile').text('Ninguno');
+
+    // Resetear icono de estado
     $('#statusIcon').text('🟢');
 
-    console.log('🔄 Interfaz reseteada completamente');
+    // Limpiar variable local (si existe en el ámbito global)
+    if (window.optimizerUpload) {
+        window.optimizerUpload.uploadedFilename = null;
+    }
+
+    console.log('✅ Interfaz reseteada completamente');
 }
 
 // Exportar

@@ -1,12 +1,108 @@
 import os
 import jwt
 import unicodedata
-import threading  # <-- FALTABA ESTA IMPORTACIÓN
+import threading
 import time
+import queue
 from flask import Blueprint, render_template, request, redirect, url_for, session, jsonify, Response, send_from_directory, make_response
+from werkzeug.utils import secure_filename
 
 def create_blueprints(auth_service, media_service, optimizer_service):
     bp = Blueprint('main', __name__)
+
+    # Cola de procesamiento global
+    processing_queue = queue.Queue()
+    processing_status = {
+        "current": None,
+        "queue_size": 0,
+        "log_line": "",
+        "frames": 0,
+        "fps": 0,
+        "time": "",
+        "speed": "",
+        "last_update": time.time()
+    }
+
+    def background_worker():
+        """Procesa videos en segundo plano"""
+        while True:
+            try:
+                if not processing_queue.empty():
+                    task = processing_queue.get()
+                    processing_status["current"] = task["filename"]
+                    processing_status["log_line"] = f"Iniciando {task['filename']}"
+                    processing_status["last_update"] = time.time()
+                    
+                    print(f"🎬 Worker procesando: {task['filename']} con perfil {task['profile']}")
+                    
+                    # Crear pipeline
+                    from modules.pipeline import PipelineSteps
+                    from modules.ffmpeg import FFmpegHandler
+                    from modules.state import StateManager
+                    
+                    # State propio del worker
+                    worker_state = StateManager()
+                    
+                    # Override del método update_log para capturar el progreso
+                    original_update_log = worker_state.update_log
+                    
+                    def update_log_wrapper(line):
+                        # Actualizar nuestro estado global
+                        processing_status["log_line"] = line
+                        
+                        # Parsear la línea para extraer stats
+                        if "frame=" in line:
+                            parts = line.split()
+                            for part in parts:
+                                if "=" in part:
+                                    key, value = part.split("=")
+                                    if key == "frame":
+                                        processing_status["frames"] = int(value)
+                                    elif key == "fps":
+                                        processing_status["fps"] = float(value.split()[0]) if ' ' in value else float(value)
+                                    elif key == "time":
+                                        processing_status["time"] = value
+                                    elif key == "speed":
+                                        processing_status["speed"] = value
+                        
+                        # Llamar al original
+                        original_update_log(line)
+                    
+                    worker_state.update_log = update_log_wrapper
+                    
+                    ff = FFmpegHandler(worker_state)
+                    pipeline = PipelineSteps(ff)
+                    
+                    base, ext = os.path.splitext(task['filename'])
+                    output_filename = f"{base}_{task['profile']}{ext}"
+                    output_path = os.path.join(optimizer_service.get_output_folder(), output_filename)
+                    
+                    # Ejecutar pipeline
+                    worker_state.set_current_video(task['filename'])
+                    success = pipeline.process(task['filepath'], output_path, profile=task['profile'])
+                    
+                    if success:
+                        print(f"✅ Completado: {task['filename']}")
+                        processing_status["log_line"] = f"Completado: {task['filename']}"
+                    else:
+                        print(f"❌ Error: {task['filename']}")
+                        processing_status["log_line"] = f"Error: {task['filename']}"
+                    
+                    processing_status["current"] = None
+                    processing_status["last_update"] = time.time()
+                    
+                processing_status["queue_size"] = processing_queue.qsize()
+                time.sleep(1)
+                
+            except Exception as e:
+                print(f"❌ Error en worker: {e}")
+                processing_status["log_line"] = f"Error: {str(e)}"
+                processing_status["current"] = None
+                time.sleep(5)
+
+    # Iniciar worker
+    worker_thread = threading.Thread(target=background_worker, daemon=True)
+    worker_thread.start()
 
     # --- Helpers ---
     def is_logged_in():
@@ -26,11 +122,8 @@ def create_blueprints(auth_service, media_service, optimizer_service):
 
             if success:
                 token = auth_service.token
-
-                # Decodificar JWT sin verificar firma
                 decoded = jwt.decode(token, options={"verify_signature": False})
 
-                # Guardar solo lo necesario en la sesión (NO el JWT)
                 session['logged_in'] = True
                 session['user_email'] = decoded.get("user_name", username)
 
@@ -101,19 +194,12 @@ def create_blueprints(auth_service, media_service, optimizer_service):
 
     @bp.route('/thumbnails/<filename>')
     def serve_thumbnail(filename):
-        """
-        Sirve thumbnails con soporte para WebP y cabeceras de caché
-        """
         if not is_logged_in():
             return redirect(url_for('main.login'))
         
         thumbnails_folder = media_service.get_thumbnails_folder()
-        
-        # Verificar si el navegador acepta WebP
         accept_webp = 'image/webp' in request.headers.get('Accept', '')
         
-        # Si el archivo solicitado es .jpg pero el navegador acepta WebP,
-        # intentar servir la versión WebP si existe
         if filename.endswith('.jpg') and accept_webp:
             webp_filename = filename.replace('.jpg', '.webp')
             webp_path = os.path.join(thumbnails_folder, webp_filename)
@@ -124,7 +210,6 @@ def create_blueprints(auth_service, media_service, optimizer_service):
                 response.headers['X-Image-Format'] = 'webp'
                 return response
         
-        # Servir el archivo solicitado
         response = make_response(send_from_directory(thumbnails_folder, filename))
         response.headers['Cache-Control'] = 'public, max-age=2592000, immutable'
         response.headers['X-Image-Format'] = 'jpg' if filename.endswith('.jpg') else 'webp'
@@ -133,9 +218,6 @@ def create_blueprints(auth_service, media_service, optimizer_service):
 
     @bp.route('/thumbnails/detect/<filename>')
     def detect_thumbnail_format(filename):
-        """
-        Endpoint para detectar qué formatos de thumbnail existen
-        """
         if not is_logged_in():
             return jsonify({"error": "No autorizado"}), 401
         
@@ -173,16 +255,13 @@ def create_blueprints(auth_service, media_service, optimizer_service):
 
     @bp.route('/optimizer/profiles', methods=['GET'])
     def get_profiles():
-        """Devuelve los perfiles de optimización disponibles"""
         if not is_logged_in() or not is_admin():
             return jsonify({"error": "No autorizado"}), 403
         
         try:
-            # Intentar obtener perfiles del pipeline
             if hasattr(optimizer_service, 'pipeline') and hasattr(optimizer_service.pipeline, 'get_profiles'):
                 profiles = optimizer_service.pipeline.get_profiles()
             else:
-                # Perfiles por defecto si no existe el método
                 profiles = {
                     "ultra_fast": {
                         "name": "Ultra Rápido",
@@ -220,16 +299,13 @@ def create_blueprints(auth_service, media_service, optimizer_service):
                         "resolution": "Original"
                     }
                 }
-            
             return jsonify(profiles)
-            
         except Exception as e:
             print(f"Error obteniendo perfiles: {e}")
             return jsonify({"error": str(e)}), 500
 
     @bp.route('/optimizer/estimate', methods=['POST'])
     def estimate_optimization():
-        """Estima el tamaño según perfil"""
         if not is_logged_in() or not is_admin():
             return jsonify({"error": "No autorizado"}), 403
         
@@ -241,16 +317,13 @@ def create_blueprints(auth_service, media_service, optimizer_service):
             if not filepath:
                 return jsonify({"error": "filepath requerido"}), 400
             
-            # Verificar si existe el archivo (puede ser solo nombre)
             full_path = os.path.join(optimizer_service.get_upload_folder(), filepath)
             if os.path.exists(full_path):
                 filepath = full_path
             
-            # Estimación básica si no hay método específico
             if hasattr(optimizer_service, 'pipeline') and hasattr(optimizer_service.pipeline, 'estimate_size'):
                 estimate = optimizer_service.pipeline.estimate_size(filepath, profile)
             else:
-                # Estimación por defecto
                 size_mb = os.path.getsize(filepath) / (1024 * 1024) if os.path.exists(filepath) else 100
                 estimate = {
                     "original_mb": size_mb,
@@ -264,58 +337,14 @@ def create_blueprints(auth_service, media_service, optimizer_service):
                                         "90%" if profile == 'balanced' else
                                         "75%" if profile == 'high_quality' else "50%"
                 }
-            
             return jsonify(estimate)
-            
         except Exception as e:
             print(f"Error estimando: {e}")
             return jsonify({"error": str(e)}), 500
 
-    @bp.route('/optimizer/process', methods=['POST'])
-    def process_with_profile():
-        """Procesa con perfil específico"""
-        if not is_logged_in() or not is_admin():
-            return jsonify({"error": "No autorizado"}), 403
-        
-        try:
-            data = request.get_json()
-            filepath = data.get('filepath')
-            profile = data.get('profile', 'balanced')
-            output_path = data.get('output_path')
-            
-            if not filepath or not os.path.exists(filepath):
-                return jsonify({"error": "Archivo no encontrado"}), 404
-            
-            if not output_path:
-                # Generar nombre de salida
-                base, ext = os.path.splitext(filepath)
-                output_path = f"{base}_optimized_{profile}{ext}"
-            
-            # Procesar en segundo plano
-            def process_task():
-                try:
-                    if hasattr(optimizer_service, 'pipeline') and hasattr(optimizer_service.pipeline, 'process'):
-                        optimizer_service.pipeline.process(filepath, output_path, profile)
-                    else:
-                        optimizer_service.process_file(filepath)
-                except Exception as e:
-                    print(f"Error en procesamiento: {e}")
-            
-            thread = threading.Thread(target=process_task)
-            thread.daemon = True
-            thread.start()
-            
-            return jsonify({
-                "message": f"Procesando con perfil: {profile}",
-                "output": output_path
-            })
-            
-        except Exception as e:
-            print(f"Error iniciando procesamiento: {e}")
-            return jsonify({"error": str(e)}), 500
-        
     @bp.route("/process-file", methods=["POST"])
     def process_file():
+        """Endpoint para subir archivos - Responde inmediatamente"""
         if not is_logged_in() or not is_admin():
             return jsonify({"error": "No autorizado"}), 403
 
@@ -323,11 +352,71 @@ def create_blueprints(auth_service, media_service, optimizer_service):
             return jsonify({"error": "No file"}), 400
 
         video_file = request.files["video"]
-        save_path = os.path.join(optimizer_service.get_upload_folder(), video_file.filename)
+        profile = request.form.get('profile', 'balanced')
+        
+        # Asegurar nombre seguro
+        safe_filename = secure_filename(video_file.filename)
+        save_path = os.path.join(optimizer_service.get_upload_folder(), safe_filename)
+        
+        # Guardar archivo
         video_file.save(save_path)
+        print(f"✅ Archivo guardado: {save_path}")
+        
+        # Añadir a la cola de procesamiento
+        processing_queue.put({
+            'filepath': save_path,
+            'filename': safe_filename,
+            'profile': profile
+        })
+        
+        # Responder inmediatamente
+        return jsonify({
+            "message": f"Archivo recibido: {safe_filename}",
+            "status": "queued",
+            "file": safe_filename,
+            "profile": profile,
+            "queue_position": processing_queue.qsize()
+        }), 202
 
-        optimizer_service.process_file(save_path)
-        return jsonify({"message": f"Procesando: {video_file.filename}"})
+    @bp.route("/process-status", methods=["GET"])
+    def process_status():
+        """Devuelve el estado de la cola de procesamiento"""
+        if not is_logged_in():
+            return jsonify({"error": "No autorizado"}), 401
+        
+        return jsonify({
+            "current": processing_status["current"],
+            "queue_size": processing_queue.qsize(),
+            "last_update": processing_status["last_update"]
+        })
+
+    @bp.route("/status")
+    def status():
+        """Devuelve el estado actual del procesamiento"""
+        try:
+            # Devolver nuestro estado global
+            return jsonify({
+                "current_video": processing_status["current"],
+                "log_line": processing_status["log_line"],
+                "frames": processing_status["frames"],
+                "fps": processing_status["fps"],
+                "time": processing_status["time"],
+                "speed": processing_status["speed"],
+                "queue_size": processing_queue.qsize(),
+                "video_info": {},  # Vacío por ahora
+                "history": []      # Vacío por ahora
+            })
+        except Exception as e:
+            print(f"Error en /status: {e}")
+            return jsonify({
+                "current_video": processing_status.get("current"),
+                "log_line": f"Error: {str(e)}",
+                "frames": 0,
+                "fps": 0,
+                "time": "",
+                "speed": "",
+                "queue_size": processing_queue.qsize()
+            })
 
     @bp.route("/process", methods=["POST"])
     def process_folder_route():
@@ -342,10 +431,6 @@ def create_blueprints(auth_service, media_service, optimizer_service):
 
         optimizer_service.process_folder(folder)
         return jsonify({"message": f"Procesando carpeta: {folder}"})
-
-    @bp.route("/status")
-    def status():
-        return jsonify(optimizer_service.get_status())
 
     @bp.route('/outputs/<filename>')
     def serve_output(filename):
@@ -368,7 +453,6 @@ def create_blueprints(auth_service, media_service, optimizer_service):
 
         categorias, series = media_service.list_content()
         
-        # Normalizar todas las claves y valores a NFC
         def normalize_dict(d):
             if isinstance(d, dict):
                 return {unicodedata.normalize('NFC', k): normalize_dict(v) for k, v in d.items()}
@@ -382,56 +466,41 @@ def create_blueprints(auth_service, media_service, optimizer_service):
         categorias = normalize_dict(categorias)
         series = normalize_dict(series)
 
-        response = jsonify({
-            "categorias": categorias,
-            "series": series
-        })
+        response = jsonify({"categorias": categorias, "series": series})
         response.headers['Content-Type'] = 'application/json; charset=utf-8'
-        
         return response
 
     @bp.route('/api/thumbnail-status')
     def thumbnail_status():
-        """Endpoint para ver el estado de generación de thumbnails"""
         if not is_logged_in():
             return jsonify({"error": "No autorizado"}), 401
         
         status = media_service.get_thumbnail_status()
-        
-        # Añadir timestamp para saber cuándo se actualizó
         status["timestamp"] = time.time()
         
         response = jsonify(status)
         response.headers['Content-Type'] = 'application/json; charset=utf-8'
-        response.headers['Cache-Control'] = 'no-cache'  # No cachear esta respuesta
+        response.headers['Cache-Control'] = 'no-cache'
         return response
 
     @bp.route('/cancel-process', methods=['POST'])
     def cancel_process():
-        """Cancela el proceso de optimización en curso"""
         if not is_logged_in() or not is_admin():
             return jsonify({"error": "No autorizado"}), 403
         
-        try:
-            # Aquí debes implementar la lógica para cancelar el proceso
-            # Depende de cómo tengas implementado el optimizer_service
-            if hasattr(optimizer_service, 'cancel_current_process'):
-                optimizer_service.cancel_current_process()
-                return jsonify({"message": "Proceso cancelado"})
-            else:
-                # Si no hay método de cancelación, devolver error
-                return jsonify({"error": "No se puede cancelar el proceso"}), 400
-        except Exception as e:
-            print(f"Error cancelando proceso: {e}")
-            return jsonify({"error": str(e)}), 500
-    
-    # --- After request handler para UTF-8 en todas las respuestas JSON ---
+        # Vaciar la cola
+        while not processing_queue.empty():
+            try:
+                processing_queue.get_nowait()
+            except:
+                pass
+        
+        return jsonify({"message": "Procesos cancelados"}), 200
+
     @bp.after_request
     def add_charset(response):
-        """Añade charset UTF-8 a todas las respuestas JSON"""
         if response.content_type == 'application/json':
             response.headers['Content-Type'] = 'application/json; charset=utf-8'
         return response
 
-    # --- IMPORTANTE: Devolver el blueprint ---
     return bp

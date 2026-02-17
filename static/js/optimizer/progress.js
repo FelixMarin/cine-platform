@@ -16,68 +16,60 @@ function stopMonitoring() {
 }
 
 function updateProgressBar() {
-    $.getJSON('/status', function (data) {
-        const logLine = data.log_line || '';
-        const currentVideo = data.current_video || 'Ninguno';
+    $.getJSON('/status')
+        .done(function (data) {
+            console.log('✅ Datos recibidos:', data);
 
-        $('#currentFile').text(currentVideo);
+            const currentVideo = data.current_video || 'Ninguno';
+            $('#currentFile').text(currentVideo);
 
-        const stats = {};
-        const frameMatch = logLine.match(/frames?[=:]?\s*(\d+)/i);
-        if (frameMatch) stats.frames = frameMatch[1];
+            // Actualizar estadísticas
+            $('#stat-frames').text(data.frames || '–');
+            $('#stat-fps').text(data.fps || '–');
+            $('#stat-time').text(data.time || '–');
+            $('#stat-speed').text(data.speed || '–');
 
-        const fpsMatch = logLine.match(/fps[=:]?\s*([\d.]+)/i);
-        if (fpsMatch) stats.fps = fpsMatch[1];
+            // Parsear tiempo para progreso
+            if (data.time) {
+                const timeParts = data.time.split(':');
+                if (timeParts.length === 3) {
+                    let seconds = parseInt(timeParts[0]) * 3600 +
+                        parseInt(timeParts[1]) * 60 +
+                        parseInt(timeParts[2]);
 
-        const timeMatch = logLine.match(/time[=:]?\s*([\d:]+)/i);
-        if (timeMatch) stats.time = timeMatch[1];
+                    // Si tenemos duración, calcular progreso
+                    const durationStr = $('#info-duration').text();
+                    if (durationStr && durationStr !== '–') {
+                        const durParts = durationStr.split(':');
+                        if (durParts.length === 3) {
+                            let totalSeconds = parseInt(durParts[0]) * 3600 +
+                                parseInt(durParts[1]) * 60 +
+                                parseInt(durParts[2]);
 
-        const speedMatch = logLine.match(/speed[=:]?\s*([\d.]+)x/i);
-        if (speedMatch) stats.speed = speedMatch[1] + 'x';
-
-        $('#stat-frames').text(stats.frames || '–');
-        $('#stat-fps').text(stats.fps || '–');
-        $('#stat-time').text(stats.time || '–');
-        $('#stat-speed').text(stats.speed || '–');
-
-        if (stats.time) {
-            const timeParts = stats.time.split(':');
-            let seconds = 0;
-            if (timeParts.length === 3) {
-                seconds = parseInt(timeParts[0]) * 3600 +
-                    parseInt(timeParts[1]) * 60 +
-                    parseInt(timeParts[2]);
-            }
-
-            const durationStr = $('#info-duration').text();
-            let totalSeconds = 0;
-
-            if (durationStr && durationStr !== '–') {
-                const durParts = durationStr.split(':');
-                if (durParts.length === 3) {
-                    totalSeconds = parseInt(durParts[0]) * 3600 +
-                        parseInt(durParts[1]) * 60 +
-                        parseInt(durParts[2]);
+                            if (totalSeconds > 0 && seconds > 0) {
+                                let progress = Math.min(100, Math.round((seconds / totalSeconds) * 100));
+                                $('#progressBar').css('width', progress + '%');
+                                $('#progressText').text(`Procesando: ${progress}% (${data.time})`);
+                            }
+                        }
+                    } else {
+                        // Si no hay duración, mostrar tiempo transcurrido
+                        $('#progressText').text(`Procesando: ${data.time}`);
+                    }
                 }
             }
 
-            if (totalSeconds > 0 && seconds > 0) {
-                const progress = Math.min(100, Math.round((seconds / totalSeconds) * 100));
-                $('#progressBar').css('width', progress + '%').attr('aria-valuenow', progress);
-                $('#progressText').text(`Procesando: ${progress}% completado (${stats.time} / ${durationStr})`);
-
-                if (progress >= 100) {
-                    setTimeout(window.optimizerUI.resetAfterCompletion, 3000);
-                }
-            } else {
-                $('#progressBar').css('width', '50%');
-            }
-        } else {
-            $('#progressBar').css('width', '50%');
-        }
-
-        window.optimizerUtils.updateStatusIcon(logLine);
-    }).fail(() => console.log('Error conectando con el servidor'));
+            // Actualizar icono
+            let emoji = '🟢';
+            const logLine = (data.log_line || '').toLowerCase();
+            if (logLine.includes('error')) emoji = '❌';
+            else if (logLine.includes('completado')) emoji = '✅';
+            else if (data.frames > 0) emoji = '⏳';
+            $('#statusIcon').text(emoji);
+        })
+        .fail(function (xhr, status, error) {
+            console.error('❌ Error consultando status:', error);
+        });
 }
 
 // Exportar

@@ -2,6 +2,7 @@
 
 let currentUpload = null;
 let selectedFile = null;
+let isUploading = false;
 
 function estimateSize(file) {
     if (!file) return;
@@ -21,46 +22,84 @@ function estimateSize(file) {
             $('#estimate-final').text(estimate.estimated_mb?.toFixed(1) + ' MB' || '?');
             $('#estimate-ratio').text(estimate.compression_ratio || '?');
         },
-        error: (xhr) => console.error('❌ Error estimando:', xhr.responseJSON)
+        error: function (xhr) {
+            console.error('❌ Error estimando:', xhr.responseJSON);
+            $('#estimate-info').hide();
+        }
     });
 }
 
 function setupUploadHandlers() {
+    console.log('🔧 Configurando manejadores de subida');
+
     $('#video-input').on('change', function () {
+        if (isUploading) {
+            alert('Hay una subida en curso. Espera a que termine o cancélala.');
+            this.value = '';
+            return;
+        }
+
         const file = this.files[0];
         if (file) {
             selectedFile = file;
             $('#selected-file').text(file.name);
 
             const preview = $('#video-preview')[0];
-            if (preview.src?.startsWith('blob:')) {
+            if (preview.src && preview.src.startsWith('blob:')) {
                 URL.revokeObjectURL(preview.src);
             }
 
             const url = URL.createObjectURL(file);
             $('#video-preview').attr('src', url);
-            $('#video-preview-container').fadeIn();
+            $('#video-preview-container').fadeIn(300);
             estimateSize(file);
         } else {
             selectedFile = null;
             $('#selected-file').text('Ningún archivo seleccionado');
             $('#video-preview').attr('src', '');
-            $('#video-preview-container').fadeOut();
+            $('#video-preview-container').fadeOut(300);
             $('#estimate-info').hide();
         }
     });
 
-    $('#upload-form').on('submit', handleUpload);
+    $('#upload-btn').on('click', handleUpload);
     $('#cancel-upload-btn').on('click', cancelUpload);
 }
 
 function handleUpload(e) {
     e.preventDefault();
+    e.stopPropagation();
+
+    console.log('🚀 handleUpload iniciado');
+
     const fileInput = $('#video-input')[0];
     if (!fileInput.files.length) {
         alert('Selecciona un archivo primero.');
         return;
     }
+
+    if (isUploading) {
+        alert('Ya hay una subida en curso');
+        return;
+    }
+
+    const file = fileInput.files[0];
+    console.log('📁 Archivo a subir:', file.name, 'tamaño:', (file.size / 1024 / 1024).toFixed(2), 'MB');
+
+    // Marcar que estamos subiendo
+    isUploading = true;
+
+    // 1. OCULTAR CONTENEDOR DE PERFIL DE OPTIMIZACIÓN
+    $('#profile-card').fadeOut(300);
+
+    // 2. MOSTRAR ESTIMACIÓN DE TAMAÑO (ya debería estar visible, pero aseguramos)
+    $('#estimate-info').show();
+
+    // 3. DESHABILITAR BOTÓN SUBIR
+    $('#upload-btn').prop('disabled', true).css('opacity', '0.5');
+
+    // 4. DESHABILITAR INPUT DE ARCHIVO
+    $('#video-input').prop('disabled', true);
 
     // Limpiar datos anteriores
     $('#info-name, #info-duration, #info-resolution, #info-format, #info-vcodec, #info-acodec, #info-size').text('–');
@@ -78,73 +117,144 @@ function handleUpload(e) {
     };
 
     $('#processing-profile').text(profileNames[window.optimizerProfiles.currentProfile] || window.optimizerProfiles.currentProfile);
-    $('#current-profile-badge').fadeIn();
+    $('#current-profile-badge').fadeIn(300);
 
-    $('#upload-status').fadeIn();
+    // MOSTRAR BARRA DE PROGRESO Y BOTÓN CANCELAR
+    $('#upload-status').css('display', 'block').fadeIn(300);
     $('#cancel-upload-btn').show();
     $('#status-text').text('Subiendo archivo...');
     $('#upload-progress-bar').css('width', '0%').text('0%');
     $('#upload-percent').text('0%');
 
     const formData = new FormData();
-    formData.append('video', fileInput.files[0]);
+    formData.append('video', file);
+    formData.append('profile', window.optimizerProfiles.currentProfile);
 
-    $.ajax({
-        url: '/process-file',
-        type: 'POST',
-        data: formData,
-        processData: false,
-        contentType: false,
-        xhr: function () {
-            let xhr = $.ajaxSettings.xhr();
-            currentUpload = xhr;
+    // Usar XMLHttpRequest directamente para mejor control
+    const xhr = new XMLHttpRequest();
+    currentUpload = xhr;
 
-            if (xhr.upload) {
-                xhr.upload.addEventListener('progress', function (evt) {
-                    if (evt.lengthComputable) {
-                        let percent = Math.round((evt.loaded / evt.total) * 100);
-                        $('#upload-progress-bar').css('width', percent + '%').text(percent + '%');
-                        $('#upload-percent').text(percent + '%');
-                    }
-                });
-            }
-            return xhr;
-        },
-        success: function (resp) {
-            $('#status-text').text('Subida completada. Iniciando optimización...');
-            $('#cancel-upload-btn').hide();
+    // Variable para controlar si ya se manejó la respuesta
+    let handled = false;
 
-            window.optimizerUI.hideUploadSection();
-            window.optimizerUI.showProgressSection();
-            window.optimizerProgress.startMonitoring();
+    // Configurar progreso
+    xhr.upload.addEventListener('progress', function (evt) {
+        if (evt.lengthComputable) {
+            const percent = Math.round((evt.loaded / evt.total) * 100);
+            console.log(`📤 Progreso: ${percent}%`);
 
-            setTimeout(() => $('#upload-status').fadeOut(), 2000);
-        },
-        error: function (xhr) {
-            $('#status-text').text('Error en la subida');
+            // Asegurar que la barra de progreso y botón cancelar estén visibles
+            $('#upload-status').show();
             $('#cancel-upload-btn').show();
-            console.error(xhr.responseJSON?.error || "Error desconocido");
-            window.optimizerUI.resetAfterCompletion();
+            $('#upload-progress-bar').css('width', percent + '%').text(percent + '%');
+            $('#upload-percent').text(percent + '%');
         }
     });
+
+    // Configurar carga completa
+    xhr.addEventListener('load', function () {
+        if (handled) return;
+        handled = true;
+
+        console.log('✅ Petición completada con status:', xhr.status);
+
+        if (xhr.status === 202 || xhr.status === 200) {
+            try {
+                const resp = JSON.parse(xhr.responseText);
+                console.log('✅ Respuesta del servidor:', resp);
+
+                $('#status-text').text('Subida completada. Iniciando optimización...');
+                $('#cancel-upload-btn').hide();
+
+                // IMPORTANTE: Asegurar que el perfil está oculto
+                $('#profile-card').hide();  // <-- FORZAR OCULTACIÓN
+
+                // Ocultar barra de subida y mostrar barra de progreso
+                $('#upload-status').fadeOut(300, function () {
+                    // Después de ocultar la subida, mostrar el progreso
+                    window.optimizerUI.hideUploadSection();  // <-- ESTO OCULTA upload-card pero NO muestra profile-card
+                    window.optimizerUI.showProgressSection();
+                    window.optimizerProgress.startMonitoring();
+                });
+
+            } catch (e) {
+                console.error('❌ Error parseando respuesta:', e);
+                handleError('Error parsing response');
+            }
+        } else {
+            console.error('❌ Error en subida. Status:', xhr.status);
+            let errorMsg = 'Error en la subida';
+            try {
+                const resp = JSON.parse(xhr.responseText);
+                if (resp.error) errorMsg += ': ' + resp.error;
+            } catch (e) { }
+            handleError(errorMsg);
+        }
+    });
+
+    // Configurar error de red
+    xhr.addEventListener('error', function () {
+        if (handled) return;
+        handled = true;
+        console.error('❌ Error de red en la subida');
+        handleError('Error de red');
+    });
+
+    // Configurar timeout
+    xhr.addEventListener('timeout', function () {
+        if (handled) return;
+        handled = true;
+        console.error('❌ Timeout en la subida');
+        handleError('Timeout - la subida tomó demasiado tiempo');
+    });
+
+    // Función para manejar errores
+    function handleError(message) {
+        $('#status-text').text(message);
+
+        // REHABILITAR BOTONES Y MOSTRAR PERFIL
+        $('#profile-card').fadeIn(300);
+        $('#upload-btn').prop('disabled', false).css('opacity', '1');
+        $('#video-input').prop('disabled', false);
+        $('#cancel-upload-btn').hide();
+        isUploading = false;
+
+        window.optimizerUI.resetAfterCompletion('Error en subida');
+    }
+
+    // Abrir y enviar
+    xhr.open('POST', '/process-file', true);
+    xhr.withCredentials = true;
+    xhr.timeout = 300000; // 5 minutos
+    xhr.send(formData);
 }
 
 function cancelUpload() {
-    if (currentUpload) {
+    if (currentUpload && isUploading) {
+        console.log('🛑 Cancelando subida...');
         currentUpload.abort();
+
         $('#status-text').text('Subida cancelada');
         $('#upload-progress-bar').css('background', 'gray').text('Cancelado');
         $('#upload-percent').text('Cancelado');
-        $(this).hide();
+
+        // REHABILITAR BOTONES Y MOSTRAR PERFIL
+        $('#profile-card').fadeIn(300);
+        $('#upload-btn').prop('disabled', false).css('opacity', '1');
+        $('#video-input').prop('disabled', false);
+        $('#cancel-upload-btn').hide();
+        isUploading = false;
+
         window.optimizerProgress.stopMonitoring();
-        window.optimizerUI.resetAfterCompletion();
+        window.optimizerUI.resetAfterCompletion('Cancelado por usuario');
     }
 }
 
 // Exportar
 window.optimizerUpload = {
-    selectedFile,
-    estimateSize,
-    setupUploadHandlers,
-    cancelUpload
+    selectedFile: selectedFile,
+    estimateSize: estimateSize,
+    setupUploadHandlers: setupUploadHandlers,
+    cancelUpload: cancelUpload,
+    isUploading: () => isUploading
 };

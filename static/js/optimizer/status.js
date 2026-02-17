@@ -1,4 +1,4 @@
-// status.js - Polling de estado y actualización de UI
+// status.js - Versión corregida
 
 let isProcessing = false;
 let userInitiatedProcess = false;
@@ -15,6 +15,13 @@ function updateStatus() {
     $.getJSON('/status', function (data) {
         const currentVideo = data.current_video || null;
 
+        // SI HAY SUBIDA EN CURSO, IGNORAR ESTADO
+        if (window.optimizerUpload && window.optimizerUpload.isUploading()) {
+            console.log('⏳ Subida en curso, ignorando status');
+            return;
+        }
+
+        // SOLO actualizar la información si hay un proceso activo iniciado por el usuario
         if (currentVideo && userInitiatedProcess) {
             $('#currentFile').text(currentVideo);
 
@@ -49,17 +56,13 @@ function updateStatus() {
                 window.optimizerUI.showProgressSection();
                 window.optimizerProgress.startMonitoring();
             }
-        } else {
-            $('#currentFile').text('Ninguno');
-            $('#stat-frames, #stat-fps, #stat-time, #stat-bitrate, #stat-speed').text('–');
-            $('#info-name, #info-duration, #info-resolution, #info-format, #info-vcodec, #info-acodec, #info-size').text('–');
-            $('#statusIcon').text('🟢');
-
-            if (isProcessing) {
-                window.optimizerUI.resetAfterCompletion();
-            }
+        } else if (!currentVideo && isProcessing && !window.optimizerUpload?.isUploading()) {
+            // Solo resetear si NO hay subida en curso
+            window.optimizerUI.resetAfterCompletion('sin video');
         }
-    }).fail(() => console.log('Error conectando con el servidor'));
+    }).fail(function () {
+        console.log('Error conectando con el servidor');
+    });
 }
 
 // Exportar

@@ -148,17 +148,29 @@ class PipelineSteps:
         pix_fmt = info.get("pix_fmt", "").lower()
         is_10bit = info.get("is_10bit", False)
         
-        try:
-            original_width = int(info.get("resolution", "0x0").split("x")[0])
-        except:
-            original_width = 0
+        # Parsear resolución de forma segura
+        original_width = 0
+        resolution_str = info.get('resolution', '0x0')
+        if resolution_str and 'x' in resolution_str:
+            try:
+                parts = resolution_str.split('x')
+                if parts and parts[0] and parts[0].isdigit():
+                    original_width = int(parts[0])
+            except (ValueError, IndexError):
+                original_width = 0
 
         print(f"📌 Codec detectado: {vcodec}")
         print(f"📌 Resolución original: {info.get('resolution', 'desconocida')}")
         
         # Manejar duración de forma segura
-        duration_sec = info.get("duration", 0)
-        if duration_sec and duration_sec > 0:
+        duration_sec = 0.0
+        duration_raw = info.get('duration', 0)
+        try:
+            duration_sec = float(duration_raw) if duration_raw else 0.0
+        except (ValueError, TypeError):
+            duration_sec = 0.0
+            
+        if duration_sec > 0:
             print(f"📌 Duración: {duration_sec/60:.1f} minutos ({duration_sec:.0f} segundos)")
         else:
             print(f"📌 Duración: {info.get('duration_str', 'desconocida')}")
@@ -188,12 +200,15 @@ class PipelineSteps:
         
         # Escalar según perfil
         if profile_data["scale"] and original_width > 0:
-            target_width = int(profile_data["scale"].split(":")[0])
-            if target_width < original_width:
-                filters.append(f"scale={profile_data['scale']}")
-                print(f"📐 Escalando a: {profile_data['scale']}")
-            else:
-                print(f"📐 Manteniendo resolución original")
+            try:
+                target_width = int(profile_data["scale"].split(":")[0])
+                if target_width < original_width:
+                    filters.append(f"scale={profile_data['scale']}")
+                    print(f"📐 Escalando a: {profile_data['scale']}")
+                else:
+                    print(f"📐 Manteniendo resolución original")
+            except (ValueError, AttributeError):
+                print(f"⚠️ Error al parsear escala: {profile_data['scale']}")
         
         # Convertir 10-bit a 8-bit si es necesario
         if is_10bit:
@@ -253,27 +268,30 @@ class PipelineSteps:
             print(f"📦 Tamaño final: {final_size:.1f} MB")
             
             # Calcular bitrate real solo si tenemos duración válida
-            if duration_sec and duration_sec > 0:
+            if duration_sec > 0:
                 actual_bitrate = (final_size * 8 * 1024) / duration_sec
                 print(f"📊 Bitrate real: {actual_bitrate:.0f} kbps")
             else:
                 print(f"📊 Bitrate real: No disponible (duración desconocida)")
             
             # Guardar metadatos
-            meta_path = output_path + ".json"
-            with open(meta_path, 'w') as f:
-                json.dump({
-                    "profile": profile,
-                    "preset": profile_data["preset"],
-                    "video_bitrate": profile_data["video_bitrate"],
-                    "audio_bitrate": profile_data["audio_bitrate"],
-                    "resolution": profile_data["scale"] or "original",
-                    "original_size_mb": size_estimate['original_mb'] if size_estimate else None,
-                    "final_size_mb": final_size,
-                    "processing_time": elapsed,
-                    "hardware_accel": False,
-                    "decoder": "cpu"
-                }, f, indent=2)
+            try:
+                meta_path = output_path + ".json"
+                with open(meta_path, 'w') as f:
+                    json.dump({
+                        "profile": profile,
+                        "preset": profile_data["preset"],
+                        "video_bitrate": profile_data["video_bitrate"],
+                        "audio_bitrate": profile_data["audio_bitrate"],
+                        "resolution": profile_data["scale"] or "original",
+                        "original_size_mb": size_estimate['original_mb'] if size_estimate else None,
+                        "final_size_mb": final_size,
+                        "processing_time": elapsed,
+                        "hardware_accel": False,
+                        "decoder": "cpu"
+                    }, f, indent=2)
+            except Exception as e:
+                print(f"⚠️ Error guardando metadatos: {e}")
             
             return True
         else:
