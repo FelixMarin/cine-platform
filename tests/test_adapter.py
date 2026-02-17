@@ -106,6 +106,8 @@ class TestFFmpegOptimizerAdapter(unittest.TestCase):
 
 
     def test_get_status(self):
+        # Mock the state attribute of state_manager
+        self.adapter.state_manager.state = MagicMock()
         self.adapter.get_status()
         self.assertTrue(True)  # Solo validar que no explota
 
