@@ -35,15 +35,19 @@ jobs:
         run: |
           mkdir -p /tmp/uploads /tmp/thumbnails /tmp/outputs
           mkdir -p logs
-          mkdir -p tests/templates
 
-      - name: Create dummy templates for tests
+      - name: Create dummy templates for tests (in a temp location)
         run: |
-          echo "<!-- dummy -->" > tests/templates/index.html
-          echo "<!-- dummy -->" > tests/templates/login.html
-          echo "<!-- dummy -->" > tests/templates/optimizer.html
-          echo "<!-- dummy -->" > tests/templates/play.html
-          echo "<!-- dummy -->" > tests/templates/admin_panel.html
+          mkdir -p ./test_templates
+          echo "<!-- dummy -->" > ./test_templates/index.html
+          echo "<!-- dummy -->" > ./test_templates/login.html
+          echo "<!-- dummy -->" > ./test_templates/optimizer.html
+          echo "<!-- dummy -->" > ./test_templates/play.html
+          echo "<!-- dummy -->" > ./test_templates/admin_panel.html
+          
+          # Enlazar o copiar a tests/templates si es necesario
+          mkdir -p tests/templates
+          cp ./test_templates/* tests/templates/
 
       - name: Run tests with coverage
         run: |
@@ -58,7 +62,6 @@ jobs:
       - name: Get coverage percentage
         id: coverage
         run: |
-          # Extraer porcentaje del reporte HTML
           PERCENT=$(grep -o 'pc_cov">[0-9.]*%' htmlcov/index.html | head -1 | grep -o '[0-9.]*' | cut -d. -f1)
           echo "percent=$PERCENT" >> $GITHUB_OUTPUT
           echo "Coverage: $PERCENT%"
@@ -67,7 +70,6 @@ jobs:
         run: |
           PERCENT=${{ steps.coverage.outputs.percent }}
           
-          # Determinar color
           if [ $PERCENT -ge 90 ]; then
             COLOR="brightgreen"
           elif [ $PERCENT -ge 75 ]; then
@@ -78,15 +80,32 @@ jobs:
             COLOR="red"
           fi
           
-          # Generar badge
           curl -s "https://img.shields.io/badge/coverage-$PERCENT%25-$COLOR" > coverage-badge.svg
+
+      - name: Clean up test templates
+        run: |
+          rm -rf ./test_templates
+          rm -rf tests/templates
 
       - name: Commit coverage badge
         run: |
           git config --global user.name "github-actions"
           git config --global user.email "github-actions@github.com"
           mkdir -p assets
-          mv coverage-badge.svg assets/coverage-badge.svg
-          git add assets/coverage-badge.svg
-          git diff --quiet && git diff --staged --quiet || git commit -m "Update coverage badge"
-          git push origin main
+          if [ -f coverage-badge.svg ]; then
+            mv coverage-badge.svg assets/coverage-badge.svg
+            git add assets/coverage-badge.svg
+            
+            # Restaurar cualquier cambio no deseado
+            git checkout -- tests/ 2>/dev/null || true
+            
+            # Commit solo si hay cambios en assets
+            if git diff --staged --quiet; then
+              echo "No changes to commit"
+            else
+              git commit -m "Update coverage badge"
+              git push origin main
+            fi
+          else
+            echo "Coverage badge not found"
+          fi
