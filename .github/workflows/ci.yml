@@ -35,6 +35,15 @@ jobs:
         run: |
           mkdir -p /tmp/uploads /tmp/thumbnails /tmp/outputs
           mkdir -p logs
+          mkdir -p tests/templates
+
+      - name: Create dummy templates for tests
+        run: |
+          echo "<!-- dummy -->" > tests/templates/index.html
+          echo "<!-- dummy -->" > tests/templates/login.html
+          echo "<!-- dummy -->" > tests/templates/optimizer.html
+          echo "<!-- dummy -->" > tests/templates/play.html
+          echo "<!-- dummy -->" > tests/templates/admin_panel.html
 
       - name: Run tests with coverage (pytest)
         run: |
@@ -51,9 +60,25 @@ jobs:
           name: coverage-html
           path: htmlcov/
 
-      - name: Generate coverage badge
+      - name: Generate coverage badge from XML
         run: |
-          coverage-badge -o coverage-badge.svg -f
+          # Extraer porcentaje de cobertura del XML
+          COVERAGE=$(grep -o 'line-rate="[0-9.]*"' coverage.xml | head -1 | grep -o '[0-9.]*')
+          PERCENT=$(echo "$COVERAGE * 100" | bc | cut -d. -f1)
+          
+          # Determinar color según porcentaje
+          if [ $PERCENT -ge 90 ]; then
+            COLOR="brightgreen"
+          elif [ $PERCENT -ge 75 ]; then
+            COLOR="yellow"
+          elif [ $PERCENT -ge 60 ]; then
+            COLOR="orange"
+          else
+            COLOR="red"
+          fi
+          
+          # Generar badge con shields.io
+          curl -s "https://img.shields.io/badge/coverage-$PERCENT%25-$COLOR" > coverage-badge.svg
 
       - name: Switch to main branch (fix detached HEAD)
         run: |
