@@ -49,3 +49,4 @@ k3s/cine-secret.yaml
 
 .coverage
 .aider*
+.aider.chat.history.md

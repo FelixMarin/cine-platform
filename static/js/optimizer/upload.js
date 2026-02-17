@@ -111,8 +111,12 @@ function handleUpload(e) {
     // 3. DESHABILITAR BOTÓN SUBIR
     $('#upload-btn').prop('disabled', true).css('opacity', '0.5');
 
-    // 4. DESHABILITAR INPUT DE ARCHIVO
-    $('#video-input').prop('disabled', true).css('opacity', '0.5');
+    // 4. DESHABILITAR LABEL DEL INPUT FILE (en lugar del input oculto)
+    $('label[for="video-input"]').addClass('disabled-label').css({
+        'opacity': '0.5',
+        'pointer-events': 'none',
+        'cursor': 'not-allowed'
+    });
 
     // Limpiar datos anteriores
     $('#info-name, #info-duration, #info-resolution, #info-format, #info-vcodec, #info-acodec, #info-size').text('–');

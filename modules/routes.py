@@ -4,6 +4,7 @@ import unicodedata
 import threading
 import time
 import queue
+import json
 from flask import Blueprint, render_template, request, redirect, url_for, session, jsonify, Response, send_from_directory, make_response
 from werkzeug.utils import secure_filename
 from modules.worker import start_worker
@@ -345,6 +346,18 @@ def create_blueprints(auth_service, media_service, optimizer_service):
     def status():
         """Devuelve el estado actual del procesamiento"""
         try:
+            # Cargar historial desde state.json
+            history = []
+            state_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'state.json')
+            
+            try:
+                if os.path.exists(state_file):
+                    with open(state_file, 'r') as f:
+                        state_data = json.load(f)
+                        history = state_data.get('history', [])
+            except Exception as e:
+                print(f"Error cargando historial: {e}")
+            
             # Devolver nuestro estado global incluyendo video_info
             return jsonify({
                 "current_video": processing_status["current"],
@@ -354,8 +367,8 @@ def create_blueprints(auth_service, media_service, optimizer_service):
                 "time": processing_status["time"],
                 "speed": processing_status["speed"],
                 "queue_size": processing_queue.qsize(),
-                "video_info": processing_status.get("video_info", {}),  # Información del video
-                "history": []  # Vacío por ahora
+                "video_info": processing_status.get("video_info", {}),
+                "history": history  # <-- AHORA INCLUYE EL HISTORIAL
             })
         except Exception as e:
             print(f"Error en /status: {e}")
@@ -367,7 +380,8 @@ def create_blueprints(auth_service, media_service, optimizer_service):
                 "time": "",
                 "speed": "",
                 "queue_size": processing_queue.qsize(),
-                "video_info": {}
+                "video_info": {},
+                "history": []
             })
 
     @bp.route("/process", methods=["POST"])
