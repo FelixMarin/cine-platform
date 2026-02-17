@@ -3,6 +3,7 @@ import os
 import subprocess
 import json
 import re
+import signal
 from modules.logging.logging_config import setup_logging
 
 logger = setup_logging(os.environ.get("LOG_FOLDER"))
@@ -11,6 +12,8 @@ class FFmpegHandler:
     def __init__(self, state_manager):
         self.state_manager = state_manager
         self.is_jetson = os.path.exists("/usr/lib/aarch64-linux-gnu/tegra")
+        self.current_process = None
+        self.set_process_callback = None
         
         if self.is_jetson:
             logger.info("✅ Dispositivo Jetson detectado")
@@ -79,8 +82,8 @@ class FFmpegHandler:
 
             info = {
                 "name": os.path.basename(video_path),
-                "duration": duration_float,  # Ahora es float
-                "duration_str": duration_str,  # Mantener string por si acaso
+                "duration": duration_float,
+                "duration_str": duration_str,
                 "resolution": f"{v_stream.get('width', '??')}x{v_stream.get('height', '??')}",
                 "format": format_info.get("format_name", "desconocido"),
                 "vcodec": v_stream.get("codec_name", "desconocido"),
@@ -113,13 +116,20 @@ class FFmpegHandler:
         
         process = None
         try:
+            # Crear proceso con grupo de procesos para poder matar hijos
             process = subprocess.Popen(
                 cmd_args,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
                 universal_newlines=True,
-                bufsize=1
+                bufsize=1,
+                preexec_fn=os.setsid  # Crear grupo de procesos
             )
+            
+            # Guardar referencia al proceso
+            self.current_process = process
+            if self.set_process_callback:
+                self.set_process_callback(process)
             
             # Patrones para extraer datos numéricos de forma segura
             frame_pattern = re.compile(r'frame=\s*(\d+)')
@@ -176,12 +186,20 @@ class FFmpegHandler:
             logger.error(f"❌ Error en execute: {e}")
             return False
         finally:
+            self.current_process = None
+            if self.set_process_callback:
+                self.set_process_callback(None)
             if process and process.poll() is None:
-                process.terminate()
+                # Intentar terminar suavemente
                 try:
+                    os.killpg(os.getpgid(process.pid), signal.SIGTERM)
                     process.wait(timeout=5)
                 except:
-                    process.kill()
+                    # Forzar kill si no responde
+                    try:
+                        os.killpg(os.getpgid(process.pid), signal.SIGKILL)
+                    except:
+                        pass
 
     def get_duration(self, video_path):
         try:
@@ -212,3 +230,15 @@ class FFmpegHandler:
         except Exception as e:
             logger.error(f"Error inesperado en get_duration: {e}")
             return 0.0
+    
+    def cancel_current_process(self):
+        """Método público para cancelar el proceso actual"""
+        if self.current_process and self.current_process.poll() is None:
+            try:
+                logger.info("🛑 Cancelando proceso FFmpeg...")
+                os.killpg(os.getpgid(self.current_process.pid), signal.SIGTERM)
+                return True
+            except Exception as e:
+                logger.error(f"Error cancelando proceso: {e}")
+                return False
+        return False

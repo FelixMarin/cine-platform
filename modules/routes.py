@@ -6,6 +6,7 @@ import time
 import queue
 from flask import Blueprint, render_template, request, redirect, url_for, session, jsonify, Response, send_from_directory, make_response
 from werkzeug.utils import secure_filename
+from modules.worker import start_worker
 
 def create_blueprints(auth_service, media_service, optimizer_service):
     bp = Blueprint('main', __name__)
@@ -20,89 +21,13 @@ def create_blueprints(auth_service, media_service, optimizer_service):
         "fps": 0,
         "time": "",
         "speed": "",
+        "video_info": {},
+        "cancelled": False,
         "last_update": time.time()
     }
 
-    def background_worker():
-        """Procesa videos en segundo plano"""
-        while True:
-            try:
-                if not processing_queue.empty():
-                    task = processing_queue.get()
-                    processing_status["current"] = task["filename"]
-                    processing_status["log_line"] = f"Iniciando {task['filename']}"
-                    processing_status["last_update"] = time.time()
-                    
-                    print(f"🎬 Worker procesando: {task['filename']} con perfil {task['profile']}")
-                    
-                    # Crear pipeline
-                    from modules.pipeline import PipelineSteps
-                    from modules.ffmpeg import FFmpegHandler
-                    from modules.state import StateManager
-                    
-                    # State propio del worker
-                    worker_state = StateManager()
-                    
-                    # Override del método update_log para capturar el progreso
-                    original_update_log = worker_state.update_log
-                    
-                    def update_log_wrapper(line):
-                        # Actualizar nuestro estado global
-                        processing_status["log_line"] = line
-                        
-                        # Parsear la línea para extraer stats
-                        if "frame=" in line:
-                            parts = line.split()
-                            for part in parts:
-                                if "=" in part:
-                                    key, value = part.split("=")
-                                    if key == "frame":
-                                        processing_status["frames"] = int(value)
-                                    elif key == "fps":
-                                        processing_status["fps"] = float(value.split()[0]) if ' ' in value else float(value)
-                                    elif key == "time":
-                                        processing_status["time"] = value
-                                    elif key == "speed":
-                                        processing_status["speed"] = value
-                        
-                        # Llamar al original
-                        original_update_log(line)
-                    
-                    worker_state.update_log = update_log_wrapper
-                    
-                    ff = FFmpegHandler(worker_state)
-                    pipeline = PipelineSteps(ff)
-                    
-                    base, ext = os.path.splitext(task['filename'])
-                    output_filename = f"{base}_{task['profile']}{ext}"
-                    output_path = os.path.join(optimizer_service.get_output_folder(), output_filename)
-                    
-                    # Ejecutar pipeline
-                    worker_state.set_current_video(task['filename'])
-                    success = pipeline.process(task['filepath'], output_path, profile=task['profile'])
-                    
-                    if success:
-                        print(f"✅ Completado: {task['filename']}")
-                        processing_status["log_line"] = f"Completado: {task['filename']}"
-                    else:
-                        print(f"❌ Error: {task['filename']}")
-                        processing_status["log_line"] = f"Error: {task['filename']}"
-                    
-                    processing_status["current"] = None
-                    processing_status["last_update"] = time.time()
-                    
-                processing_status["queue_size"] = processing_queue.qsize()
-                time.sleep(1)
-                
-            except Exception as e:
-                print(f"❌ Error en worker: {e}")
-                processing_status["log_line"] = f"Error: {str(e)}"
-                processing_status["current"] = None
-                time.sleep(5)
-
-    # Iniciar worker
-    worker_thread = threading.Thread(target=background_worker, daemon=True)
-    worker_thread.start()
+    # Iniciar worker (pasa las referencias necesarias)
+    start_worker(processing_queue, processing_status, optimizer_service)    
 
     # --- Helpers ---
     def is_logged_in():
@@ -306,38 +231,64 @@ def create_blueprints(auth_service, media_service, optimizer_service):
 
     @bp.route('/optimizer/estimate', methods=['POST'])
     def estimate_optimization():
+        """Estima el tamaño según perfil"""
         if not is_logged_in() or not is_admin():
             return jsonify({"error": "No autorizado"}), 403
         
         try:
             data = request.get_json()
-            filepath = data.get('filepath')
+            filename = data.get('filepath')  # Esto es solo el nombre, no la ruta completa
             profile = data.get('profile', 'balanced')
             
-            if not filepath:
+            if not filename:
                 return jsonify({"error": "filepath requerido"}), 400
             
-            full_path = os.path.join(optimizer_service.get_upload_folder(), filepath)
-            if os.path.exists(full_path):
-                filepath = full_path
+            # Buscar el archivo en la carpeta de uploads
+            filepath = os.path.join(optimizer_service.get_upload_folder(), filename)
             
-            if hasattr(optimizer_service, 'pipeline') and hasattr(optimizer_service.pipeline, 'estimate_size'):
-                estimate = optimizer_service.pipeline.estimate_size(filepath, profile)
-            else:
-                size_mb = os.path.getsize(filepath) / (1024 * 1024) if os.path.exists(filepath) else 100
-                estimate = {
-                    "original_mb": size_mb,
-                    "estimated_mb": size_mb * 0.15 if profile == 'ultra_fast' else
-                                   size_mb * 0.12 if profile == 'fast' else
-                                   size_mb * 0.10 if profile == 'balanced' else
-                                   size_mb * 0.25 if profile == 'high_quality' else
-                                   size_mb * 0.50,
-                    "compression_ratio": "85%" if profile == 'ultra_fast' else
-                                        "88%" if profile == 'fast' else
-                                        "90%" if profile == 'balanced' else
-                                        "75%" if profile == 'high_quality' else "50%"
-                }
-            return jsonify(estimate)
+            # Si no existe en uploads, buscar en temp
+            if not os.path.exists(filepath):
+                temp_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'temp', filename)
+                if os.path.exists(temp_path):
+                    filepath = temp_path
+            
+            if not os.path.exists(filepath):
+                return jsonify({"error": "Archivo no encontrado"}), 404
+            
+            # Obtener tamaño real del archivo
+            file_size = os.path.getsize(filepath)
+            original_mb = file_size / (1024 * 1024)
+            
+            # Calcular estimación basada en el perfil
+            ratios = {
+                'ultra_fast': 0.15,  # 15% del original
+                'fast': 0.12,         # 12% del original
+                'balanced': 0.10,      # 10% del original
+                'high_quality': 0.25,  # 25% del original
+                'master': 0.50         # 50% del original
+            }
+            
+            ratio = ratios.get(profile, 0.10)
+            estimated_mb = original_mb * ratio
+            
+            # Obtener duración (opcional, para cálculos más precisos)
+            duration = 0
+            try:
+                from modules.ffmpeg import FFmpegHandler
+                from modules.state import StateManager
+                ff = FFmpegHandler(StateManager())
+                duration = ff.get_duration(filepath)
+            except:
+                pass
+            
+            return jsonify({
+                "original_mb": original_mb,
+                "estimated_mb": estimated_mb,
+                "compression_ratio": f"{int((1 - ratio) * 100)}%",
+                "duration": duration,
+                "filename": filename
+            })
+            
         except Exception as e:
             print(f"Error estimando: {e}")
             return jsonify({"error": str(e)}), 500
@@ -394,7 +345,7 @@ def create_blueprints(auth_service, media_service, optimizer_service):
     def status():
         """Devuelve el estado actual del procesamiento"""
         try:
-            # Devolver nuestro estado global
+            # Devolver nuestro estado global incluyendo video_info
             return jsonify({
                 "current_video": processing_status["current"],
                 "log_line": processing_status["log_line"],
@@ -403,8 +354,8 @@ def create_blueprints(auth_service, media_service, optimizer_service):
                 "time": processing_status["time"],
                 "speed": processing_status["speed"],
                 "queue_size": processing_queue.qsize(),
-                "video_info": {},  # Vacío por ahora
-                "history": []      # Vacío por ahora
+                "video_info": processing_status.get("video_info", {}),  # Información del video
+                "history": []  # Vacío por ahora
             })
         except Exception as e:
             print(f"Error en /status: {e}")
@@ -415,7 +366,8 @@ def create_blueprints(auth_service, media_service, optimizer_service):
                 "fps": 0,
                 "time": "",
                 "speed": "",
-                "queue_size": processing_queue.qsize()
+                "queue_size": processing_queue.qsize(),
+                "video_info": {}
             })
 
     @bp.route("/process", methods=["POST"])
@@ -488,14 +440,15 @@ def create_blueprints(auth_service, media_service, optimizer_service):
         if not is_logged_in() or not is_admin():
             return jsonify({"error": "No autorizado"}), 403
         
-        # Vaciar la cola
-        while not processing_queue.empty():
-            try:
-                processing_queue.get_nowait()
-            except:
-                pass
-        
-        return jsonify({"message": "Procesos cancelados"}), 200
+        try:
+            # Marcar cancelación
+            processing_status["cancelled"] = True
+            
+            return jsonify({"message": "Cancelando proceso..."}), 200
+            
+        except Exception as e:
+            print(f"Error cancelando proceso: {e}")
+            return jsonify({"error": str(e)}), 500
 
     @bp.after_request
     def add_charset(response):

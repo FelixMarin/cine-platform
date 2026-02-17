@@ -1,14 +1,205 @@
-/* responsive.css - Media queries */
-@media (max-width: 768px) {
-    .profile-card {
-        margin-bottom: 15px;
+/* responsive.css - Media queries para móvil */
+
+/* Tablets y móviles grandes */
+@media (max-width: 992px) {
+    .optimizer-container {
+        padding: 15px;
     }
     
-    .metric {
+    .app-logo {
+        max-width: 200px;
+        width: 100%;
+        height: auto;
+        margin: 0 auto 20px;
+        display: block;
+    }
+    
+    .profile-card .row {
+        margin-right: -5px;
+        margin-left: -5px;
+    }
+    
+    .profile-card .col-md-4 {
+        padding-right: 5px;
+        padding-left: 5px;
+    }
+}
+
+/* Móviles */
+@media (max-width: 768px) {
+    .optimizer-container {
+        padding: 10px;
+    }
+    
+    .app-logo {
+        max-width: 150px;
+    }
+    
+    /* Selector de perfiles en móvil */
+    .profile-selector {
+        padding: 10px;
+    }
+    
+    .profile-card {
+        margin-bottom: 15px;
+        padding: 12px;
+    }
+    
+    .profile-icon {
+        font-size: 1.8rem;
+    }
+    
+    .profile-title {
+        font-size: 1rem;
+    }
+    
+    .profile-description {
+        font-size: 0.8rem;
+    }
+    
+    .profile-badge {
+        font-size: 0.7rem;
+        padding: 2px 6px;
+    }
+    
+    /* Estimación de tamaño */
+    .estimate-info .row {
+        display: block;
+    }
+    
+    .estimate-info .col-md-4 {
+        width: 100%;
         margin-bottom: 10px;
     }
     
+    .metric {
+        padding: 8px;
+    }
+    
+    .metric-value {
+        font-size: 1.2rem;
+    }
+    
+    /* Formulario de subida */
+    #upload-container .form-row {
+        flex-direction: column;
+        align-items: stretch !important;
+    }
+    
+    #upload-container .col-auto {
+        width: 100%;
+        margin-bottom: 10px;
+    }
+    
+    #upload-container .col-auto:last-child {
+        margin-bottom: 0;
+    }
+    
+    .custom-file-upload {
+        width: 100%;
+        text-align: center;
+        margin-right: 0;
+    }
+    
+    #upload-btn {
+        width: 100%;
+    }
+    
+    #selected-file {
+        text-align: center;
+        display: block;
+        margin: 10px 0;
+    }
+    
+    /* Barra de progreso */
+    .progress {
+        height: 20px !important;
+    }
+    
+    #progressText {
+        font-size: 0.8rem;
+    }
+    
+    /* TABLAS - Hacerlas scrollables horizontalmente */
+    .table-responsive {
+        display: block;
+        width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    #estado-procesamiento .table,
+    #history {
+        min-width: 600px; /* Forzar scroll horizontal */
+    }
+    
+    /* Tabla de información del video */
+    #estado-procesamiento table:last-of-type {
+        min-width: 400px;
+    }
+    
+    /* Añadir contenedores responsive a las tablas */
+    .table-responsive-wrapper {
+        overflow-x: auto;
+        margin: 10px -10px;
+        padding: 0 10px;
+    }
+    
+    /* Botón de cancelar */
     #cancel-process-btn {
         width: 100%;
+        font-size: 1rem;
+        padding: 12px;
+    }
+    
+    /* Badge de perfil */
+    .badge-primary {
+        font-size: 0.8rem;
+        padding: 0.4rem 0.8rem;
+    }
+    
+    /* Video preview */
+    #video-preview {
+        max-height: 180px;
+    }
+}
+
+/* Móviles pequeños */
+@media (max-width: 480px) {
+    .optimizer-container {
+        padding: 8px;
+    }
+    
+    .app-logo {
+        max-width: 120px;
+    }
+    
+    h5.card-title {
+        font-size: 1.1rem;
+    }
+    
+    .profile-card {
+        padding: 10px;
+    }
+    
+    .profile-icon {
+        font-size: 1.5rem;
+    }
+    
+    .metric-value {
+        font-size: 1rem;
+    }
+    
+    .metric-label {
+        font-size: 0.7rem;
+    }
+    
+    #progressText {
+        font-size: 0.7rem;
+    }
+    
+    #cancel-process-btn {
+        font-size: 0.9rem;
+        padding: 10px;
     }
 }

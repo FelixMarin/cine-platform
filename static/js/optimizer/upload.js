@@ -7,26 +7,39 @@ let isUploading = false;
 function estimateSize(file) {
     if (!file) return;
 
-    $.ajax({
-        url: '/optimizer/estimate',
-        method: 'POST',
-        contentType: 'application/json',
-        data: JSON.stringify({
-            filepath: file.name,
-            profile: window.optimizerProfiles.currentProfile
-        }),
-        success: function (estimate) {
-            console.log('📊 Estimación:', estimate);
-            $('#estimate-info').show();
-            $('#estimate-original').text(estimate.original_mb?.toFixed(1) + ' MB' || '?');
-            $('#estimate-final').text(estimate.estimated_mb?.toFixed(1) + ' MB' || '?');
-            $('#estimate-ratio').text(estimate.compression_ratio || '?');
-        },
-        error: function (xhr) {
-            console.error('❌ Error estimando:', xhr.responseJSON);
-            $('#estimate-info').hide();
-        }
-    });
+    console.log('📊 Estimando tamaño para:', file.name);
+
+    // Tamaño del archivo en MB
+    const fileSizeMB = file.size / (1024 * 1024);
+
+    // Ratios según perfil (deben coincidir con los del servidor)
+    const ratios = {
+        'ultra_fast': 0.15,   // 15% del original
+        'fast': 0.12,         // 12% del original
+        'balanced': 0.10,     // 10% del original
+        'high_quality': 0.25, // 25% del original
+        'master': 0.50        // 50% del original
+    };
+
+    const profile = window.optimizerProfiles.currentProfile;
+    const ratio = ratios[profile] || 0.10;
+    const estimatedMB = fileSizeMB * ratio;
+
+    // Calcular porcentaje de compresión REAL
+    // Si el ratio es 0.10 (10%), la compresión es 90%
+    // Si el ratio es 0.15 (15%), la compresión es 85%
+    // Si el ratio es 0.25 (25%), la compresión es 75%
+    // Si el ratio es 0.50 (50%), la compresión es 50%
+    const compressionPercent = Math.round((1 - ratio) * 100);
+
+    // Actualizar UI
+    $('#estimate-info').show();
+    $('#estimate-original').text(fileSizeMB.toFixed(1) + ' MB');
+    $('#estimate-final').text(estimatedMB.toFixed(1) + ' MB');
+    $('#estimate-ratio').text(compressionPercent + '%');
+
+    console.log(`📊 Perfil: ${profile}, Ratio: ${ratio}, Compresión: ${compressionPercent}%`);
+    console.log(`📊 Original: ${fileSizeMB.toFixed(1)} MB → Estimado: ${estimatedMB.toFixed(1)} MB`);
 }
 
 function setupUploadHandlers() {
@@ -99,7 +112,7 @@ function handleUpload(e) {
     $('#upload-btn').prop('disabled', true).css('opacity', '0.5');
 
     // 4. DESHABILITAR INPUT DE ARCHIVO
-    $('#video-input').prop('disabled', true);
+    $('#video-input').prop('disabled', true).css('opacity', '0.5');
 
     // Limpiar datos anteriores
     $('#info-name, #info-duration, #info-resolution, #info-format, #info-vcodec, #info-acodec, #info-size').text('–');
@@ -225,7 +238,8 @@ function handleUpload(e) {
     // Abrir y enviar
     xhr.open('POST', '/process-file', true);
     xhr.withCredentials = true;
-    xhr.timeout = 300000; // 5 minutos
+    const timeoutMs = (file.size / (1024 * 1024 * 1024)) * 60000 + 300000;
+    xhr.timeout = Math.min(timeoutMs, 7200000);
     xhr.send(formData);
 }
 

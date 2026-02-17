@@ -69,7 +69,7 @@
     <!-- Contenido principal -->
     <main class="main-content" id="mainContent" role="main">
         <div class="optimizer-container">
-            <img src="/static/images/optimizer.svg" alt="Optimizer" class="app-logo">
+            <img src="/static/images/optimizer.svg" alt="Optimizer" class="app-logo" style="max-width: 100%; height: auto;">
 
             <!-- Selector de Perfiles -->
             <div class="card shadow-sm mb-4" id="profile-card">
@@ -167,7 +167,7 @@
                 <div class="card-body">
                     <h5 class="card-title">
                         <i class="fas fa-chart-line mr-2"></i>
-                        Progreso del Pipeline
+                        Progreso de Optimización
                     </h5>
 
                     <div class="progress" style="height: 25px;">
@@ -206,28 +206,31 @@
 
                 <p class="mt-2 mb-1"><strong>Archivo en proceso:</strong> <span id="currentFile">Ninguno</span></p>
 
-                <table class="table table-sm table-bordered text-center mt-3">
-                  <thead class="thead-light">
-                    <tr>
-                      <th>Frames</th>
-                      <th>FPS</th>
-                      <th>Duración</th>
-                      <th>Bitrate</th>
-                      <th>Velocidad</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td id="stat-frames">–</td>
-                      <td id="stat-fps">–</td>
-                      <td id="stat-time">–</td>
-                      <td id="stat-bitrate">–</td>
-                      <td id="stat-speed">–</td>
-                    </tr>
-                  </tbody>
-                </table>
+                <div class="table-responsive-wrapper">
+                  <table class="table table-sm table-bordered text-center mt-3">
+                    <thead class="thead-light">
+                      <tr>
+                        <th>Frames</th>
+                        <th>FPS</th>
+                        <th>Duración</th>
+                        <th>Bitrate</th>
+                        <th>Velocidad</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td id="stat-frames">–</td>
+                        <td id="stat-fps">–</td>
+                        <td id="stat-time">–</td>
+                        <td id="stat-bitrate">–</td>
+                        <td id="stat-speed">–</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
 
                 <h6 class="text-muted mt-3">🎬 Información del vídeo original</h6>
+                <div class="table-responsive-wrapper">
                 <table class="table table-sm table-striped table-bordered mt-2">
                   <tbody>
                     <tr><td>Nombre</td><td id="info-name">–</td></tr>
@@ -239,6 +242,7 @@
                     <tr><td>Tamaño</td><td id="info-size">–</td></tr>
                   </tbody>
                 </table>
+                </div>
               </div>
             </div>
 
@@ -246,6 +250,7 @@
             <div class="card shadow-sm mb-4">
               <div class="card-body">
                 <h5 class="card-title">📚 Historial de Procesamiento</h5>
+                <div class="table-responsive-wrapper">
                 <table class="table table-hover">
                   <thead class="thead-dark">
                     <tr>
@@ -259,6 +264,7 @@
                   </thead>
                   <tbody id="history"></tbody>
                 </table>
+              </div>
               </div>
             </div>
 
