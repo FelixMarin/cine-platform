@@ -284,7 +284,7 @@ class PipelineSteps:
                         "video_bitrate": profile_data["video_bitrate"],
                         "audio_bitrate": profile_data["audio_bitrate"],
                         "resolution": profile_data["scale"] or "original",
-                        "original_size_mb": size_estimate['original_mb'] if size_estimate else None,
+                        "original_size_mb": original_size,
                         "final_size_mb": final_size,
                         "processing_time": elapsed,
                         "hardware_accel": False,

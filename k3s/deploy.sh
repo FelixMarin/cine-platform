@@ -2,6 +2,23 @@
 
 set -e
 
+echo "======================================"
+echo "  🧪 Ejecutando tests con pytest"
+echo "======================================"
+
+pytest --maxfail=1 --disable-warnings -q
+echo "✔ Tests completados correctamente"
+
+echo "======================================"
+echo "  📊 Ejecutando coverage"
+echo "======================================"
+
+coverage run -m pytest
+coverage report -m
+# coverage html  # opcional
+
+echo "✔ Coverage generado correctamente"
+
 # ===== CONFIGURACIÓN =====
 IMAGE_NAME="felixmurcia/cine-platform"
 NAMESPACE="cine"
@@ -44,13 +61,11 @@ echo "======================================"
 echo "  🧹 Eliminando imágenes antiguas de cine-platform"
 echo "======================================"
 
-# Obtener todas las imágenes locales de cine-platform excepto la más reciente
 IMAGES_TO_DELETE=$(docker images felixmurcia/cine-platform --format "{{.Repository}}:{{.Tag}} {{.CreatedAt}}" \
   | sort -k2 -r \
   | tail -n +2 \
   | awk '{print $1}')
 
-# Borrar cada imagen antigua
 for IMG in $IMAGES_TO_DELETE; do
   echo "🗑️  Eliminando imagen antigua: $IMG"
   docker rmi -f "$IMG" || true
@@ -72,13 +87,8 @@ echo "======================================"
 echo "  🧹 Limpiando imágenes antiguas de Docker"
 echo "======================================"
 
-# Elimina imágenes dangling (sin tag)
 docker image prune -f
-
-# Elimina contenedores parados
 docker container prune -f
-
-# Elimina imágenes que no se han usado en 30 días
 docker image prune -a --filter "until=720h" -f
 
 echo "======================================"
