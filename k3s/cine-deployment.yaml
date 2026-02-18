@@ -20,6 +20,12 @@ spec:
             - containerPort: 9443
 
           env:
+            - name: MOVIES_FOLDER
+              valueFrom:
+                secretKeyRef:
+                  name: cine-secret
+                  key: MOVIES_FOLDER
+
             # ============================
             # 🔐 SSL variables
             # ============================
@@ -43,6 +49,18 @@ spec:
                 secretKeyRef:
                   name: cine-secret
                   key: SECRET_KEY
+
+            - name: JWT_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: cine-secret
+                  key: JWT_SECRET_KEY
+
+            - name: JWT_AUDIENCE
+              valueFrom:
+                secretKeyRef:
+                  name: cine-secret
+                  key: JWT_AUDIENCE
 
             - name: OAUTH2_CLIENT_ID
               valueFrom:

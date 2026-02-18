@@ -1,19 +1,28 @@
 import os
+import re
 import jwt
 import unicodedata
 import threading
 import time
 import queue
 import json
+import magic
 import logging
+from modules.ffmpeg import FFmpegHandler
 from flask import Blueprint, render_template, request, redirect, url_for, session, jsonify, Response, send_from_directory, make_response
 from werkzeug.utils import secure_filename
 from modules.worker import start_worker
+from flask_wtf.csrf import generate_csrf
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 
 # Configurar logger
 logger = logging.getLogger(__name__)
 
+VIDEO_EXTENSIONS = {'.mkv', '.mp4', '.avi', '.mov'}
+
 def create_blueprints(auth_service, media_service, optimizer_service):
+    limiter = Limiter(key_func=get_remote_address)
     bp = Blueprint('main', __name__)
 
     # Cola de procesamiento global
@@ -58,7 +67,11 @@ def create_blueprints(auth_service, media_service, optimizer_service):
             
             # Verificar que está dentro de un directorio permitido
             # Esto depende de tu configuración - aquí asumimos /data/media
-            allowed_base = os.path.abspath("/data/media")
+            allowed_base = os.path.abspath(os.environ.get('MOVIES_FOLDER', '/data/media'))
+            if not os.path.exists(allowed_base):
+                logger.error(f"MOVIES_FOLDER no existe: {allowed_base}")
+                return None
+
             if os.path.commonpath([abs_path, allowed_base]) != allowed_base:
                 logger.warning(f"Intento de acceso a ruta no permitida: {folder_path}")
                 return None
@@ -68,10 +81,27 @@ def create_blueprints(auth_service, media_service, optimizer_service):
             logger.error(f"Error validando ruta: {e}")
             return None
 
+    def clean_filename(filename):
+        # Eliminar sufijos comunes
+        name = re.sub(r'[-_]?optimized', '', filename, flags=re.IGNORECASE)
+        
+        # Eliminar extensión y reemplazar separadores
+        name = re.sub(r'\.(mkv|mp4|avi|mov)$', '', name, flags=re.IGNORECASE)
+        name = re.sub(r'[._-]', ' ', name)
+        
+        # Capitalizar palabras
+        return ' '.join(word.capitalize() for word in name.split())
+
     # --- AUTH ---
     @bp.route('/login', methods=['GET', 'POST'])
     def login():
         if request.method == 'POST':
+            # Validar CSRF token
+            csrf_token = request.form.get('csrf_token')
+            if not csrf_token or csrf_token != session.get('csrf_token'):
+                logger.warning("Intento de CSRF detectado")
+                return render_template("login.html", error="Token de seguridad inválido"), 400
+
             username = request.form.get('email')
             password = request.form.get('password')
 
@@ -82,15 +112,24 @@ def create_blueprints(auth_service, media_service, optimizer_service):
 
             if success:
                 token = auth_service.token
-                try:
-                    decoded = jwt.decode(token, options={"verify_signature": False})
-                except jwt.DecodeError:
-                    logger.error("Error decodificando token JWT")
+                try:                 
+                    decoded = jwt.decode(
+                        token,
+                        key=os.environ.get('JWT_SECRET_KEY'),
+                        algorithms=['HS256'],
+                        audience=os.environ.get('JWT_AUDIENCE'),
+                        options={"verify_signature": True}
+                    )
+                except jwt.ExpiredSignatureError:
+                    logger.error("Token JWT expirado")
+                    return render_template("login.html", error="Sesión expirada")
+                except jwt.InvalidTokenError as e:
+                    logger.error(f"Token JWT inválido: {e}")
                     return render_template("login.html", error="Error de autenticación")
 
                 session['logged_in'] = True
                 session['user_email'] = decoded.get("user_name", username)
-                session.permanent = True  # Usar session permanente con timeout
+                session.permanent = True
 
                 authorities = decoded.get("authorities", [])
                 session['user_role'] = "admin" if "ROLE_ADMIN" in authorities else "user"
@@ -99,7 +138,13 @@ def create_blueprints(auth_service, media_service, optimizer_service):
 
             return render_template("login.html", error="Credenciales incorrectas")
 
-        return render_template("login.html")
+        session['csrf_token'] = generate_csrf()
+        # En routes.py, antes de validar CSRF
+        logger.info(f"Session antes del POST: {dict(session)}")
+        logger.info(f"CSRF token en sesión: {session.get('csrf_token')}")
+        logger.info(f"CSRF token del form: {request.form.get('csrf_token')}")
+
+        return render_template("login.html", csrf_token=session['csrf_token'])
 
     @bp.route('/logout')
     def logout():
@@ -119,23 +164,19 @@ def create_blueprints(auth_service, media_service, optimizer_service):
         if not is_logged_in():
             return redirect(url_for('main.login'))
         
-        # Validar filename para evitar path traversal
-        if '..' in filename or filename.startswith('/'):
-            logger.warning(f"Intento de path traversal en play: {filename}")
+        # Validación robusta de path traversal
+        if not media_service.is_path_safe(filename):
+            logger.warning(f"Intento de path traversal en play: {repr(filename)}")
             return "Nombre de archivo inválido", 400
         
-        # Verificar que el archivo existe antes de mostrar el reproductor
+        # Verificar que el archivo existe
         file_path = media_service.get_safe_path(filename)
-        if not file_path or not os.path.exists(file_path):
-            logger.warning(f"Archivo no encontrado en play: {filename}")
+        if not file_path:
             return "Archivo no encontrado", 404
         
         # Usar el nombre base y limpiarlo para mostrar (título)
         base_name = os.path.basename(filename)
-        # Eliminar "-optimized" del nombre si existe
-        base_name = base_name.replace("-optimized", "").replace("_optimized", "").replace("optimized", "")
-        base_name =base_name.replace(".", " ").replace("mkv", "")
-        display_name = base_name.replace("-", " ").replace("_", " ").rsplit(".", 1)[0].title()
+        display_name = clean_filename(base_name)
         
         # Pasar el filename ORIGINAL (con ruta completa) al template
         return render_template("play.html", filename=filename, sanitized_name=display_name)
@@ -202,7 +243,7 @@ def create_blueprints(auth_service, media_service, optimizer_service):
             return redirect(url_for('main.login'))
         
         # Validar filename para evitar path traversal
-        if '..' in filename or filename.startswith('/'):
+        if not media_service.is_path_safe(filename):
             logger.warning(f"Intento de path traversal en thumbnails: {filename}")
             return "Nombre de archivo inválido", 400
         
@@ -402,6 +443,7 @@ def create_blueprints(auth_service, media_service, optimizer_service):
             return jsonify({"error": str(e)}), 500
 
     @bp.route("/process-file", methods=["POST"])
+    @limiter.limit("5 per minute")
     def process_file():
         """Endpoint para subir archivos - Responde inmediatamente"""
         if not is_logged_in() or not is_admin():
@@ -423,9 +465,8 @@ def create_blueprints(auth_service, media_service, optimizer_service):
             return jsonify({"error": "Nombre de archivo inválido"}), 400
         
         # Validar extensión
-        allowed_extensions = {'.mp4', '.mkv', '.avi', '.mov'}
         ext = os.path.splitext(safe_filename)[1].lower()
-        if ext not in allowed_extensions:
+        if ext not in VIDEO_EXTENSIONS:
             return jsonify({"error": "Tipo de archivo no permitido"}), 400
         
         save_path = os.path.join(optimizer_service.get_upload_folder(), safe_filename)
@@ -437,7 +478,21 @@ def create_blueprints(auth_service, media_service, optimizer_service):
         except Exception as e:
             logger.error(f"Error guardando archivo: {e}")
             return jsonify({"error": "Error guardando archivo"}), 500
-        
+
+        # Después de guardar temporalmente
+        mime = magic.from_file(save_path, mime=True)
+        if not mime.startswith('video/'):
+            os.remove(save_path)
+            return jsonify({"error": "El archivo no es un video válido"}), 400
+
+        # Validar con ffprobe
+        from modules.ffmpeg import FFmpegHandler
+        ff = FFmpegHandler(StateManager())
+        info = ff.get_video_info(save_path)
+        if not info or info.get('vcodec') == 'desconocido':
+            os.remove(save_path)
+            return jsonify({"error": "Formato de video no válido"}), 400
+
         # Añadir a la cola de procesamiento
         processing_queue.put({
             'filepath': save_path,
@@ -497,7 +552,7 @@ def create_blueprints(auth_service, media_service, optimizer_service):
             logger.error(f"Error en /status: {e}")
             return jsonify({
                 "current_video": processing_status.get("current"),
-                "log_line": f"Error: {str(e)}",
+                "log_line": "Error interno del servidor",
                 "frames": 0,
                 "fps": 0,
                 "time": "",

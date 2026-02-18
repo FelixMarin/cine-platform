@@ -13,6 +13,7 @@
 <body>
     <div class="login-box">
         <form method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
             <h2>Identificarse</h2>
 
             {% if error %}

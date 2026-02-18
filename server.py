@@ -65,6 +65,8 @@ def create_app():
     app.config['SESSION_COOKIE_SAMESITE'] = os.environ["SESSION_COOKIE_SAMESITE"]
     app.config['SESSION_COOKIE_SECURE'] = os.environ["SESSION_COOKIE_SECURE"] == "True"
     app.config['SESSION_COOKIE_PATH'] = os.environ["SESSION_COOKIE_PATH"]
+    app.config['SESSION_PERMANENT'] = False
+    app.config['SESSION_TYPE'] = 'filesystem'
 
     # Ajustes automáticos para desarrollo
     if env == "development":
