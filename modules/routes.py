@@ -95,56 +95,130 @@ def create_blueprints(auth_service, media_service, optimizer_service):
     # --- AUTH ---
     @bp.route('/login', methods=['GET', 'POST'])
     def login():
-        if request.method == 'POST':
-            # Validar CSRF token
-            csrf_token = request.form.get('csrf_token')
-            if not csrf_token or csrf_token != session.get('csrf_token'):
-                logger.warning("Intento de CSRF detectado")
-                return render_template("login.html", error="Token de seguridad inválido"), 400
+        if request.method == 'GET':
+            # Generar token CSRF y guardarlo en sesión
+            token = generate_csrf()
+            session['csrf_token'] = token
+            # Pasar el token explícitamente al template
+            return render_template("login.html", csrf_token=token)
 
-            username = request.form.get('email')
-            password = request.form.get('password')
+        # POST request
+        # Validar CSRF token
+        csrf_token = request.form.get('csrf_token')
+        session_token = session.get('csrf_token')
+                
+        # Si el token CSRF no es válido, generar uno nuevo y mostrar error
+        if not csrf_token or not session_token or csrf_token != session_token:
+            logger.warning("❌ Intento de CSRF detectado - tokens no coinciden")
+            # Generar un NUEVO token para el formulario de error
+            new_token = generate_csrf()
+            session['csrf_token'] = new_token
+            return render_template("login.html", error="Token de seguridad inválido", csrf_token=new_token), 400
 
-            if not username or not password:
-                return render_template("login.html", error="Usuario y contraseña requeridos")
+        # Limpiar el token de sesión después de usarlo (opcional)
+        session.pop('csrf_token', None)
 
-            success, info = auth_service.login(username, password)
+        username = request.form.get('email')
+        password = request.form.get('password')
 
-            if success:
-                token = auth_service.token
-                try:                 
-                    decoded = jwt.decode(
-                        token,
-                        key=os.environ.get('JWT_SECRET_KEY'),
-                        algorithms=['HS256'],
-                        audience=os.environ.get('JWT_AUDIENCE'),
-                        options={"verify_signature": True}
-                    )
-                except jwt.ExpiredSignatureError:
-                    logger.error("Token JWT expirado")
-                    return render_template("login.html", error="Sesión expirada")
-                except jwt.InvalidTokenError as e:
-                    logger.error(f"Token JWT inválido: {e}")
-                    return render_template("login.html", error="Error de autenticación")
+        if not username or not password:
+            # Generar nuevo token para el formulario de error
+            new_token = generate_csrf()
+            session['csrf_token'] = new_token
+            return render_template("login.html", error="Usuario y contraseña requeridos", csrf_token=new_token), 400
 
-                session['logged_in'] = True
-                session['user_email'] = decoded.get("user_name", username)
-                session.permanent = True
+        # Intentar login con el servicio OAuth
+        success, info = auth_service.login(username, password)
 
-                authorities = decoded.get("authorities", [])
-                session['user_role'] = "admin" if "ROLE_ADMIN" in authorities else "user"
+        if not success:
+            # Login fallido - generar nuevo token
+            new_token = generate_csrf()
+            session['csrf_token'] = new_token
+            logger.warning(f"❌ Login fallido para: {username}")
+            return render_template("login.html", error="Credenciales incorrectas", csrf_token=new_token), 401
 
-                return redirect(url_for('main.index'))
+        # Login exitoso - procesar token JWT
+        token = auth_service.token
 
-            return render_template("login.html", error="Credenciales incorrectas")
+        # Decodificar payload manualmente (debug)
+        try:
+            import base64
+            import json
+            parts = token.split('.')
+            if len(parts) >= 2:
+                payload_b64 = parts[1]
+                payload_b64 += '=' * (4 - len(payload_b64) % 4)
+                payload_json = base64.b64decode(payload_b64).decode('utf-8')
+                payload = json.loads(payload_json)
+                logger.warning(f"🔍 AUDIENCE EN EL TOKEN: {payload.get('aud')}")
+                logger.warning(f"🔍 TODOS LOS CLAIMS: {list(payload.keys())}")
+                logger.warning(f"🔍 PAYLOAD COMPLETO: {payload}")
+        except Exception as e:
+            logger.error(f"❌ Error decodificando payload: {e}")
 
-        session['csrf_token'] = generate_csrf()
-        # En routes.py, antes de validar CSRF
-        logger.info(f"Session antes del POST: {dict(session)}")
-        logger.info(f"CSRF token en sesión: {session.get('csrf_token')}")
-        logger.info(f"CSRF token del form: {request.form.get('csrf_token')}")
+        # ===== BLOQUE 1: Ver token sin verificar =====
+        logger.info("🔍 ANALIZANDO TOKEN SIN VERIFICAR...")
+        unverified = None
+        try:
+            unverified = jwt.decode(token, options={"verify_signature": False})
+            logger.info("✅ Token decodificado sin verificar:")
+            logger.info(f"   - Algoritmo: {unverified.get('alg', 'N/A')}")
+            logger.info(f"   - Claims: {list(unverified.keys())}")
+            logger.info(f"   - aud: {unverified.get('aud')}")
+            logger.info(f"   - iss: {unverified.get('iss')}")
+            logger.info(f"   - sub: {unverified.get('sub')}")
+            logger.info(f"   - exp: {unverified.get('exp')}")
+            logger.info(f"   - authorities: {unverified.get('authorities')}")
+            logger.info(f"   - user_name: {unverified.get('user_name')}")
+        except Exception as e:
+            logger.error(f"❌ Error decodificando token sin verificar: {type(e).__name__}: {e}")
+            # Generar nuevo token para el formulario de error
+            new_token = generate_csrf()
+            session['csrf_token'] = new_token
+            return render_template("login.html", error=f"Token inválido: {type(e).__name__}", csrf_token=new_token), 400
 
-        return render_template("login.html", csrf_token=session['csrf_token'])
+        try:
+            decoded = jwt.decode(
+                token,
+                key=os.environ.get('JWT_SECRET_KEY'),
+                algorithms=['HS256'],
+                audience=[os.environ.get('JWT_AUDIENCE')],
+                options={"verify_signature": True}
+            )
+            logger.info("✅ Token verificado correctamente")
+
+            # Establecer sesión de usuario
+            session['logged_in'] = True
+            session['user_email'] = decoded.get("user_name", username)
+            session.permanent = True
+
+            authorities = decoded.get("authorities", [])
+            session['user_role'] = "admin" if "ROLE_ADMIN" in authorities else "user"
+
+            logger.info(f"✅ Usuario autenticado: {session['user_email']} (rol: {session['user_role']})")
+
+            return redirect(url_for('main.index'))
+
+        except jwt.ExpiredSignatureError:
+            logger.error("❌ Token expirado")
+            new_token = generate_csrf()
+            session['csrf_token'] = new_token
+            return render_template("login.html", error="Sesión expirada", csrf_token=new_token), 400
+        except jwt.InvalidAudienceError as e:
+            logger.error(f"❌ Audience incorrecto: {e}")
+            new_token = generate_csrf()
+            session['csrf_token'] = new_token
+            return render_template("login.html", error="Error de autenticación", csrf_token=new_token), 400
+        except jwt.InvalidSignatureError:
+            logger.error("❌ Firma incorrecta")
+            new_token = generate_csrf()
+            session['csrf_token'] = new_token
+            return render_template("login.html", error="Error de autenticación", csrf_token=new_token), 400
+        except jwt.InvalidTokenError as e:
+            logger.error(f"❌ Token inválido: {type(e).__name__}: {e}")
+            new_token = generate_csrf()
+            session['csrf_token'] = new_token
+            return render_template("login.html", error="Error de autenticación", csrf_token=new_token), 400
 
     @bp.route('/logout')
     def logout():

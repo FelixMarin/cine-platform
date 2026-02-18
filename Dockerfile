@@ -2,7 +2,11 @@ FROM python:3.10-slim
 
 # Instalar dependencias del sistema (FFmpeg es requerido)
 RUN apt-get update && apt-get install -y \
+    python3 \
+    python3-pip \
+    python3-venv \
     ffmpeg \
+    libmagic1 \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app

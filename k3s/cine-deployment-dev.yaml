@@ -202,5 +202,5 @@ spec:
 
         - name: movies
           hostPath:
-            path: /media/d/audiovisual
+            path: /mnt/servidor/Data2TB/audiovisual/
             type: Directory

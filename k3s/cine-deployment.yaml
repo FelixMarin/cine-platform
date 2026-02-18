@@ -20,14 +20,8 @@ spec:
             - containerPort: 9443
 
           env:
-            - name: MOVIES_FOLDER
-              valueFrom:
-                secretKeyRef:
-                  name: cine-secret
-                  key: MOVIES_FOLDER
-
             # ============================
-            # 🔐 SSL variables
+            # 🔐 SSL variables (Secret)
             # ============================
             - name: SSL_CERT_FILE
               valueFrom:
@@ -42,7 +36,7 @@ spec:
                   key: SSL_KEY_FILE
 
             # ============================
-            # 🔐 Secret variables
+            # 🔐 Secret variables (Auth)
             # ============================
             - name: SECRET_KEY
               valueFrom:
@@ -93,7 +87,7 @@ spec:
                   key: SESSION_COOKIE_DOMAIN
 
             # ============================
-            # 🟦 ConfigMap variables
+            # 🟦 ConfigMap variables (App config)
             # ============================
             - name: FLASK_HOST
               valueFrom:
@@ -188,19 +182,14 @@ spec:
           volumeMounts:
             - name: uploads
               mountPath: /app/uploads
-
             - name: temp
               mountPath: /app/temp
-
             - name: outputs
               mountPath: /app/outputs
-
             - name: logs
               mountPath: /app/logs
-
             - name: movies
               mountPath: /data/movies
-
             - name: certs
               mountPath: /certs
               readOnly: true
@@ -210,27 +199,22 @@ spec:
           hostPath:
             path: /home/jetson/cine/uploads
             type: DirectoryOrCreate
-
         - name: temp
           hostPath:
             path: /home/jetson/cine/temp
             type: DirectoryOrCreate
-
         - name: outputs
           hostPath:
             path: /home/jetson/cine/outputs
             type: DirectoryOrCreate
-
         - name: logs
           hostPath:
             path: /home/jetson/cine/logs
             type: DirectoryOrCreate
-
         - name: movies
           hostPath:
-            path: /media/d/audiovisual
+            path: /mnt/servidor/Data2TB/audiovisual/
             type: Directory
-        
         - name: certs
           hostPath:
             path: /var/lib/tailscale/certs
