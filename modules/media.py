@@ -252,7 +252,8 @@ class FileSystemMediaRepository(IMediaRepository):
             # Ejecutar con timeout - usando lista (seguro)
             result = subprocess.run(
                 cmd, 
-                check=True, 
+                check=True,
+                text=True,
                 timeout=30,
                 stdout=subprocess.DEVNULL, 
                 stderr=subprocess.DEVNULL
@@ -471,9 +472,10 @@ class FileSystemMediaRepository(IMediaRepository):
         if not self.is_path_safe(filename):
             return None
         
+        filename = unicodedata.normalize("NFC", filename)
         base_dir = os.path.abspath(self.movies_folder)
         target_path = os.path.abspath(os.path.join(base_dir, filename))
-        return target_path if os.path.exists(target_path) else None
+        return target_path
     
     def get_thumbnails_folder(self):
         return self.thumbnails_folder
