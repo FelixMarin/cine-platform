@@ -15,7 +15,15 @@ echo "======================================"
 echo "  🚀 Construyendo imagen: $FULL_IMAGE"
 echo "======================================"
 
-docker build -t $FULL_IMAGE .
+# Crear builder si no existe
+docker buildx inspect cinebuilder >/dev/null 2>&1 || docker buildx create --name cinebuilder --use
+
+# Build ARM64 real (sin plataformas unknown)
+docker buildx build \
+  --platform linux/arm64 \
+  -t $FULL_IMAGE \
+  --push \
+  .
 
 echo "======================================"
 echo "  📤 Subiendo imagen a Docker Hub"
