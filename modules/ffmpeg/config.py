@@ -13,7 +13,15 @@ class FFmpegConfig:
     """Manejo de configuración y detección de hardware FFmpeg."""
     
     # Directorios permitidos para rutas absolutas
-    ALLOWED_DIRS = ['/data/media', '/tmp/uploads', '/tmp/temp', '/tmp/outputs']
+    ALLOWED_DIRS = [
+        '/data/media',
+        '/tmp/uploads',
+        '/tmp/temp',
+        '/tmp/outputs',
+        '/app/uploads',
+        '/app/temp',
+        '/app/outputs'
+    ]
     
     def __init__(self):
         self.is_jetson = self._detect_jetson()
