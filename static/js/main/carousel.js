@@ -110,8 +110,6 @@ async function renderSeries(series) {
         return;
     }
 
-    console.log("Series recibidas:", series);
-
     for (const serieName in series) {
         const episodios = series[serieName];
 

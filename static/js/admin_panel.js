@@ -4,7 +4,6 @@ let loadingTimeout = null;
 
 // ===== INICIALIZACIÓN =====
 document.addEventListener('DOMContentLoaded', function () {
-    console.log('✅ Panel de Administración cargado');
 
     // Inicializar componentes
     initTooltips();

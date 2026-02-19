@@ -27,13 +27,11 @@ const profileNames = {
 };
 
 function loadProfiles() {
-    console.log('📥 Cargando perfiles...');
 
     $.ajax({
         url: '/optimizer/profiles',
         method: 'GET',
         success: function (profiles) {
-            console.log('✅ Perfiles cargados:', profiles);
             renderProfiles(profiles);
             setTimeout(() => selectProfile('balanced'), 100);
         },
@@ -84,7 +82,6 @@ function renderProfiles(profiles) {
 }
 
 function selectProfile(profile) {
-    console.log('📌 Perfil seleccionado:', profile);
     $('.profile-card').removeClass('selected');
     $(`.profile-card[data-profile="${profile}"]`).addClass('selected');
     currentProfile = profile;

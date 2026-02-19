@@ -17,7 +17,6 @@ function updateStatus() {
 
         // SI HAY SUBIDA EN CURSO, IGNORAR ESTADO
         if (window.optimizerUpload && window.optimizerUpload.isUploading()) {
-            console.log('⏳ Subida en curso, ignorando status');
             return;
         }
 

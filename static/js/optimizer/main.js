@@ -21,7 +21,6 @@ $(document).ready(function () {
                 url: '/cancel-process',
                 method: 'POST',
                 success: function () {
-                    console.log('✅ Proceso cancelado');
                     window.optimizerProgress.stopMonitoring();
                     window.optimizerUI.resetAfterCompletion('Cancel Process');
                 },
