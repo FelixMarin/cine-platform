@@ -73,7 +73,6 @@ def create_blueprints(auth_service, media_service, optimizer_service):
                 return None
 
             if os.path.commonpath([abs_path, allowed_base]) != allowed_base:
-                logger.warning(f"Intento de acceso a ruta no permitida: {folder_path}")
                 return None
             
             return abs_path
@@ -109,7 +108,6 @@ def create_blueprints(auth_service, media_service, optimizer_service):
                 
         # Si el token CSRF no es válido, generar uno nuevo y mostrar error
         if not csrf_token or not session_token or csrf_token != session_token:
-            logger.warning("❌ Intento de CSRF detectado - tokens no coinciden")
             # Generar un NUEVO token para el formulario de error
             new_token = generate_csrf()
             session['csrf_token'] = new_token
@@ -134,7 +132,6 @@ def create_blueprints(auth_service, media_service, optimizer_service):
             # Login fallido - generar nuevo token
             new_token = generate_csrf()
             session['csrf_token'] = new_token
-            logger.warning(f"❌ Login fallido para: {username}")
             return render_template("login.html", error="Credenciales incorrectas", csrf_token=new_token), 401
 
         # Login exitoso - procesar token JWT
@@ -150,9 +147,6 @@ def create_blueprints(auth_service, media_service, optimizer_service):
                 payload_b64 += '=' * (4 - len(payload_b64) % 4)
                 payload_json = base64.b64decode(payload_b64).decode('utf-8')
                 payload = json.loads(payload_json)
-                logger.warning(f"🔍 AUDIENCE EN EL TOKEN: {payload.get('aud')}")
-                logger.warning(f"🔍 TODOS LOS CLAIMS: {list(payload.keys())}")
-                logger.warning(f"🔍 PAYLOAD COMPLETO: {payload}")
         except Exception as e:
             logger.error(f"❌ Error decodificando payload: {e}")
 
@@ -240,7 +234,6 @@ def create_blueprints(auth_service, media_service, optimizer_service):
         
         # Validación robusta de path traversal
         if not media_service.is_path_safe(filename):
-            logger.warning(f"Intento de path traversal en play: {repr(filename)}")
             return "Nombre de archivo inválido", 400
         
         # Verificar que el archivo existe
@@ -263,7 +256,6 @@ def create_blueprints(auth_service, media_service, optimizer_service):
         # Usar get_safe_path que ya valida path traversal
         file_path = media_service.get_safe_path(filename)
         if not file_path or not os.path.exists(file_path):
-            logger.warning(f"Archivo no encontrado o acceso no autorizado: {filename}")
             return "Archivo no encontrado", 404
 
         file_size = os.path.getsize(file_path)
@@ -318,7 +310,6 @@ def create_blueprints(auth_service, media_service, optimizer_service):
         
         # Validar filename para evitar path traversal
         if not media_service.is_path_safe(filename):
-            logger.warning(f"Intento de path traversal en thumbnails: {filename}")
             return "Nombre de archivo inválido", 400
         
         thumbnails_folder = media_service.get_thumbnails_folder()
@@ -349,7 +340,6 @@ def create_blueprints(auth_service, media_service, optimizer_service):
         
         # Validar filename
         if '..' in filename or filename.startswith('/'):
-            logger.warning(f"Intento de path traversal en detect: {filename}")
             return jsonify({"error": "Nombre de archivo inválido"}), 400
         
         thumbnails_folder = media_service.get_thumbnails_folder()
@@ -373,7 +363,6 @@ def create_blueprints(auth_service, media_service, optimizer_service):
         
         file_path = media_service.get_safe_path(filename)
         if not file_path:
-            logger.warning(f"Intento de descarga no autorizada: {filename}")
             return "Archivo no encontrado", 404
         
         response = send_from_directory(
@@ -650,7 +639,6 @@ def create_blueprints(auth_service, media_service, optimizer_service):
         # Validar ruta de carpeta
         safe_folder = validate_folder_path(folder)
         if not safe_folder:
-            logger.warning(f"Intento de procesar ruta no válida: {folder}")
             return jsonify({"error": "Ruta de carpeta no válida"}), 400
 
         optimizer_service.process_folder(safe_folder)
@@ -663,7 +651,6 @@ def create_blueprints(auth_service, media_service, optimizer_service):
         
         # Validar filename
         if '..' in filename or filename.startswith('/'):
-            logger.warning(f"Intento de path traversal en outputs: {filename}")
             return "Nombre de archivo inválido", 400
             
         return send_from_directory(optimizer_service.get_output_folder(), filename)

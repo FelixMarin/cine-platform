@@ -78,7 +78,6 @@ class FileSystemMediaRepository(IMediaRepository):
             # Prevenir path traversal con separadores normalizados
             normalized = os.path.normpath(requested_path)
             if '..' in normalized.split(os.sep):
-                logger.warning(f"Path traversal detectado: {requested_path}")
                 return False
             
             # Verificar que la ruta solicitada está dentro de la carpeta base
@@ -142,7 +141,6 @@ class FileSystemMediaRepository(IMediaRepository):
                     
                     # Si hay muchos errores consecutivos, esperar un poco
                     if consecutive_errors > 5:
-                        logger.warning("⚠️ Múltiples errores, pausando 5 segundos...")
                         time.sleep(5)
                         consecutive_errors = 0
                     
@@ -471,7 +469,6 @@ class FileSystemMediaRepository(IMediaRepository):
     def get_safe_path(self, filename):
         """Valida rutas para prevenir path traversal"""
         if not self.is_path_safe(filename):
-            logger.warning(f"Path traversal detectado en get_safe_path: {filename}")
             return None
         
         base_dir = os.path.abspath(self.movies_folder)

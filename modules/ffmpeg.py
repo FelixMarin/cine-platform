@@ -64,7 +64,6 @@ class FFmpegHandler:
             for allowed in allowed_dirs:
                 if abs_path.startswith(os.path.abspath(allowed)):
                     return True
-            logger.warning(f"Intento de acceso a ruta no permitida: {video_path}")
             return False
         
         return True
