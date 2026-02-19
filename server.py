@@ -10,8 +10,8 @@ from modules.oauth import OAuth2AuthAdapter
 from modules.media import FileSystemMediaRepository
 from modules.adapter import FFmpegOptimizerAdapter
 
-# Rutas
-from modules.routes import create_blueprints
+# Rutas - Módulos de rutas separados por dominio
+from modules.routes import register_all_blueprints
 
 
 # ============================
@@ -65,6 +65,8 @@ def create_app():
     app.config['SESSION_COOKIE_SAMESITE'] = os.environ["SESSION_COOKIE_SAMESITE"]
     app.config['SESSION_COOKIE_SECURE'] = os.environ["SESSION_COOKIE_SECURE"] == "True"
     app.config['SESSION_COOKIE_PATH'] = os.environ["SESSION_COOKIE_PATH"]
+    app.config['SESSION_PERMANENT'] = False
+    app.config['SESSION_TYPE'] = 'filesystem'
 
     # Ajustes automáticos para desarrollo
     if env == "development":
@@ -107,9 +109,8 @@ def create_app():
     # ============================
 
     logger.info("=== Registrando blueprints ===")
-    main_bp = create_blueprints(auth_service, media_service, optimizer_service)
-    app.register_blueprint(main_bp)
-    logger.info("[ROUTER] Blueprint principal registrado")
+    register_all_blueprints(app, auth_service, media_service, optimizer_service)
+    logger.info("[ROUTER] Blueprints registrados correctamente")
 
     return app
 

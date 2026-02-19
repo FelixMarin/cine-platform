@@ -57,7 +57,6 @@ async function createSerieCard(episodio) {
     img.alt = title;
     img.src = thumbnailUrl;
     img.onerror = function () {
-        console.log('Error en serie, usando default:', this.src);
         this.src = '/static/images/default.jpg';
         this.onerror = null;
     };

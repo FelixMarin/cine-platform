@@ -1,7 +1,6 @@
 // Depende de carousel.js
 
 function loadContent() {
-    console.log('Cargando contenido...');
 
     fetch("/api/movies")
         .then(r => {
@@ -10,8 +9,7 @@ function loadContent() {
             }
             return r.json();
         })
-        .then(async data => {  // Hacer esta función async
-            console.log('Datos recibidos:', data);
+        .then(async data => {
 
             if (data.categorias) {
                 await window.renderMoviesByCategory(data.categorias);

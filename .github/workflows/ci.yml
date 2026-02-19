@@ -19,6 +19,7 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 0
+          ref: main
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -36,7 +37,7 @@ jobs:
           mkdir -p /tmp/uploads /tmp/thumbnails /tmp/outputs
           mkdir -p logs
 
-      - name: Create dummy templates for tests (in a temp location)
+      - name: Create dummy templates for tests
         run: |
           mkdir -p ./test_templates
           echo "<!-- dummy -->" > ./test_templates/index.html
@@ -44,8 +45,6 @@ jobs:
           echo "<!-- dummy -->" > ./test_templates/optimizer.html
           echo "<!-- dummy -->" > ./test_templates/play.html
           echo "<!-- dummy -->" > ./test_templates/admin_panel.html
-          
-          # Enlazar o copiar a tests/templates si es necesario
           mkdir -p tests/templates
           cp ./test_templates/* tests/templates/
 
@@ -92,6 +91,7 @@ jobs:
           git config --global user.name "github-actions"
           git config --global user.email "github-actions@github.com"
           mkdir -p assets
+
           if [ -f coverage-badge.svg ]; then
             mv coverage-badge.svg assets/coverage-badge.svg
             git add assets/coverage-badge.svg
@@ -104,7 +104,7 @@ jobs:
               echo "No changes to commit"
             else
               git commit -m "Update coverage badge"
-              git push origin main
+              git push origin main   # ← CLAVE: push correcto
             fi
           else
             echo "Coverage badge not found"

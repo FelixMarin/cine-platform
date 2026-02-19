@@ -172,9 +172,10 @@ class TestFileSystemMediaRepository:
         result = self.repo._generate_thumbnail(self.test_video, thumbnail_path)
         
         assert result == False
-    
+
+    @patch('modules.media.magic.from_file', return_value='video/mp4')
     @patch('modules.media.subprocess.run')
-    def test_get_video_duration_success(self, mock_run):
+    def test_get_video_duration_success(self, mock_run, mock_magic):
         """Prueba obtener duración del video"""
         mock_result = MagicMock()
         mock_result.returncode = 0

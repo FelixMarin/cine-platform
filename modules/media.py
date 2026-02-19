@@ -4,10 +4,13 @@ import threading
 import queue
 import time
 import unicodedata
+import magic
 from modules.core import IMediaRepository
 from modules.logging.logging_config import setup_logging
 
 logger = setup_logging(os.environ.get("LOG_FOLDER"))
+
+VIDEO_EXTENSIONS = {'.mkv', '.mp4', '.avi', '.mov', '.m4v', '.flv', '.wmv'}
 
 def sanitize_for_log(text):
     """Limpia caracteres problemáticos para logging"""
@@ -47,7 +50,7 @@ class FileSystemMediaRepository(IMediaRepository):
         
         # Conjunto para trackear qué thumbnails ya están encolados
         self.queued_thumbnails = set()
-        self.thumbnail_queue = queue.Queue()
+        self.thumbnail_queue = queue.Queue(maxsize=1000)
         self.processing_thread = None
         self.processed_count = 0
         self.total_pending = 0
@@ -64,13 +67,18 @@ class FileSystemMediaRepository(IMediaRepository):
         """
         Verifica que una ruta solicitada está dentro de la carpeta base permitida
         """
-        if not requested_path:
+        if not requested_path or not isinstance(requested_path, str):
             return False
         
         try:
             # Normalizar rutas
-            abs_requested = os.path.abspath(requested_path)
+            abs_requested = os.path.abspath(os.path.join(self.movies_folder, requested_path))
             abs_base = os.path.abspath(self.movies_folder)
+            
+            # Prevenir path traversal con separadores normalizados
+            normalized = os.path.normpath(requested_path)
+            if '..' in normalized.split(os.sep):
+                return False
             
             # Verificar que la ruta solicitada está dentro de la carpeta base
             return os.path.commonpath([abs_requested, abs_base]) == abs_base
@@ -121,7 +129,10 @@ class FileSystemMediaRepository(IMediaRepository):
                         # Limpiar del conjunto de encolados
                         with threading.Lock():
                             if base_name in self.queued_thumbnails:
-                                self.queued_thumbnails.remove(base_name)
+                                return False
+                            self.queued_thumbnails.add(base_name)
+                            self.thumbnail_queue.put((video_path, thumbnail_path, base_name))
+                            self.total_pending += 1  # Mover dentro del lock
                     else:
                         consecutive_errors += 1
                         logger.error(f"❌ Error generando {safe_base_name}")
@@ -130,7 +141,6 @@ class FileSystemMediaRepository(IMediaRepository):
                     
                     # Si hay muchos errores consecutivos, esperar un poco
                     if consecutive_errors > 5:
-                        logger.warning("⚠️ Múltiples errores, pausando 5 segundos...")
                         time.sleep(5)
                         consecutive_errors = 0
                     
@@ -242,7 +252,8 @@ class FileSystemMediaRepository(IMediaRepository):
             # Ejecutar con timeout - usando lista (seguro)
             result = subprocess.run(
                 cmd, 
-                check=True, 
+                check=True,
+                text=True,
                 timeout=30,
                 stdout=subprocess.DEVNULL, 
                 stderr=subprocess.DEVNULL
@@ -262,6 +273,16 @@ class FileSystemMediaRepository(IMediaRepository):
 
     def _get_video_duration(self, video_path):
         """Obtiene la duración del video en segundos usando ffprobe - VERSIÓN SEGURA"""
+        # Validar MIME type primero
+        try:
+            mime = magic.from_file(video_path, mime=True)
+            if not mime.startswith('video/'):
+                logger.error(f"Archivo no es video: {mime}")
+                return None
+        except Exception as e:
+            logger.error(f"Error validando MIME: {e}")
+            return None
+
         try:
             # Verificar que la ruta es segura
             if not self.is_path_safe(video_path):
@@ -370,7 +391,7 @@ class FileSystemMediaRepository(IMediaRepository):
                         file = file.decode('utf-8', errors='replace')
                     file = unicodedata.normalize('NFC', file)
                     
-                    if file.endswith(('.mkv', '.mp4', '.avi')):
+                    if any(file.lower().endswith(ext) for ext in VIDEO_EXTENSIONS):
                         total_videos += 1
                         full_path = os.path.join(root, file)
                         relative_path = os.path.relpath(full_path, self.movies_folder).replace("\\", "/")
@@ -448,12 +469,12 @@ class FileSystemMediaRepository(IMediaRepository):
 
     def get_safe_path(self, filename):
         """Valida rutas para prevenir path traversal"""
+        if not self.is_path_safe(filename):
+            return None
+        
+        filename = unicodedata.normalize("NFC", filename)
         base_dir = os.path.abspath(self.movies_folder)
         target_path = os.path.abspath(os.path.join(base_dir, filename))
-        
-        if not target_path.startswith(base_dir):
-            logger.warning(f"ALERTA: Path Traversal: {filename}")
-            return None
         return target_path
     
     def get_thumbnails_folder(self):

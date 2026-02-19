@@ -80,7 +80,6 @@ function renderHistory(history) {
 function updateProgressBar() {
     $.getJSON('/status')
         .done(function (data) {
-            console.log('✅ Datos recibidos:', data);
 
             const currentVideo = data.current_video || 'Ninguno';
             $('#currentFile').text(currentVideo);

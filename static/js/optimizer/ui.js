@@ -1,7 +1,6 @@
 // ui.js - Versión corregida
 
 function showUploadSection() {
-    console.log('📦 Mostrando sección de subida');
     $('#profile-card').fadeIn(300);
     $('#upload-card').fadeIn(300);
     // NO OCULTAR LA ESTIMACIÓN - $('#estimate-info').hide();  <-- ELIMINADO
@@ -16,28 +15,24 @@ function showUploadSection() {
 }
 
 function hideUploadSection() {
-    console.log('📦 Ocultando sección de subida');
     $('#profile-card').hide();  // Forzar ocultación
     $('#upload-card').fadeOut(300);
     // NO tocar estimate-info
 }
 
 function showProgressSection() {
-    console.log('📊 Mostrando sección de progreso');
     $('#progressContainer').fadeIn(300);
     $('#cancel-process-container').fadeIn(300);
     $('#current-profile-badge').fadeIn(300);
 }
 
 function hideProgressSection() {
-    console.log('📊 Ocultando sección de progreso');
     $('#progressContainer').fadeOut(300);
     $('#cancel-process-container').fadeOut(300);
     $('#current-profile-badge').fadeOut(300);
 }
 
 function resetAfterCompletion(from) {
-    console.log('🔄 resetAfterCompletion llamado desde:', from || 'origen desconocido');
 
     // Actualizar estados globales si existen
     if (window.optimizerStatus) {
@@ -73,8 +68,6 @@ function resetAfterCompletion(from) {
     if (window.optimizerUpload) {
         window.optimizerUpload.uploadedFilename = null;
     }
-
-    console.log('✅ Interfaz reseteada completamente');
 }
 
 // Exportar

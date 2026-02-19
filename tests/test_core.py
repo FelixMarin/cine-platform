@@ -1,6 +1,7 @@
 import unittest
 import sys
 import os
+import unicodedata
 from dataclasses import asdict
 from unittest.mock import patch, MagicMock
 
@@ -197,6 +198,7 @@ class TestIMediaRepository(unittest.TestCase):
                 return (movies, series)
             
             def get_safe_path(self, filename):
+                filename = unicodedata.normalize("NFC", filename)
                 return f"/safe/{filename}"
         
         repo = TestRepo()
@@ -218,6 +220,7 @@ class TestIMediaRepository(unittest.TestCase):
             def get_safe_path(self, filename):
                 if filename == "invalid.mp4":
                     return None
+                filename = unicodedata.normalize("NFC", filename)
                 return f"/safe/{filename}"
         
         repo = TestRepo()
@@ -303,6 +306,7 @@ class TestInterfaceInheritance(unittest.TestCase):
                 return ([], {})
             
             def get_safe_path(self, filename):
+                filename = unicodedata.normalize("NFC", filename)
                 return f"/safe/{filename}"
             
             # IOptimizerService

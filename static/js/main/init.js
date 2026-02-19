@@ -2,7 +2,6 @@
 // y configura los event listeners iniciales
 
 document.addEventListener('DOMContentLoaded', function () {
-    console.log('✅ Script cargado correctamente');
 
     setupClickOutside();
     setupEmptyLinks();

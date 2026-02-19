@@ -7,8 +7,6 @@ let isUploading = false;
 function estimateSize(file) {
     if (!file) return;
 
-    console.log('📊 Estimando tamaño para:', file.name);
-
     // Tamaño del archivo en MB
     const fileSizeMB = file.size / (1024 * 1024);
 
@@ -37,13 +35,9 @@ function estimateSize(file) {
     $('#estimate-original').text(fileSizeMB.toFixed(1) + ' MB');
     $('#estimate-final').text(estimatedMB.toFixed(1) + ' MB');
     $('#estimate-ratio').text(compressionPercent + '%');
-
-    console.log(`📊 Perfil: ${profile}, Ratio: ${ratio}, Compresión: ${compressionPercent}%`);
-    console.log(`📊 Original: ${fileSizeMB.toFixed(1)} MB → Estimado: ${estimatedMB.toFixed(1)} MB`);
 }
 
 function setupUploadHandlers() {
-    console.log('🔧 Configurando manejadores de subida');
 
     $('#video-input').on('change', function () {
         if (isUploading) {
@@ -83,8 +77,6 @@ function handleUpload(e) {
     e.preventDefault();
     e.stopPropagation();
 
-    console.log('🚀 handleUpload iniciado');
-
     const fileInput = $('#video-input')[0];
     if (!fileInput.files.length) {
         alert('Selecciona un archivo primero.');
@@ -97,7 +89,6 @@ function handleUpload(e) {
     }
 
     const file = fileInput.files[0];
-    console.log('📁 Archivo a subir:', file.name, 'tamaño:', (file.size / 1024 / 1024).toFixed(2), 'MB');
 
     // Marcar que estamos subiendo
     isUploading = true;
@@ -158,7 +149,6 @@ function handleUpload(e) {
     xhr.upload.addEventListener('progress', function (evt) {
         if (evt.lengthComputable) {
             const percent = Math.round((evt.loaded / evt.total) * 100);
-            console.log(`📤 Progreso: ${percent}%`);
 
             // Asegurar que la barra de progreso y botón cancelar estén visibles
             $('#upload-status').show();
@@ -173,12 +163,9 @@ function handleUpload(e) {
         if (handled) return;
         handled = true;
 
-        console.log('✅ Petición completada con status:', xhr.status);
-
         if (xhr.status === 202 || xhr.status === 200) {
             try {
                 const resp = JSON.parse(xhr.responseText);
-                console.log('✅ Respuesta del servidor:', resp);
 
                 $('#status-text').text('Subida completada. Iniciando optimización...');
                 $('#cancel-upload-btn').hide();
@@ -249,7 +236,6 @@ function handleUpload(e) {
 
 function cancelUpload() {
     if (currentUpload && isUploading) {
-        console.log('🛑 Cancelando subida...');
         currentUpload.abort();
 
         $('#status-text').text('Subida cancelada');
