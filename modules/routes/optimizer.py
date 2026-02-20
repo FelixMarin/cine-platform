@@ -205,12 +205,19 @@ def process_file():
         logger.error(f"Error guardando archivo: {e}")
         return jsonify({"error": "Error guardando archivo"}), 500
 
-    import magic
-    mime = magic.from_file(save_path, mime=True)
-    if not mime.startswith('video/'):
+    # Validar MIME type
+    try:
+        import magic
+        mime = magic.from_file(save_path, mime=True)
+        if not mime.startswith('video/'):
+            os.remove(save_path)
+            return jsonify({"error": "El archivo no es un video válido"}), 400
+    except Exception as e:
+        logger.error(f"Error validando MIME: {e}")
         os.remove(save_path)
-        return jsonify({"error": "El archivo no es un video válido"}), 400
+        return jsonify({"error": "Error validando archivo"}), 500
 
+    # Validar con ffprobe
     from modules.ffmpeg import FFmpegHandler
     from modules.state import StateManager
     ff = FFmpegHandler(StateManager())
@@ -219,11 +226,28 @@ def process_file():
         os.remove(save_path)
         return jsonify({"error": "Formato de video no válido"}), 400
 
+    # REGISTRAR LA SUBIDA PARA NOVEDADES
+    if media_service and hasattr(media_service, 'register_upload'):
+        try:
+            media_service.register_upload(save_path)
+            logger.info(f"📝 Subida registrada para novedades: {safe_filename}")
+        except Exception as e:
+            logger.error(f"Error registrando subida: {e}")
+
+    # Añadir a la cola de procesamiento
     processing_queue.put({
         'filepath': save_path,
         'filename': safe_filename,
         'profile': profile
     })
+    
+    # Invalidar caché del catálogo para que aparezca como novedad
+    if media_service and hasattr(media_service, 'invalidate_cache'):
+        try:
+            media_service.invalidate_cache()
+            logger.info("🗑️ Caché de catálogo invalidada")
+        except Exception as e:
+            logger.error(f"Error invalidando caché: {e}")
     
     return jsonify({
         "message": f"Archivo recibido: {safe_filename}",

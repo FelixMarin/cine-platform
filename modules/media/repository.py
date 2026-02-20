@@ -5,8 +5,10 @@ import unicodedata
 import threading
 import json
 import time
+from collections import OrderedDict
+from datetime import datetime
 from modules.core import IMediaRepository
-from modules.media.constants import VIDEO_EXTENSIONS, CACHE_TTL, CACHE_FILE
+from modules.media.constants import VIDEO_EXTENSIONS, CACHE_TTL, CACHE_FILE, NEW_THRESHOLD_DAYS, UPLOADS_CACHE_FILE
 from modules.media.utils import (
     normalize_path,
     clean_filename,
@@ -46,6 +48,13 @@ class FileSystemMediaRepository(IMediaRepository):
         # Archivo de caché
         self.cache_file = os.path.join(movies_folder, '.catalog_cache.json')
         self.cache_ttl = 300  # 5 minutos en segundos
+        
+        # Archivo de registro de subidas
+        self.uploads_file = os.path.join(movies_folder, UPLOADS_CACHE_FILE)
+        self.uploads_cache = self._load_uploads_cache()
+        
+        # Días que una película es considerada "nueva"
+        self.new_threshold_days = NEW_THRESHOLD_DAYS
         
         # Inicializar el procesador de thumbnails
         self.thumbnail_processor = ThumbnailProcessor(self.thumbnails_folder)
@@ -90,6 +99,66 @@ class FileSystemMediaRepository(IMediaRepository):
     def _queue_thumbnail_generation(self, video_path, base_name):
         """Añade un thumbnail a la cola de procesamiento"""
         return self.thumbnail_processor.queue_thumbnail(video_path, base_name)
+
+    def _load_uploads_cache(self):
+        """Carga el registro de subidas"""
+        try:
+            if os.path.exists(self.uploads_file):
+                with open(self.uploads_file, 'r', encoding='utf-8') as f:
+                    return json.load(f)
+        except Exception as e:
+            logger.error(f"Error cargando registro de subidas: {e}")
+        return {}
+    
+    def _save_uploads_cache(self):
+        """Guarda el registro de subidas"""
+        try:
+            with open(self.uploads_file, 'w', encoding='utf-8') as f:
+                json.dump(self.uploads_cache, f, ensure_ascii=False, indent=2)
+        except Exception as e:
+            logger.error(f"Error guardando registro de subidas: {e}")
+    
+    def register_upload(self, file_path):
+        """Registra una nueva subida con timestamp"""
+        try:
+            file_name = os.path.basename(file_path)
+            self.uploads_cache[file_name] = {
+                'upload_time': time.time(),
+                'file_path': file_path
+            }
+            self._save_uploads_cache()
+            logger.info(f"📝 Subida registrada: {file_name}")
+            return True
+        except Exception as e:
+            logger.error(f"Error registrando subida: {e}")
+            return False
+
+    def invalidate_cache(self):
+        """Invalida el caché del catálogo para forzar recarga"""
+        try:
+            if os.path.exists(self.cache_file):
+                os.remove(self.cache_file)
+                logger.info("🗑️ Caché de catálogo eliminado")
+        except Exception as e:
+            logger.error(f"Error eliminando caché: {e}")
+            
+    def is_new_movie(self, file_name, file_time):
+        """
+        Determina si una película es nueva basado en:
+        1. Si fue subida recientemente (registro de subidas)
+        2. Si la fecha del archivo es reciente
+        """
+        # Verificar si está en el registro de subidas
+        if file_name in self.uploads_cache:
+            upload_time = self.uploads_cache[file_name]['upload_time']
+            if time.time() - upload_time < self.new_threshold_days * 24 * 3600:
+                return True, upload_time, 'upload'
+        
+        # Si no, usar la fecha del archivo
+        if time.time() - file_time < self.new_threshold_days * 24 * 3600:
+            return True, file_time, 'file'
+        
+        return False, None, None
 
     def _load_cache(self):
         """Carga el catálogo desde caché si es válido"""
@@ -143,26 +212,30 @@ class FileSystemMediaRepository(IMediaRepository):
         logger.info("🔍 Escaneando archivos... (puede tardar unos segundos)")
         start_time = time.time()
         
-        categorias, series, total_videos = self._scan_files()
+        categorias_lista, series, total_videos = self._scan_files()
         
         scan_time = time.time() - start_time
         logger.info(f"✅ Escaneo completado en {scan_time:.2f} segundos: {total_videos} videos")
         
-        # Guardar en caché
-        self._save_cache(categorias, series, total_videos)
+        # Guardar en caché (AHORA CON 3 ARGUMENTOS)
+        self._save_cache(categorias_lista, series, total_videos)
         
-        return categorias, series
+        return categorias_lista, series
 
     def _scan_files(self):
         """Método privado que realiza el escaneo real del sistema de archivos"""
         categorias = {}
         series = {}
+        novedades = []  # Lista para películas nuevas
         
         total_videos = 0
         thumbnails_faltantes = 0
         
         # Recopilar thumbnails existentes
         existing_thumbnails = self.thumbnail_processor.get_existing_thumbnails()
+        
+        # Fecha límite para novedades (usando threshold)
+        cutoff_time = time.time() - (self.new_threshold_days * 24 * 3600)
         
         for root, _, files in os.walk(self.movies_folder):
             categoria = get_category_from_path(root, self.movies_folder)
@@ -178,9 +251,29 @@ class FileSystemMediaRepository(IMediaRepository):
                         full_path = os.path.join(root, file)
                         relative_path = os.path.relpath(full_path, self.movies_folder).replace("\\", "/")
                         
+                        # Obtener fecha de creación/modificación del archivo
+                        try:
+                            file_stat = os.stat(full_path)
+                            file_time = max(file_stat.st_ctime, file_stat.st_mtime)
+                        except:
+                            file_time = time.time()
+                        
                         base_name = os.path.splitext(file)[0]
                         base_name = unicodedata.normalize('NFC', base_name)
                         clean_name = clean_filename(file)
+                        
+                        # Determinar si es nuevo
+                        is_new, new_time, new_source = self.is_new_movie(os.path.basename(file), file_time)
+                        
+                        # Calcular días desde que es nuevo (para mostrar)
+                        days_ago = None
+                        if is_new and new_time:
+                            days_ago = int((time.time() - new_time) / (24 * 3600))
+                        
+                        # Formatear fecha para mostrar
+                        date_added = None
+                        if new_time:
+                            date_added = datetime.fromtimestamp(new_time).strftime("%d/%m/%Y")
                         
                         # Verificar si thumbnail existe
                         has_thumbnail = base_name in existing_thumbnails
@@ -208,7 +301,11 @@ class FileSystemMediaRepository(IMediaRepository):
                             "path": relative_path,
                             "thumbnail": primary_thumbnail,
                             "thumbnails": thumbnail_urls,
-                            "thumbnail_pending": not has_thumbnail
+                            "thumbnail_pending": not has_thumbnail,
+                            "is_new": is_new,
+                            "days_ago": days_ago,
+                            "date_added": date_added,
+                            "timestamp": file_time  # Para ordenar por fecha
                         }
 
                         if "-serie" in file.lower():
@@ -217,26 +314,42 @@ class FileSystemMediaRepository(IMediaRepository):
                                 series[series_name] = []
                             series[series_name].append(item)
                         else:
+                            # Añadir a novedades si es nueva
+                            if is_new:
+                                novedades.append(item)
+                            
                             if categoria not in categorias:
                                 categorias[categoria] = []
                             categorias[categoria].append(item)
                             
                 except Exception as e:
-                    logger.error(f"Error procesando archivo: {e}")
+                    logger.error(f"Error procesando archivo {file}: {e}")
                     continue
 
-        # Ordenar
-        categorias = {
-            cat: sorted(pelis, key=lambda x: x["name"])
-            for cat, pelis in sorted(categorias.items())
-        }
-
+        # Ordenar novedades por fecha (más recientes primero)
+        novedades.sort(key=lambda x: x['timestamp'], reverse=True)
+        
+        # Crear lista final con Novedades primero
+        categorias_lista = []
+        
+        # Primero, añadir Novedades si existe (limitado a 20)
+        if novedades:
+            categorias_lista.append(("🆕 Recientes", novedades[:20]))
+        
+        # Añadir el resto de categorías ordenadas alfabéticamente
+        for cat in sorted(categorias.keys()):
+            categorias_lista.append((cat, sorted(categorias[cat], key=lambda x: x["name"])))
+        
+        # Ordenar series (siempre alfabéticamente)
         series = {
             k: sorted(v, key=lambda x: x["name"])
             for k, v in sorted(series.items())
         }
 
-        return categorias, series, total_videos
+        logger.info(f"📊 Escaneo: {total_videos} videos, {thumbnails_faltantes} thumbnails pendientes, {len(novedades)} novedades")
+        logger.info(f"📋 Orden de categorías (backend): {[cat for cat, _ in categorias_lista]}")
+
+        return categorias_lista, series, total_videos
 
     def get_thumbnail_status(self):
         """Devuelve el estado actualizado de la generación de thumbnails"""

@@ -39,29 +39,29 @@ def normalize_dict(d):
 
 @api_bp.route('/api/movies')
 def api_movies():
-    """API de películas y series"""
     if not is_logged_in():
         return jsonify({"error": "No autorizado"}), 401
 
-    # Parámetro para forzar refresco de caché
     force_refresh = request.args.get('refresh', 'false').lower() == 'true'
-
-    categorias, series = media_service.list_content(force_refresh=force_refresh)
+    categorias_lista, series = media_service.list_content(force_refresh=force_refresh)
     
-    categorias = normalize_dict(categorias)
+    # Normalizar cada elemento de la lista
+    categorias_normalizadas = []
+    for cat, pelis in categorias_lista:
+        categorias_normalizadas.append([
+            normalize_dict(cat),
+            [normalize_dict(p) for p in pelis]
+        ])
+    
     series = normalize_dict(series)
 
-    response = jsonify({"categorias": categorias, "series": series})
+    response = jsonify({
+        "categorias": categorias_normalizadas,
+        "series": series
+    })
     response.headers['Content-Type'] = 'application/json; charset=utf-8'
-    
-    # Añadir headers de caché
-    if force_refresh:
-        response.headers['Cache-Control'] = 'no-cache'
-    else:
-        response.headers['Cache-Control'] = 'private, max-age=300'  # 5 minutos
-    
     return response
-
+    
 
 @api_bp.route('/api/thumbnail-status')
 def thumbnail_status():

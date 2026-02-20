@@ -48,6 +48,7 @@ function loadFromCache() {
 
 function saveToCache(data) {
     try {
+        // Guardar tal cual, sin modificar el orden
         localStorage.setItem(CACHE_KEY, JSON.stringify(data));
         localStorage.setItem(CACHE_TIMESTAMP_KEY, Date.now().toString());
         console.log('💾 Datos guardados en caché');
@@ -90,14 +91,13 @@ function fetchFromServer(forceRefresh = false) {
 }
 
 async function renderContent(data) {
-    // Mostrar indicador de carga mientras se renderiza
     const startTime = performance.now();
 
     if (data.categorias) {
         await window.renderMoviesByCategory(data.categorias);
     } else {
         console.warn('No hay categorías en los datos');
-        document.getElementById('movies').innerHTML = '<div class="no-content-message">No hay películas disponibles</div>';
+        document.getElementById('moviesContainer').innerHTML = '<div class="no-content-message">No hay películas disponibles</div>';
     }
 
     if (data.series) {
