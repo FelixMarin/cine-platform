@@ -40,7 +40,8 @@ echo "======================================"
 
 kubectl set image deployment/$DEPLOYMENT \
   $DEPLOYMENT=$FULL_IMAGE \
-  -n $NAMESPACE
+  -n $NAMESPACE \
+  --record
 
 echo "======================================"
 echo "  🧹 Eliminando imágenes antiguas de cine-platform"
