@@ -86,8 +86,11 @@
         <section id="movies" class="tab-content" style="display: block;" role="tabpanel" aria-labelledby="moviesTab">
             <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 25px;">
                 <h2 style="border-left: 6px solid var(--accent-color); padding-left: 15px; margin-bottom: 0;">Películas</h2>
-                <button onclick="window.refreshContent()" class="refresh-btn" title="Refrescar catálogo">
-                    🔄
+                <button onclick="refreshWithAnimation(this)" class="refresh-btn" title="Refrescar catálogo">
+                    <svg class="refresh-icon" viewBox="0 0 24 24" width="20" height="20">
+                        <path d="M17.65 6.35A8 8 0 1 0 19 12h-2a6 6 0 1 1-2.35-4.65l2.5 2.5H12v2h8v-8h-2v3.5z"/>
+                    </svg>
+                    <span class="refresh-text">Actualizar</span>
                 </button>
             </div>
 
@@ -101,9 +104,12 @@
         <section id="series" class="tab-content" style="display: none;" role="tabpanel" aria-labelledby="seriesTab">
             <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 25px;">
                 <h2 style="border-left: 6px solid var(--accent-color); padding-left: 15px; margin-bottom: 0;">Series</h2>
-                <button onclick="window.refreshContent()" class="refresh-btn" title="Refrescar catálogo">
-                    🔄
-                </button>
+                <button onclick="refreshWithAnimation(this)" class="refresh-btn" title="Refrescar catálogo">
+                    <svg class="refresh-icon" viewBox="0 0 24 24" width="20" height="20">
+                        <path d="M17.65 6.35A8 8 0 1 0 19 12h-2a6 6 0 1 1-2.35-4.65l2.5 2.5H12v2h8v-8h-2v3.5z"/>
+                    </svg>
+                    <span class="refresh-text">Actualizar</span>
+            </button>
             </div>
 
             <!-- El JS insertará aquí las series en carruseles -->
