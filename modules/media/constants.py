@@ -7,6 +7,10 @@ VIDEO_EXTENSIONS = {'.mkv', '.mp4', '.avi', '.mov', '.m4v', '.flv', '.wmv'}
 CACHE_TTL = 300  # 5 minutos en segundos
 CACHE_FILE = '.catalog_cache.json'
 
+# Configuración de novedades
+NEW_THRESHOLD_DAYS = 30  # Días que una película es considerada "nueva"
+UPLOADS_CACHE_FILE = '.uploads_cache.json'
+
 # Configuración de thumbnails
 THUMBNAIL_DEFAULT_SIZE = 320
 THUMBNAIL_DEFAULT_QUALITY = 5

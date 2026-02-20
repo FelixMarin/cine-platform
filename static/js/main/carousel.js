@@ -21,7 +21,7 @@ function scrollCarousel(button, direction) {
 }
 
 // Función para renderizar películas en carruseles
-async function renderMoviesByCategory(categorias) {
+async function renderMoviesByCategory(categoriasLista) {
     const moviesDiv = document.getElementById("moviesContainer");
     if (!moviesDiv) {
         console.error("No se encontró el contenedor de películas");
@@ -30,14 +30,14 @@ async function renderMoviesByCategory(categorias) {
 
     moviesDiv.innerHTML = "";
 
-    if (!categorias || Object.keys(categorias).length === 0) {
+    if (!categoriasLista || categoriasLista.length === 0) {
         moviesDiv.innerHTML = '<div class="no-content-message">No hay películas disponibles</div>';
         return;
     }
 
-    for (const categoria in categorias) {
-        const peliculas = categorias[categoria];
+    console.log('Orden de categorías recibido:', categoriasLista.map(([cat]) => cat));
 
+    for (const [categoria, peliculas] of categoriasLista) {
         if (!peliculas || peliculas.length === 0) continue;
 
         const section = document.createElement("div");
@@ -49,8 +49,6 @@ async function renderMoviesByCategory(categorias) {
 
         const carouselContainer = document.createElement("div");
         carouselContainer.classList.add("carousel-container");
-
-        const carouselId = `carousel-${categoria.replace(/\s+/g, '-')}`;
 
         const prevBtn = document.createElement("button");
         prevBtn.classList.add("carousel-btn", "prev");
@@ -72,7 +70,7 @@ async function renderMoviesByCategory(categorias) {
 
         const track = document.createElement("div");
         track.classList.add("carousel-track");
-        track.id = carouselId;
+        track.id = `carousel-${categoria.replace(/\s+/g, '-')}`;
 
         // Crear todas las tarjetas de forma asíncrona
         const cardPromises = peliculas.map(movie => window.createMovieCard(movie));
