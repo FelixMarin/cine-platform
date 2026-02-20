@@ -11,26 +11,27 @@ logger = logging.getLogger(__name__)
 
 proxy_bp = Blueprint('proxy', __name__)
 
+# modules/routes/proxy.py
+
+# modules/routes/proxy.py
+
 @proxy_bp.route('/proxy-image')
 def proxy_image():
-    """Endpoint que sirve como proxy para imágenes externas"""
     url = request.args.get('url')
     if not url:
-        return abort(400, "URL no proporcionada")
+        return redirect(url_for('static', filename='images/default.jpg'))
     
     try:
-        # Hacer la petición desde el servidor (sin CORS)
         response = requests.get(url, timeout=10, stream=True)
         
         if response.status_code != 200:
-            logger.warning(f"Error obteniendo imagen: {response.status_code}")
-            return abort(404)
+            logger.warning(f"Imagen no encontrada (HTTP {response.status_code}): {url}")
+            return redirect(url_for('static', filename='images/default.jpg'))
         
-        # Devolver la imagen como archivo
         return send_file(
             BytesIO(response.content),
             mimetype=response.headers.get('Content-Type', 'image/jpeg')
         )
     except Exception as e:
         logger.error(f"Error en proxy de imagen: {e}")
-        return abort(500)
+        return redirect(url_for('static', filename='images/default.jpg'))

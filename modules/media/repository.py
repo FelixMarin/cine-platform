@@ -5,6 +5,7 @@ import unicodedata
 import threading
 import json
 import time
+import re
 from collections import OrderedDict
 from datetime import datetime
 from modules.core import IMediaRepository
@@ -16,8 +17,6 @@ from modules.media.utils import (
     get_category_from_path,
     sanitize_for_log
 )
-from modules.media.thumbnail import ThumbnailProcessor
-from modules.media import ffmpeg_helper
 from modules.logging.logging_config import setup_logging
 
 logger = setup_logging(os.environ.get("LOG_FOLDER"))
@@ -42,8 +41,6 @@ class FileSystemMediaRepository(IMediaRepository):
             
         self.movies_folder = movies_folder
         logger.info(f"Movies folder: {self.movies_folder}")
-        self.thumbnails_folder = os.path.join(movies_folder, "thumbnails")
-        logger.info(f"Thumbnails folder: {self.thumbnails_folder}")
         
         # Archivo de caché
         self.cache_file = os.path.join(movies_folder, '.catalog_cache.json')
@@ -55,17 +52,6 @@ class FileSystemMediaRepository(IMediaRepository):
         
         # Días que una película es considerada "nueva"
         self.new_threshold_days = NEW_THRESHOLD_DAYS
-        
-        # Inicializar el procesador de thumbnails
-        self.thumbnail_processor = ThumbnailProcessor(self.thumbnails_folder)
-        self.thumbnail_processor.start()
-        
-        # Exponer atributos del procesador para compatibilidad
-        self.thumbnail_queue = self.thumbnail_processor.thumbnail_queue
-        self.processed_count = self.thumbnail_processor.processed_count
-        self.total_pending = self.thumbnail_processor.total_pending
-        self.processing_thread = self.thumbnail_processor.processing_thread
-        self.queued_thumbnails = self.thumbnail_processor.queued_thumbnails
         
         self._initialized = True
 
@@ -95,10 +81,6 @@ class FileSystemMediaRepository(IMediaRepository):
         except Exception as e:
             logger.error(f"Error validando ruta: {e}")
             return False
-
-    def _queue_thumbnail_generation(self, video_path, base_name):
-        """Añade un thumbnail a la cola de procesamiento"""
-        return self.thumbnail_processor.queue_thumbnail(video_path, base_name)
 
     def _load_uploads_cache(self):
         """Carga el registro de subidas"""
@@ -208,7 +190,7 @@ class FileSystemMediaRepository(IMediaRepository):
             if cached:
                 return cached['categorias'], cached['series']
         
-        # Escaneo completo (tarda 5-10 segundos)
+        # Escaneo completo
         logger.info("🔍 Escaneando archivos... (puede tardar unos segundos)")
         start_time = time.time()
         
@@ -217,10 +199,15 @@ class FileSystemMediaRepository(IMediaRepository):
         scan_time = time.time() - start_time
         logger.info(f"✅ Escaneo completado en {scan_time:.2f} segundos: {total_videos} videos")
         
-        # Guardar en caché (AHORA CON 3 ARGUMENTOS)
+        # Guardar en caché
         self._save_cache(categorias_lista, series, total_videos)
         
         return categorias_lista, series
+
+    def _extract_year_from_filename(self, filename: str) -> int:
+        """Extrae el año del nombre del archivo si existe entre paréntesis"""
+        year_match = re.search(r'\((\d{4})\)', filename)
+        return int(year_match.group(1)) if year_match else None
 
     def _scan_files(self):
         """Método privado que realiza el escaneo real del sistema de archivos"""
@@ -229,10 +216,6 @@ class FileSystemMediaRepository(IMediaRepository):
         novedades = []  # Lista para películas nuevas
         
         total_videos = 0
-        thumbnails_faltantes = 0
-        
-        # Recopilar thumbnails existentes
-        existing_thumbnails = self.thumbnail_processor.get_existing_thumbnails()
         
         # Fecha límite para novedades (usando threshold)
         cutoff_time = time.time() - (self.new_threshold_days * 24 * 3600)
@@ -260,6 +243,11 @@ class FileSystemMediaRepository(IMediaRepository):
                         
                         base_name = os.path.splitext(file)[0]
                         base_name = unicodedata.normalize('NFC', base_name)
+                        
+                        # Extraer año del nombre del archivo
+                        year = self._extract_year_from_filename(file)
+                        
+                        # Limpiar nombre para mostrar (sin año ni sufijos)
                         clean_name = clean_filename(file)
                         
                         # Determinar si es nuevo
@@ -275,37 +263,17 @@ class FileSystemMediaRepository(IMediaRepository):
                         if new_time:
                             date_added = datetime.fromtimestamp(new_time).strftime("%d/%m/%Y")
                         
-                        # Verificar si thumbnail existe
-                        has_thumbnail = base_name in existing_thumbnails
-                        
-                        if not has_thumbnail:
-                            thumbnails_faltantes += 1
-                            # Encolar para generación (solo una vez)
-                            self._queue_thumbnail_generation(full_path, base_name)
-                            
-                            thumbnail_urls = {
-                                "jpg": None,
-                                "webp": None
-                            }
-                            primary_thumbnail = "/static/images/default.jpg"
-                        else:
-                            webp_path = os.path.join(self.thumbnails_folder, f"{base_name}.webp")
-                            thumbnail_urls = {
-                                "jpg": f"/thumbnails/{base_name}.jpg",
-                                "webp": f"/thumbnails/{base_name}.webp" if os.path.exists(webp_path) else None
-                            }
-                            primary_thumbnail = thumbnail_urls["webp"] or thumbnail_urls["jpg"]
-
+                        # Construir item SIN thumbnails locales
                         item = {
-                            "name": clean_name,
+                            "name": clean_name,  # Nombre limpio para mostrar
+                            "filename": base_name,  # Nombre original del archivo (con año)
                             "path": relative_path,
-                            "thumbnail": primary_thumbnail,
-                            "thumbnails": thumbnail_urls,
-                            "thumbnail_pending": not has_thumbnail,
+                            "year": year,  # Año extraído para búsqueda en OMDB
                             "is_new": is_new,
                             "days_ago": days_ago,
                             "date_added": date_added,
-                            "timestamp": file_time  # Para ordenar por fecha
+                            "timestamp": file_time,  # Para ordenar por fecha
+                            # Sin campos de thumbnail - se cargarán desde OMDB
                         }
 
                         if "-serie" in file.lower():
@@ -346,14 +314,10 @@ class FileSystemMediaRepository(IMediaRepository):
             for k, v in sorted(series.items())
         }
 
-        logger.info(f"📊 Escaneo: {total_videos} videos, {thumbnails_faltantes} thumbnails pendientes, {len(novedades)} novedades")
+        logger.info(f"📊 Escaneo: {total_videos} videos, {len(novedades)} novedades")
         logger.info(f"📋 Orden de categorías (backend): {[cat for cat, _ in categorias_lista]}")
 
         return categorias_lista, series, total_videos
-
-    def get_thumbnail_status(self):
-        """Devuelve el estado actualizado de la generación de thumbnails"""
-        return self.thumbnail_processor.get_status()
 
     def get_safe_path(self, filename):
         """Valida rutas para prevenir path traversal"""
@@ -364,30 +328,8 @@ class FileSystemMediaRepository(IMediaRepository):
         base_dir = os.path.abspath(self.movies_folder)
         target_path = os.path.abspath(os.path.join(base_dir, filename))
         return target_path
-    
-    def get_thumbnails_folder(self):
-        return self.thumbnails_folder
 
-    # Métodos de compatibilidad para tests (delegados a ffmpeg_helper)
-    def _check_ffmpeg_webp_support(self):
-        """Verifica si ffmpeg soporta WebP"""
-        return ffmpeg_helper.check_ffmpeg_webp_support()
-
-    def _generate_thumbnail(self, video_path, thumbnail_path):
-        """Genera un thumbnail en la ruta especificada"""
-        return ffmpeg_helper.generate_thumbnail(
-            video_path, 
-            thumbnail_path, 
-            is_path_safe_func=self.is_path_safe
-        )
-
-    def _get_video_duration(self, video_path):
-        """Obtiene la duración del video en segundos"""
-        return ffmpeg_helper.get_video_duration(
-            video_path, 
-            is_path_safe_func=self.is_path_safe
-        )
-
-    def _clean_filename(self, filename):
-        """Limpia y formatea nombres de archivo"""
-        return clean_filename(filename)
+    # Métodos de compatibilidad eliminados:
+    # - get_thumbnail_status (ya no aplica)
+    # - get_thumbnails_folder (ya no aplica)
+    # - Métodos de ffmpeg_helper (se eliminan)

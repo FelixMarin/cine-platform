@@ -66,10 +66,6 @@
             <span class="menu-logout-text">Cerrar Sesión</span>
         </a>
     </div>
-    
-    <div id="thumbnail-progress" style="display: none; position: fixed; bottom: 20px; right: 20px; background: var(--bg-secondary); padding: 10px; border-radius: var(--border-radius); border-left: 4px solid var(--accent-color); z-index: 1000;">
-        <span>Generando miniaturas: <span id="thumbnail-count">0</span> pendientes</span>
-    </div>
 
     <!-- Contenido principal -->
     <main class="main-content" id="mainContent" role="main">
@@ -120,7 +116,6 @@
 
     <!-- Cargar módulos en orden -->
     <script src="{{ url_for('static', filename='js/main/cache.js') }}?v={{ range(1, 10000) | random }}" defer></script>
-    <script src="{{ url_for('static', filename='js/main/thumbnailManager.js') }}?v={{ range(1, 10000) | random }}" defer></script>
     <script src="{{ url_for('static', filename='js/main/categoryUtils.js') }}?v={{ range(1, 10000) | random }}" defer></script>
     <script src="{{ url_for('static', filename='js/main/cardCreators.js') }}?v={{ range(1, 10000) | random }}" defer></script>
     <script src="{{ url_for('static', filename='js/main/carousel.js') }}?v={{ range(1, 10000) | random }}" defer></script>

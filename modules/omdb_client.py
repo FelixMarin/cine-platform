@@ -317,3 +317,44 @@ class OMDBClient:
         
         logger.info(f"❌ No se encontró información para: {title}")
         return {}
+
+    def get_movie_thumbnail(self, title: str, year: int = None) -> str:
+        """
+        Obtiene SOLO la URL del póster/thumbnail de la película
+        """
+        if not self.api_key:
+            return None
+        
+        movie_data = None
+        
+        # 1. Intentar con año exacto
+        if year:
+            movie_data = self.search_by_title(title, year)
+        
+        # 2. Intentar sin año
+        if not movie_data:
+            movie_data = self.search_by_title(title)
+        
+        # 3. Intentar búsqueda múltiple
+        if not movie_data:
+            results = self.search_multi(title)
+            if results and len(results) > 0:
+                # Intentar filtrar por año si tenemos
+                if year:
+                    for result in results:
+                        result_year = self._extract_year(result.get('Year', ''))
+                        if result_year and abs(result_year - year) <= 1:
+                            imdb_id = result.get('imdbID')
+                            movie_data = self.search_by_id(imdb_id)
+                            break
+                
+                # Si no, coger el primero
+                if not movie_data:
+                    imdb_id = results[0].get('imdbID')
+                    movie_data = self.search_by_id(imdb_id)
+        
+        if movie_data and movie_data.get('Poster') and movie_data.get('Poster') != 'N/A':
+            poster = movie_data.get('Poster')
+            return f"/proxy-image?url={requests.utils.quote(poster)}"
+        
+        return None
