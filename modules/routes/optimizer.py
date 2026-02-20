@@ -7,13 +7,13 @@ import re
 import time
 import queue
 import json
-import logging
 from flask import Blueprint, render_template, request, session, jsonify
 from werkzeug.utils import secure_filename
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
+from modules.logging.logging_config import setup_logging
 
-logger = logging.getLogger(__name__)
+logger = setup_logging(os.environ.get("LOG_FOLDER"))
 
 optimizer_bp = Blueprint('optimizer', __name__)
 

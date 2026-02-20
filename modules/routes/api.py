@@ -1,24 +1,32 @@
 # modules/routes/api.py
 """
-Blueprint de API: /api/movies, /api/thumbnail-status
+Blueprint de API: /api/movies, /api/movie-thumbnail
 """
 import unicodedata
 import time
-import logging
+import os
+import re
 from flask import Blueprint, session, jsonify, request
+from modules.logging.logging_config import setup_logging
 
-logger = logging.getLogger(__name__)
+# Importar OMDBClient (¡esto faltaba!)
+from modules.omdb_client import OMDBClient
+
+logger = setup_logging(os.environ.get("LOG_FOLDER"))
 
 api_bp = Blueprint('api', __name__)
 
-# Servicio inyectado desde fuera
+# Servicios inyectados desde fuera
 media_service = None
+omdb_client = None  # ¡Esto faltaba!
 
 
-def init_media_service(service):
-    """Inicializa el servicio de medios"""
-    global media_service
-    media_service = service
+def init_services(media_svc, omdb_svc=None):  # ¡Esta función faltaba!
+    """Inicializa los servicios"""
+    global media_service, omdb_client
+    media_service = media_svc
+    omdb_client = omdb_svc
+    logger.info("✅ Servicios de API inicializados")
 
 
 def is_logged_in():
@@ -36,6 +44,29 @@ def normalize_dict(d):
     else:
         return d
 
+def clean_movie_title(title: str) -> str:
+    """
+    Limpia el título de una película eliminando sufijos y fechas.
+    """
+    if not title:
+        return title
+    
+    logger.debug(f"🧹 Limpiando título: '{title}'")
+    
+    # Paso 1: Eliminar sufijos
+    clean = title.replace('-optimized', '').replace('_optimized', '')
+    logger.debug(f"   Después de quitar sufijos: '{clean}'")
+    
+    # Paso 2: Eliminar fecha (YYYY)
+    clean = re.sub(r'\(\d{4}\)', '', clean)
+    logger.debug(f"   Después de quitar fecha: '{clean}'")
+    
+    # Paso 3: Limpiar espacios y guiones
+    clean = clean.replace('-', ' ').replace('_', ' ')
+    clean = re.sub(r'\s+', ' ', clean).strip()
+    logger.debug(f"✅ Título limpio: '{clean}'")
+    
+    return clean
 
 @api_bp.route('/api/movies')
 def api_movies():
@@ -61,18 +92,66 @@ def api_movies():
     })
     response.headers['Content-Type'] = 'application/json; charset=utf-8'
     return response
-    
+ 
 
-@api_bp.route('/api/thumbnail-status')
-def thumbnail_status():
-    """API de estado de thumbnails"""
+# modules/routes/api.py
+
+@api_bp.route('/api/movie-thumbnail')
+def movie_thumbnail():
+    """Endpoint para obtener thumbnail de una película por título"""
     if not is_logged_in():
         return jsonify({"error": "No autorizado"}), 401
     
-    status = media_service.get_thumbnail_status()
-    status["timestamp"] = time.time()
+    title = request.args.get('title')
+    year = request.args.get('year', type=int)
+    filename = request.args.get('filename')  # Nuevo parámetro
     
-    response = jsonify(status)
-    response.headers['Content-Type'] = 'application/json; charset=utf-8'
-    response.headers['Cache-Control'] = 'no-cache'
-    return response
+    if not title:
+        return jsonify({"error": "Título requerido"}), 400
+    
+    # 1. Intentar con OMDB
+    thumbnail_url = omdb_client.get_movie_thumbnail(title, year)
+    
+    if thumbnail_url:
+        logger.info(f"✅ Thumbnail OMDB encontrado para: {title}")
+        return jsonify({"thumbnail": thumbnail_url})
+    
+    # 2. Si OMDB falla, buscar thumbnail local
+    if filename:
+        # Construir nombre base del archivo
+        base_name = os.path.splitext(filename)[0]
+        
+        # Probar con .jpg primero, luego .webp (el frontend probará con onerror)
+        local_jpg = f"/thumbnails/{base_name}.jpg"
+        local_webp = f"/thumbnails/{base_name}.webp"
+        
+        logger.info(f"📁 OMDB no encontró, probando thumbnail local: {base_name}")
+        
+        # Devolvemos la ruta JPG (el frontend probará si existe)
+        return jsonify({"thumbnail": local_jpg})
+    
+    # 3. Si no hay filename, devolver 404
+    return jsonify({"thumbnail": None}), 404
+
+
+@api_bp.route('/api/serie-poster')
+def serie_poster():
+    """Endpoint para obtener póster de una serie"""
+    if not is_logged_in():
+        return jsonify({"error": "No autorizado"}), 401
+    
+    serie_name = request.args.get('name')
+    if not serie_name:
+        return jsonify({"error": "Nombre de serie requerido"}), 400
+    
+    # Limpiar nombre
+    clean_name = serie_name.strip()
+    
+    # 1. Intentar con OMDB
+    poster_url = omdb_client.get_serie_poster(clean_name)
+    
+    if poster_url:
+        return jsonify({"poster": poster_url})
+    
+    # 2. Si no, devolver 404 (el frontend usará default.jpg)
+    return jsonify({"poster": None}), 404

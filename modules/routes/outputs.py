@@ -3,10 +3,10 @@
 Blueprint de outputs: /outputs, /download
 """
 import os
-import logging
 from flask import Blueprint, session, send_from_directory
+from modules.logging.logging_config import setup_logging
 
-logger = logging.getLogger(__name__)
+logger = setup_logging(os.environ.get("LOG_FOLDER"))
 
 outputs_bp = Blueprint('outputs', __name__)
 

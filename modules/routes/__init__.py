@@ -12,9 +12,10 @@ Módulos de rutas separados por dominio:
 
 import os
 import queue as queue_module
-import logging
+from modules.logging.logging_config import setup_logging
+from modules.omdb_client import OMDBClient  # ¡IMPORTAR OMDBClient!
 
-logger = logging.getLogger(__name__)
+logger = setup_logging(os.environ.get("LOG_FOLDER"))
 
 # Importar blueprints
 from .auth import auth_bp
@@ -24,6 +25,7 @@ from .optimizer import optimizer_bp, processing_queue, processing_status
 from .api import api_bp
 from .admin import admin_bp
 from .outputs import outputs_bp
+from .proxy import proxy_bp
 
 
 def register_all_blueprints(app, auth_service, media_service, optimizer_service):
@@ -51,8 +53,14 @@ def register_all_blueprints(app, auth_service, media_service, optimizer_service)
     # Iniciar worker
     start_worker(worker_queue, worker_status, optimizer_service)
     
+    # Inicializar cliente OMDB
+    omdb_client = OMDBClient(language='es')
+    if omdb_client.api_key:
+        logger.info("✅ Cliente OMDB inicializado correctamente")
+    else:
+        logger.warning("⚠️ Cliente OMDB inicializado sin API key - thumbnails no disponibles")
+    
     # Asignar servicios a cada blueprint
-    # Usar las funciones de inicialización para actualizar variables globales
     from .auth import init_auth_service
     init_auth_service(auth_service)
     
@@ -62,8 +70,9 @@ def register_all_blueprints(app, auth_service, media_service, optimizer_service)
     from .thumbnails import init_media_service as init_thumbnails_media
     init_thumbnails_media(media_service)
     
-    from .api import init_media_service as init_api_media
-    init_api_media(media_service)
+    # Inicializar API con media_service y omdb_client
+    from .api import init_services as init_api_services  # Cambiado a init_services
+    init_api_services(media_service, omdb_client)  # Pasar ambos servicios
     
     # El optimizer tiene su propia inicialización
     optimizer_bp.init_services(optimizer_service, media_service, worker_queue, worker_status)
@@ -78,6 +87,7 @@ def register_all_blueprints(app, auth_service, media_service, optimizer_service)
     app.register_blueprint(api_bp)
     app.register_blueprint(admin_bp)
     app.register_blueprint(outputs_bp)
+    app.register_blueprint(proxy_bp)
     
     # Registrar after_request para headers de seguridad
     @app.after_request

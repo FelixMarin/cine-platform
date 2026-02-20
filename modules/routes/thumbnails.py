@@ -3,10 +3,10 @@
 Blueprint de thumbnails: /thumbnails, /thumbnails/detect
 """
 import os
-import logging
 from flask import Blueprint, session, jsonify, send_from_directory, make_response, request
+from modules.logging.logging_config import setup_logging
 
-logger = logging.getLogger(__name__)
+logger = setup_logging(os.environ.get("LOG_FOLDER"))
 
 thumbnails_bp = Blueprint('thumbnails', __name__)
 

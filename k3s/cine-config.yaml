@@ -24,6 +24,7 @@ data:
   # 🎬 Media / Streaming
   # ============================
   MOVIES_FOLDER: "/data/movies"
+  OMDB_LANGUAGE: "es"
 
   # ============================
   # 🎞️ Video Optimization

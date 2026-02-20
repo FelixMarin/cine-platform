@@ -4,16 +4,18 @@ Blueprint de streaming: /, /play, /stream
 """
 import os
 import re
-import logging
+from modules.omdb_client import OMDBClient
 from flask import Blueprint, render_template, request, session, Response
+from modules.logging.logging_config import setup_logging
 
-logger = logging.getLogger(__name__)
+logger = setup_logging(os.environ.get("LOG_FOLDER"))
 
 streaming_bp = Blueprint('streaming', __name__)
 
 # Servicio inyectado desde fuera
 media_service = None
 
+omdb_client = OMDBClient(language='es')
 
 def init_media_service(service):
     """Inicializa el servicio de medios"""
@@ -26,10 +28,20 @@ def is_logged_in():
 
 
 def clean_filename(filename):
-    """Limpia el nombre del archivo para mostrar"""
+    """Limpia el nombre del archivo para mostrar solo el título"""
+    # Eliminar sufijos comunes
     name = re.sub(r'[-_]?optimized', '', filename, flags=re.IGNORECASE)
+    
+    # Eliminar extensión
     name = re.sub(r'\.(mkv|mp4|avi|mov)$', '', name, flags=re.IGNORECASE)
+    
+    # Eliminar año entre paréntesis (si existe)
+    name = re.sub(r'\(\d{4}\)', '', name).strip()
+    
+    # Reemplazar separadores por espacios
     name = re.sub(r'[._-]', ' ', name)
+    
+    # Capitalizar palabras
     return ' '.join(word.capitalize() for word in name.split())
 
 
@@ -49,17 +61,13 @@ def index():
 
 @streaming_bp.route('/play/<path:filename>')
 def play(filename):
-    """Página de reproducción de video"""
     if not is_logged_in():
-        from flask import redirect, url_for
         return redirect(url_for('auth.login'))
     
-    # Validación robusta de path traversal
     if not media_service.is_path_safe(filename):
         logger.warning(f"Intento de path traversal en play: {repr(filename)}")
         return "Nombre de archivo inválido", 400
     
-    # Verificar que el archivo existe
     file_path = media_service.get_safe_path(filename)
     if not file_path:
         return "Archivo no encontrado", 404
@@ -67,7 +75,15 @@ def play(filename):
     base_name = os.path.basename(filename)
     display_name = clean_filename(base_name)
     
-    return render_template("play.html", filename=filename, sanitized_name=display_name)
+    # Obtener información de OMDb
+    movie_info = omdb_client.get_movie_info(base_name)
+    
+    return render_template(
+        "play.html", 
+        filename=filename, 
+        sanitized_name=display_name,
+        movie_info=movie_info
+    )
 
 
 @streaming_bp.route('/stream/<path:filename>')

@@ -13,6 +13,8 @@ venv.bak/
 # Environment variables
 .env
 .env.local
+.env.dev
+
 
 # Logs
 logs/*

@@ -2,6 +2,7 @@
 
 import unicodedata
 import os
+import re
 from modules.media.constants import FILENAME_SUFFIXES_TO_REMOVE
 
 
@@ -85,3 +86,71 @@ def get_category_from_path(root, base_folder):
         categoria = "Sin categoría"
 
     return categoria
+
+
+def extract_serie_name(filename: str, folder_name: str = None) -> str:
+    """
+    Extrae el nombre de la serie a partir del nombre del archivo o carpeta.
+    
+    Args:
+        filename: Nombre del archivo (ej: "12 Monos T1C01-serie-optimized.mkv")
+        folder_name: Nombre de la carpeta (ej: "12 Monos.S01")
+    
+    Returns:
+        Nombre de la serie (ej: "12 Monos")
+    """
+    # Intentar extraer de la carpeta primero (más fiable)
+    if folder_name:
+        # Eliminar .S01, .S02, .Season1, y también "Temporada X"
+        serie = re.sub(r'\.S\d{2}', '', folder_name)
+        serie = re.sub(r'\.Season\d+', '', serie, flags=re.IGNORECASE)
+        serie = re.sub(r'Temporada\s*\d+', '', serie, flags=re.IGNORECASE)
+        # Reemplazar puntos y guiones por espacios
+        serie = serie.replace('.', ' ').replace('_', ' ').replace('-', ' ')
+        # Eliminar espacios múltiples
+        serie = re.sub(r'\s+', ' ', serie).strip()
+        return serie
+    
+    # Si no hay carpeta, extraer del nombre del archivo
+    # Eliminar patrones como T1C01, -serie, -optimized
+    name = filename.replace('-serie', '').replace('-optimized', '').replace('_optimized', '')
+    name = re.sub(r'[Tt]\d+[Cc]\d+', '', name)  # Eliminar T1C01, T01C01, etc.
+    name = re.sub(r'\.\w+$', '', name)  # Eliminar extensión
+    name = re.sub(r'\s+', ' ', name).strip()
+    
+    return name
+    
+
+def clean_movie_title(title: str) -> str:
+    """
+    Limpia el título de una película eliminando sufijos y fechas.
+    
+    Args:
+        title: Título original (ej: "Multiple-(2016)-optimized")
+    
+    Returns:
+        Título limpio (ej: "Multiple")
+    """
+    if not title:
+        return title
+    
+    logger.debug(f"🧹 Limpiando título: '{title}'")
+    
+    # Paso 1: Eliminar sufijos
+    clean = title.replace('-optimized', '').replace('_optimized', '')
+    logger.debug(f"   Después de quitar sufijos: '{clean}'")
+    
+    # Paso 2: Eliminar fecha (YYYY)
+    clean = re.sub(r'\(\d{4}\)', '', clean)
+    logger.debug(f"   Después de quitar fecha: '{clean}'")
+    
+    # Paso 3: Limpiar espacios y guiones
+    clean = clean.replace('-', ' ').replace('_', ' ')
+    clean = re.sub(r'\s+', ' ', clean).strip()
+    logger.debug(f"✅ Título limpio: '{clean}'")
+    
+    return clean
+
+def get_serie_poster_cache_key(serie_name: str) -> str:
+    """Genera clave de caché para el póster de una serie"""
+    return f"serie_poster_{serie_name.replace(' ', '_').lower()}"

@@ -2,10 +2,11 @@
 """
 Blueprint de admin: /admin/manage
 """
-import logging
+import os
 from flask import Blueprint, session, render_template
+from modules.logging.logging_config import setup_logging
 
-logger = logging.getLogger(__name__)
+logger = setup_logging(os.environ.get("LOG_FOLDER"))
 
 admin_bp = Blueprint('admin', __name__)
 
