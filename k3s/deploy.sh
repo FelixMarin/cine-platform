@@ -26,12 +26,6 @@ docker buildx build \
   .
 
 echo "======================================"
-echo "  📤 Subiendo imagen a Docker Hub"
-echo "======================================"
-
-docker push $FULL_IMAGE
-
-echo "======================================"
 echo "  📦 Aplicando YAMLs de producción"
 echo "======================================"
 
