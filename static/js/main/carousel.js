@@ -22,7 +22,7 @@ function scrollCarousel(button, direction) {
 
 // Función para renderizar películas en carruseles
 async function renderMoviesByCategory(categorias) {
-    const moviesDiv = document.getElementById("movies");
+    const moviesDiv = document.getElementById("moviesContainer");
     if (!moviesDiv) {
         console.error("No se encontró el contenedor de películas");
         return;

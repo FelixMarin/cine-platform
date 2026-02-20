@@ -5,7 +5,7 @@ Blueprint de API: /api/movies, /api/thumbnail-status
 import unicodedata
 import time
 import logging
-from flask import Blueprint, session, jsonify
+from flask import Blueprint, session, jsonify, request
 
 logger = logging.getLogger(__name__)
 
@@ -43,13 +43,23 @@ def api_movies():
     if not is_logged_in():
         return jsonify({"error": "No autorizado"}), 401
 
-    categorias, series = media_service.list_content()
+    # Parámetro para forzar refresco de caché
+    force_refresh = request.args.get('refresh', 'false').lower() == 'true'
+
+    categorias, series = media_service.list_content(force_refresh=force_refresh)
     
     categorias = normalize_dict(categorias)
     series = normalize_dict(series)
 
     response = jsonify({"categorias": categorias, "series": series})
     response.headers['Content-Type'] = 'application/json; charset=utf-8'
+    
+    # Añadir headers de caché
+    if force_refresh:
+        response.headers['Cache-Control'] = 'no-cache'
+    else:
+        response.headers['Cache-Control'] = 'private, max-age=300'  # 5 minutos
+    
     return response
 
 

@@ -40,7 +40,10 @@ def index():
         from flask import redirect, url_for
         return redirect(url_for('auth.login'))
     
-    movies, series = media_service.list_content()
+    # Parámetro para forzar refresco de caché (usado por el botón de refrescar)
+    force_refresh = request.args.get('refresh', 'false').lower() == 'true'
+    
+    movies, series = media_service.list_content(force_refresh=force_refresh)
     return render_template("index.html", movies=movies, series=series)
 
 

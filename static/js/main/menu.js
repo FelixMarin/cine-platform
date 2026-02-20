@@ -64,6 +64,25 @@ function loadSavedPreferences() {
     }
 }
 
+function refreshWithAnimation(button) {
+    // Añadir clase de carga
+    button.classList.add('loading');
+
+    // Cambiar texto opcionalmente
+    const textSpan = button.querySelector('.refresh-text');
+    const originalText = textSpan.textContent;
+    textSpan.textContent = 'Actualizando...';
+
+    // Llamar a la función de refresco
+    window.refreshContent();
+
+    // Quitar clase después de un tiempo (la función refreshContent ya recargará)
+    setTimeout(() => {
+        button.classList.remove('loading');
+        textSpan.textContent = originalText;
+    }, 1000);
+}
+
 window.toggleMenu = toggleMenu;
 window.toggleCollapse = toggleCollapse;
 window.loadSavedPreferences = loadSavedPreferences;

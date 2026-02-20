@@ -66,8 +66,7 @@
             <span class="menu-logout-text">Cerrar Sesión</span>
         </a>
     </div>
-
-    <!-- Añade esto donde quieras mostrar el progreso -->
+    
     <div id="thumbnail-progress" style="display: none; position: fixed; bottom: 20px; right: 20px; background: var(--bg-secondary); padding: 10px; border-radius: var(--border-radius); border-left: 4px solid var(--accent-color); z-index: 1000;">
         <span>Generando miniaturas: <span id="thumbnail-count">0</span> pendientes</span>
     </div>
@@ -85,17 +84,33 @@
         <!--      SECCIÓN PELÍCULAS    -->
         <!-- ========================= -->
         <section id="movies" class="tab-content" style="display: block;" role="tabpanel" aria-labelledby="moviesTab">
-            <h2 style="margin-bottom: 25px; border-left: 6px solid var(--accent-color); padding-left: 15px;">Películas</h2>
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 25px;">
+                <h2 style="border-left: 6px solid var(--accent-color); padding-left: 15px; margin-bottom: 0;">Películas</h2>
+                <button onclick="refreshWithAnimation(this)" class="refresh-btn" title="Refrescar catálogo">
+                    <svg class="refresh-icon" viewBox="0 0 24 24" width="20" height="20">
+                        <path d="M17.65 6.35A8 8 0 1 0 19 12h-2a6 6 0 1 1-2.35-4.65l2.5 2.5H12v2h8v-8h-2v3.5z"/>
+                    </svg>
+                    <span class="refresh-text">Actualizar</span>
+                </button>
+            </div>
 
             <!-- El JS insertará aquí las categorías en carruseles -->
-            <div id="movies" class="categories-container"></div>
+            <div id="moviesContainer" class="categories-container"></div>
         </section>
 
         <!-- ========================= -->
         <!--        SECCIÓN SERIES     -->
         <!-- ========================= -->
         <section id="series" class="tab-content" style="display: none;" role="tabpanel" aria-labelledby="seriesTab">
-            <h2 style="margin-bottom: 25px; border-left: 6px solid var(--accent-color); padding-left: 15px;">Series</h2>
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 25px;">
+                <h2 style="border-left: 6px solid var(--accent-color); padding-left: 15px; margin-bottom: 0;">Series</h2>
+                <button onclick="refreshWithAnimation(this)" class="refresh-btn" title="Refrescar catálogo">
+                    <svg class="refresh-icon" viewBox="0 0 24 24" width="20" height="20">
+                        <path d="M17.65 6.35A8 8 0 1 0 19 12h-2a6 6 0 1 1-2.35-4.65l2.5 2.5H12v2h8v-8h-2v3.5z"/>
+                    </svg>
+                    <span class="refresh-text">Actualizar</span>
+            </button>
+            </div>
 
             <!-- El JS insertará aquí las series en carruseles -->
             <div id="seriesContainer"></div>
