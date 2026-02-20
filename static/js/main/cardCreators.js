@@ -29,6 +29,7 @@ function createMovieCard(movie) {
 
     // Manejar error de carga
     img.onerror = function () {
+        console.log(`🖼️ Error cargando imagen, usando default: ${this.src}`);
         this.src = '/static/images/default.jpg';
         this.onerror = null;
     };
@@ -76,22 +77,14 @@ function createMovieCard(movie) {
     card.onclick = () => window.playMovie(playPath);
 
     // Cargar thumbnail en segundo plano
-    loadMovieThumbnail(img, title, movie.year);
+    loadMovieThumbnail(img, title, movie.year, movie.filename);
 
     return card;
 }
 
-async function loadMovieThumbnail(imgElement, title, year) {
-    // Limpiar título (quitar sufijos y años)
-    let searchTitle = title.replace(/\s*\(?\d{4}\)?\s*/g, '').trim();
-
-    // Eliminar palabras genéricas que puedan interferir
-    searchTitle = searchTitle
-        .replace(/\b(mkv|avi|mp4|bluray|webrip|hd|4k|1080p|720p)\b/gi, '')
-        .replace(/\s+/g, ' ')
-        .trim();
-
-    // Clave para caché (usando título limpio + año)
+async function loadMovieThumbnail(imgElement, title, year, filename) {
+    // Limpiar título
+    const searchTitle = title.replace(/\s*\(?\d{4}\)?\s*/g, '').trim();
     const cacheKey = `thumb_${searchTitle}_${year || 'no-year'}`;
 
     // Intentar cargar de caché
@@ -112,58 +105,42 @@ async function loadMovieThumbnail(imgElement, title, year) {
     }
 
     try {
-        // Construir URL con título y año
+        // Construir URL base
         let url = `/api/movie-thumbnail?title=${encodeURIComponent(searchTitle)}`;
-        if (year) {
-            url += `&year=${year}`;
-            console.log(`🔍 Buscando: "${searchTitle}" (${year})`);
-        } else {
-            console.log(`🔍 Buscando: "${searchTitle}"`);
+        if (year) url += `&year=${year}`;
+
+        // Añadir filename SOLO si existe (para fallback local)
+        if (filename) {
+            url += `&filename=${encodeURIComponent(filename)}`;
         }
 
+        console.log(`🔍 Solicitando thumbnail: ${url}`);
         const response = await fetch(url);
 
-        if (response.status === 404) {
-            // Si no encuentra con año, intentar sin año
-            if (year) {
-                console.log(`ℹ️ No encontrado con año, intentando sin año: "${searchTitle}"`);
-                const retryResponse = await fetch(`/api/movie-thumbnail?title=${encodeURIComponent(searchTitle)}`);
-
-                if (retryResponse.ok) {
-                    const data = await retryResponse.json();
-                    if (data.thumbnail) {
-                        // Guardar en caché
-                        localStorage.setItem(cacheKey, JSON.stringify({
-                            url: data.thumbnail,
-                            timestamp: Date.now()
-                        }));
-                        imgElement.src = data.thumbnail;
-                        console.log(`✅ Thumbnail cargado (sin año) para: ${searchTitle}`);
-                        return;
-                    }
-                }
-            }
-            console.log(`ℹ️ No se encontró thumbnail para: ${searchTitle}`);
-            return;
-        }
-
         if (!response.ok) {
-            console.warn(`⚠️ Error ${response.status} obteniendo thumbnail`);
+            if (response.status === 404) {
+                console.log(`ℹ️ No hay thumbnail para: ${searchTitle}`);
+            } else {
+                console.warn(`⚠️ Error ${response.status}`);
+            }
             return;
         }
 
         const data = await response.json();
 
         if (data.thumbnail) {
+            // Guardar en caché
             localStorage.setItem(cacheKey, JSON.stringify({
                 url: data.thumbnail,
                 timestamp: Date.now()
             }));
+
+            // Cargar imagen
             imgElement.src = data.thumbnail;
             console.log(`✅ Thumbnail cargado para: ${searchTitle}`);
         }
     } catch (error) {
-        console.error(`❌ Error cargando thumbnail:`, error);
+        console.error('Error cargando thumbnail:', error);
     }
 }
 
@@ -174,11 +151,14 @@ async function createSerieCard(episodio) {
 
     const title = episodio.name || episodio.title || 'Sin título';
 
+    // Extraer nombre de la serie
+    let serieName = episodio.serie_name || title.replace(/[Tt]\d+[Cc]\d+/g, '').trim();
+
     // Crear imagen con placeholder
     const img = document.createElement('img');
     img.className = 'movie-thumb';
     img.alt = title;
-    img.src = '/static/images/default.jpg'; // Placeholder
+    img.src = '/static/images/default.jpg';
     img.onerror = function () {
         this.src = '/static/images/default.jpg';
         this.onerror = null;
@@ -194,10 +174,87 @@ async function createSerieCard(episodio) {
     const playPath = episodio.path || episodio.id || episodio.file;
     card.onclick = () => window.playMovie(playPath);
 
-    // Las series no tienen thumbnail por ahora, pero podríamos buscar el de la serie principal
-    // Podríamos implementar algo similar basado en el nombre de la serie
+    // Cargar póster (pasando el filename para fallback local)
+    loadSeriePoster(img, serieName, episodio.filename);
 
     return card;
+}
+
+async function loadSeriePoster(imgElement, serieName, firstEpisodeFilename) {
+    const cacheKey = `serie_poster_${serieName.replace(/\s+/g, '_').toLowerCase()}`;
+
+    // Intentar cargar de caché
+    const cached = localStorage.getItem(cacheKey);
+    if (cached) {
+        try {
+            const cachedData = JSON.parse(cached);
+            if (Date.now() - cachedData.timestamp < THUMBNAIL_CACHE_TTL) {
+                console.log(`📦 Póster de serie en caché para: ${serieName}`);
+                imgElement.src = cachedData.url;
+                return;
+            } else {
+                localStorage.removeItem(cacheKey);
+            }
+        } catch (e) {
+            localStorage.removeItem(cacheKey);
+        }
+    }
+
+    try {
+        // 1. Intentar con OMDB
+        console.log(`🔍 Buscando póster para serie: "${serieName}"`);
+        const response = await fetch(`/api/serie-poster?name=${encodeURIComponent(serieName)}`);
+
+        if (response.ok) {
+            const data = await response.json();
+            if (data.poster) {
+                localStorage.setItem(cacheKey, JSON.stringify({
+                    url: data.poster,
+                    timestamp: Date.now()
+                }));
+                imgElement.src = data.poster;
+                console.log(`✅ Póster de serie cargado desde OMDB para: ${serieName}`);
+                return;
+            }
+        }
+
+        // 2. SIEMPRE intentar thumbnail local después de OMDB (incluso si falla)
+        console.log(`📁 Intentando thumbnail local para serie: ${serieName}`);
+
+        if (firstEpisodeFilename) {
+            // Quitar extensión (ej: .mkv)
+            const baseName = firstEpisodeFilename.replace(/\.[^/.]+$/, '');
+
+            // === LOGS PARA DEPURACIÓN ===
+            console.log(`📁 firstEpisodeFilename: ${firstEpisodeFilename}`);
+            console.log(`📁 baseName generado: ${baseName}`);
+
+            const localJpg = `/thumbnails/${baseName}.jpg`;
+            const localWebp = `/thumbnails/${baseName}.webp`;
+
+            console.log(`🖼️ Intentando thumbnail local JPG: ${localJpg}`);
+            console.log(`🖼️ Intentando thumbnail local WEBP: ${localWebp}`);
+            // === FIN LOGS ===
+
+            // Guardar en caché
+            localStorage.setItem(cacheKey, JSON.stringify({
+                url: localJpg,
+                timestamp: Date.now()
+            }));
+
+            imgElement.src = localJpg;
+            console.log(`🖼️ Estableciendo src a: ${localJpg}`);
+        } else {
+            console.log(`❌ No hay firstEpisodeFilename para thumbnail local`);
+        }
+
+    } catch (error) {
+        console.error(`❌ Error cargando póster de serie:`, error);
+        if (firstEpisodeFilename) {
+            const baseName = firstEpisodeFilename.replace(/\.[^/.]+$/, '');
+            imgElement.src = `/thumbnails/${baseName}.jpg`;
+        }
+    }
 }
 
 // Función para limpiar caché antiguo (llamar al inicio)

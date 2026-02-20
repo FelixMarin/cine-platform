@@ -15,7 +15,8 @@ from modules.media.utils import (
     clean_filename,
     is_video_file,
     get_category_from_path,
-    sanitize_for_log
+    sanitize_for_log,
+    extract_serie_name
 )
 from modules.logging.logging_config import setup_logging
 
@@ -41,6 +42,9 @@ class FileSystemMediaRepository(IMediaRepository):
             
         self.movies_folder = movies_folder
         logger.info(f"Movies folder: {self.movies_folder}")
+
+        self.thumbnails_folder = os.path.join(movies_folder, "thumbnails")
+        logger.info(f"Thumbnails folder: {self.thumbnails_folder}")        
         
         # Archivo de caché
         self.cache_file = os.path.join(movies_folder, '.catalog_cache.json')
@@ -158,24 +162,52 @@ class FileSystemMediaRepository(IMediaRepository):
             
             logger.info(f"📦 Cargando {cache.get('total_videos', 0)} videos desde caché")
             return cache
+            
+        except json.JSONDecodeError as e:
+            logger.error(f"❌ Archivo de caché corrupto, eliminando: {e}")
+            try:
+                os.remove(self.cache_file)
+            except:
+                pass
+            return None
         except Exception as e:
             logger.error(f"Error cargando caché: {e}")
             return None
 
     def _save_cache(self, categorias, series, total_videos):
-        """Guarda el catálogo en caché"""
+        """Guarda el catálogo en caché con manejo de caracteres especiales"""
         try:
+            # Función para limpiar strings problemáticos
+            def clean_for_json(obj):
+                if isinstance(obj, str):
+                    # Reemplazar caracteres surrogados
+                    return obj.encode('utf-8', errors='ignore').decode('utf-8')
+                elif isinstance(obj, dict):
+                    return {clean_for_json(k): clean_for_json(v) for k, v in obj.items()}
+                elif isinstance(obj, list):
+                    return [clean_for_json(item) for item in obj]
+                else:
+                    return obj
+            
             cache_data = {
-                'categorias': categorias,
-                'series': series,
+                'categorias': clean_for_json(categorias),
+                'series': clean_for_json(series),
                 'total_videos': total_videos,
                 'timestamp': time.time()
             }
+            
             with open(self.cache_file, 'w', encoding='utf-8') as f:
                 json.dump(cache_data, f, ensure_ascii=False, indent=2)
             logger.info(f"💾 {total_videos} videos guardados en caché")
         except Exception as e:
             logger.error(f"Error guardando caché: {e}")
+            # Intentar guardar sin indent para ver si es problema de formato
+            try:
+                with open(self.cache_file, 'w', encoding='utf-8') as f:
+                    json.dump(cache_data, f, ensure_ascii=False)
+                logger.info(f"💾 {total_videos} videos guardados en caché (sin indent)")
+            except:
+                pass
 
     def list_content(self, force_refresh=False):
         """
@@ -277,10 +309,24 @@ class FileSystemMediaRepository(IMediaRepository):
                         }
 
                         if "-serie" in file.lower():
-                            series_name = clean_name.rsplit(" T", 1)[0] if " T" in clean_name else clean_name
-                            if series_name not in series:
-                                series[series_name] = []
-                            series[series_name].append(item)
+                            # Extraer nombre de serie
+                            serie_name = extract_serie_name(file, os.path.basename(root))
+                            
+                            item = {
+                                "name": clean_name,
+                                "serie_name": serie_name,  # Nombre de la serie para buscar póster
+                                "path": relative_path,
+                                "year": year,
+                                "is_new": is_new,
+                                "days_ago": days_ago,
+                                "date_added": date_added,
+                                "timestamp": file_time,
+                                "is_serie": True  # Flag para identificar series
+                            }
+                            
+                            if serie_name not in series:
+                                series[serie_name] = []
+                            series[serie_name].append(item)
                         else:
                             # Añadir a novedades si es nueva
                             if is_new:
@@ -318,6 +364,10 @@ class FileSystemMediaRepository(IMediaRepository):
         logger.info(f"📋 Orden de categorías (backend): {[cat for cat, _ in categorias_lista]}")
 
         return categorias_lista, series, total_videos
+
+    def get_thumbnails_folder(self):
+        """Devuelve la carpeta de thumbnails (compatibilidad)"""
+        return os.path.join(self.movies_folder, "thumbnails")
 
     def get_safe_path(self, filename):
         """Valida rutas para prevenir path traversal"""

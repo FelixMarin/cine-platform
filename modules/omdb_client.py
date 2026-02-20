@@ -358,3 +358,33 @@ class OMDBClient:
             return f"/proxy-image?url={requests.utils.quote(poster)}"
         
         return None
+
+    def get_serie_poster(self, serie_name: str) -> str:
+        """
+        Obtiene el póster de una serie.
+        OMDB trata las series igual que las películas, con 'type': 'series'
+        """
+        if not self.api_key:
+            return None
+        
+        # Buscar la serie
+        movie_data = self.search_by_title(serie_name)
+        
+        # Verificar que es una serie (opcional)
+        if movie_data and movie_data.get('Type') == 'series':
+            poster = movie_data.get('Poster')
+            if poster and poster != 'N/A':
+                return f"/proxy-image?url={requests.utils.quote(poster)}"
+        
+        # Si no encuentra, intentar búsqueda múltiple
+        results = self.search_multi(serie_name)
+        for result in results:
+            if result.get('Type') == 'series':
+                imdb_id = result.get('imdbID')
+                if imdb_id:
+                    movie_data = self.search_by_id(imdb_id)
+                    if movie_data and movie_data.get('Poster') and movie_data.get('Poster') != 'N/A':
+                        poster = movie_data.get('Poster')
+                        return f"/proxy-image?url={requests.utils.quote(poster)}"
+        
+        return None        

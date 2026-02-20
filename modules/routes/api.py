@@ -94,40 +94,64 @@ def api_movies():
     return response
  
 
+# modules/routes/api.py
+
 @api_bp.route('/api/movie-thumbnail')
 def movie_thumbnail():
     """Endpoint para obtener thumbnail de una película por título"""
     if not is_logged_in():
         return jsonify({"error": "No autorizado"}), 401
     
-    # Verificar que omdb_client está inicializado
-    if omdb_client is None:
-        logger.error("❌ OMDBClient no inicializado")
-        return jsonify({"error": "Servicio de thumbnails no disponible"}), 503
-    
     title = request.args.get('title')
     year = request.args.get('year', type=int)
+    filename = request.args.get('filename')  # Nuevo parámetro
     
     if not title:
         return jsonify({"error": "Título requerido"}), 400
     
-    # Log para depuración
-    logger.info(f"📸 Solicitando thumbnail para: '{title}' (año: {year})")
+    # 1. Intentar con OMDB
+    thumbnail_url = omdb_client.get_movie_thumbnail(title, year)
     
-    # Limpiar título
-    clean_title = clean_movie_title(title)
+    if thumbnail_url:
+        logger.info(f"✅ Thumbnail OMDB encontrado para: {title}")
+        return jsonify({"thumbnail": thumbnail_url})
     
-    try:
-        # Intentar obtener thumbnail
-        thumbnail_url = omdb_client.get_movie_thumbnail(clean_title, year)
+    # 2. Si OMDB falla, buscar thumbnail local
+    if filename:
+        # Construir nombre base del archivo
+        base_name = os.path.splitext(filename)[0]
         
-        if thumbnail_url:
-            logger.info(f"✅ Thumbnail encontrado para: {clean_title}")
-            return jsonify({"thumbnail": thumbnail_url})
-        else:
-            logger.info(f"❌ No se encontró thumbnail para: {clean_title}")
-            return jsonify({"thumbnail": None}), 404
-            
-    except Exception as e:
-        logger.error(f"❌ Error obteniendo thumbnail: {e}", exc_info=True)
-        return jsonify({"error": "Error interno del servidor"}), 500
+        # Probar con .jpg primero, luego .webp (el frontend probará con onerror)
+        local_jpg = f"/thumbnails/{base_name}.jpg"
+        local_webp = f"/thumbnails/{base_name}.webp"
+        
+        logger.info(f"📁 OMDB no encontró, probando thumbnail local: {base_name}")
+        
+        # Devolvemos la ruta JPG (el frontend probará si existe)
+        return jsonify({"thumbnail": local_jpg})
+    
+    # 3. Si no hay filename, devolver 404
+    return jsonify({"thumbnail": None}), 404
+
+
+@api_bp.route('/api/serie-poster')
+def serie_poster():
+    """Endpoint para obtener póster de una serie"""
+    if not is_logged_in():
+        return jsonify({"error": "No autorizado"}), 401
+    
+    serie_name = request.args.get('name')
+    if not serie_name:
+        return jsonify({"error": "Nombre de serie requerido"}), 400
+    
+    # Limpiar nombre
+    clean_name = serie_name.strip()
+    
+    # 1. Intentar con OMDB
+    poster_url = omdb_client.get_serie_poster(clean_name)
+    
+    if poster_url:
+        return jsonify({"poster": poster_url})
+    
+    # 2. Si no, devolver 404 (el frontend usará default.jpg)
+    return jsonify({"poster": None}), 404

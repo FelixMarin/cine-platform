@@ -4,7 +4,7 @@ Proxy para imágenes de OMDb/IMDb
 """
 import requests
 import logging
-from flask import Blueprint, request, send_file, abort
+from flask import Blueprint, request, send_file, abort, redirect, url_for
 from io import BytesIO
 
 logger = logging.getLogger(__name__)
