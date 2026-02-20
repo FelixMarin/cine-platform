@@ -4,10 +4,11 @@ Blueprint de API: /api/movies, /api/thumbnail-status
 """
 import unicodedata
 import time
-import logging
+import os
 from flask import Blueprint, session, jsonify, request
+from modules.logging.logging_config import setup_logging
 
-logger = logging.getLogger(__name__)
+logger = setup_logging(os.environ.get("LOG_FOLDER"))
 
 api_bp = Blueprint('api', __name__)
 

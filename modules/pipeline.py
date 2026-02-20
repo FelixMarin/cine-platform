@@ -2,6 +2,7 @@
 
 import subprocess
 import os
+import re
 import json
 import time
 
@@ -177,13 +178,59 @@ class PipelineSteps:
         
         print(f"📌 Tamaño original: {info.get('size', '0 MB')}")
 
+        # Obtener tamaño original para metadatos
+        original_size = 0
         size_estimate = self.estimate_size(input_path, profile)
         if size_estimate:
+            original_size = size_estimate.get('original_mb', 0)
             print(f"📊 Estimado final: {size_estimate['estimated_mb']:.1f} MB")
             print(f"📊 Compresión esperada: {size_estimate['compression_ratio']}")
             print(f"📊 Bitrate video: {profile_data['video_bitrate']}")
             print(f"📊 Bitrate audio: {profile_data['audio_bitrate']}")
 
+        # ===== NUEVA NOMENCLATURA =====
+        # Asegurar que el nombre del archivo de salida tiene el formato correcto
+        output_dir = os.path.dirname(output_path)
+        base_name = os.path.basename(input_path)
+        name_without_ext = base_name.rsplit('.', 1)[0]
+
+        # Limpiar el nombre base (quitar sufijos y fechas)
+        # 1. Quitar sufijo -optimized si existe
+        clean_base = name_without_ext.replace('-optimized', '').strip()
+        # 2. Quitar fecha entre paréntesis si existe (ej: (2016))
+        clean_base = re.sub(r'\(\d{4}\)', '', clean_base).strip()
+        # 3. Limpiar posibles guiones dobles o espacios extras
+        clean_base = re.sub(r'\s+', ' ', clean_base).strip()
+        clean_base = clean_base.replace('  ', ' ').strip()
+
+        # Extraer año si existe para mantenerlo en el nombre del archivo
+        year_match = re.search(r'\((\d{4})\)', name_without_ext)
+        year_part = f"({year_match.group(1)})" if year_match else ""
+
+        # Construir el nuevo nombre base (sin fecha para mostrar, pero con fecha en archivo)
+        if year_part:
+            # Si tiene año, el nombre del archivo será: nombrelimpio-(año)-optimized
+            base_for_filename = f"{clean_base}-{year_part}".replace('--', '-')
+        else:
+            # Si no tiene año, solo nombre limpio
+            base_for_filename = clean_base
+
+        # Añadir sufijo -optimized si no lo tiene
+        if not name_without_ext.endswith('-optimized'):
+            new_filename = f"{base_for_filename}-optimized.mkv"
+        else:
+            new_filename = f"{base_for_filename}.mkv"
+
+        # Limpiar posibles dobles guiones
+        new_filename = new_filename.replace('--', '-')
+
+        # Actualizar output_path con el nuevo nombre
+        output_path = os.path.join(output_dir, new_filename)
+
+        print(f"📁 Archivo de salida: {new_filename}")
+        print(f"📁 Nombre base limpio: {clean_base}")  # Este es el que se mostrará en la UI
+        # ===== FIN NUEVA NOMENCLATURA =====
+        
         # CONSTRUCCIÓN DEL COMANDO - SOLO CPU (100% ESTABLE)
         cmd = ["ffmpeg", "-y", "-hide_banner"]
         
@@ -288,7 +335,9 @@ class PipelineSteps:
                         "final_size_mb": final_size,
                         "processing_time": elapsed,
                         "hardware_accel": False,
-                        "decoder": "cpu"
+                        "decoder": "cpu",
+                        "original_filename": os.path.basename(input_path),
+                        "output_filename": os.path.basename(output_path)
                     }, f, indent=2)
             except Exception as e:
                 print(f"⚠️ Error guardando metadatos: {e}")

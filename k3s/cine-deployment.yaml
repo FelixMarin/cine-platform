@@ -86,6 +86,12 @@ spec:
                   name: cine-secret
                   key: SESSION_COOKIE_DOMAIN
 
+            - name: OMDB_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: cine-secret
+                  key: OMDB_API_KEY
+
             # ============================
             # 🟦 ConfigMap variables (App config)
             # ============================
@@ -130,6 +136,12 @@ spec:
                 configMapKeyRef:
                   name: cine-config
                   key: SESSION_COOKIE_PATH
+
+            - name: OMDB_LANGUAGE
+              valueFrom:
+                configMapKeyRef:
+                  name: cine-config
+                  key: OMDB_LANGUAGE
 
             - name: MOVIES_FOLDER
               valueFrom:

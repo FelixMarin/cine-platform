@@ -1,59 +1,165 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Reproducción</title>
+    <title>{{ sanitized_name }} - Reproducción</title>
     <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
-    <style>
-        body { 
-            font-family: Arial, sans-serif; 
-            margin: 0; 
-            padding: 0; 
-            background-color: #121212; 
-            color: #ffffff; 
-        }
-        .container { 
-            display: flex; 
-            flex-direction: column; 
-            align-items: center; 
-            padding: 20px; 
-        }
-        h1 {
-            font-size: 24px;
-            text-align: center;
-            margin-bottom: 10px;
-        }
-        .underline {
-            width: 80%;
-            height: 2px;
-            background: linear-gradient(to right, #444, #1e1e1e);
-            margin-bottom: 20px;
-        }
-        video { 
-            max-width: 100%; 
-            height: auto; 
-            margin-top: 20px; 
-            border: 1px solid #444; 
-        }
-        a { 
-            color: #ffffff; 
-            text-decoration: none; 
-            margin-top: 20px; 
-        }
-        a:hover { 
-            text-decoration: underline; 
-        }
-    </style>
+    
+    <!-- CSS del reproductor -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/play/play.css') }}?v={{ range(1, 10000) | random }}">
 </head>
 <body>
     <div class="container">
-        <h1>{{ sanitized_name }}</h1>
-        <div class="underline"></div>
-        <video controls>
-            <source src="/stream/{{ filename }}" type="video/mp4">
-            Tu navegador no soporta este formato. <a href="/download/{{ filename }}">Descargar aquí</a>.
-        </video>
+        <!-- Sección del reproductor -->
+        <section class="video-section">
+            <h1>{{ sanitized_name }}</h1>
+            <div class="underline"></div>
+            
+            <div class="video-wrapper">
+                <video controls>
+                    <source src="/stream/{{ filename }}" type="video/mp4">
+                    Tu navegador no soporta este formato.
+                </video>
+                
+                <div class="video-controls">
+                    <a href="/download/{{ filename }}" class="download-btn">⬇️ Descargar película</a>
+                </div>
+            </div>
+        </section>
+
+        <!-- Sección de información de la película (solo si hay datos) -->
+        {% if movie_info and movie_info.title %}
+        <section class="movie-info">
+            <div class="info-header">
+                <!-- Póster -->
+                {% if movie_info.poster %}
+                <div class="movie-poster">
+                    <img src="{{ movie_info.poster[0] }}" 
+                        alt="{{ movie_info.title }}"
+                        onerror="this.onerror=null; this.src='{{ movie_info.poster[1] }}';">
+                </div>
+                {% else %}
+                <div class="movie-poster-placeholder">
+                    <span>🎬<br>Sin imagen</span>
+                </div>
+                {% endif %}
+
+                <!-- Cabecera -->
+                <div class="movie-header">
+                    <h2>{{ movie_info.title }} {% if movie_info.year %}<span class="movie-year">({{ movie_info.year }})</span>{% endif %}</h2>
+                    
+                    <div class="movie-meta">
+                        {% if movie_info.runtime and movie_info.runtime != 'N/A' %}
+                        <span class="meta-item">⏱️ {{ movie_info.runtime }}</span>
+                        {% endif %}
+                        
+                        {% if movie_info.released and movie_info.released != 'N/A' %}
+                        <span class="meta-item">📅 {{ movie_info.released }}</span>
+                        {% endif %}
+                        
+                        {% if movie_info.imdb_rating and movie_info.imdb_rating != 'N/A' %}
+                        <span class="meta-item rating">⭐ {{ movie_info.imdb_rating }}/10</span>
+                        {% endif %}
+                    </div>
+
+                    <!-- Géneros -->
+                    {% if movie_info.genres %}
+                    <div class="genres">
+                        {% for genre in movie_info.genres %}
+                        <span class="genre-tag">{{ genre }}</span>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Sinopsis -->
+            {% if movie_info.plot and movie_info.plot != 'N/A' %}
+            <div class="plot">
+                {{ movie_info.plot }}
+            </div>
+            {% endif %}
+
+            <!-- Detalles en grid -->
+            <div class="details-grid">
+                {% if movie_info.director and movie_info.director != 'N/A' %}
+                <div class="detail-card">
+                    <div class="detail-label">Director</div>
+                    <div class="detail-value">{{ movie_info.director }}</div>
+                </div>
+                {% endif %}
+
+                {% if movie_info.writer and movie_info.writer != 'N/A' %}
+                <div class="detail-card">
+                    <div class="detail-label">Guionista</div>
+                    <div class="detail-value">{{ movie_info.writer }}</div>
+                </div>
+                {% endif %}
+
+                {% if movie_info.country and movie_info.country != 'N/A' %}
+                <div class="detail-card">
+                    <div class="detail-label">País</div>
+                    <div class="detail-value">{{ movie_info.country }}</div>
+                </div>
+                {% endif %}
+
+                {% if movie_info.language and movie_info.language != 'N/A' %}
+                <div class="detail-card">
+                    <div class="detail-label">Idioma</div>
+                    <div class="detail-value">{{ movie_info.language }}</div>
+                </div>
+                {% endif %}
+
+                {% if movie_info.box_office and movie_info.box_office != 'N/A' %}
+                <div class="detail-card">
+                    <div class="detail-label">Taquilla</div>
+                    <div class="detail-value">{{ movie_info.box_office }}</div>
+                </div>
+                {% endif %}
+
+                {% if movie_info.awards and movie_info.awards != 'N/A' %}
+                <div class="detail-card">
+                    <div class="detail-label">Premios</div>
+                    <div class="detail-value">{{ movie_info.awards }}</div>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Ratings -->
+            {% if movie_info.ratings %}
+            <div class="ratings">
+                {% for rating in movie_info.ratings %}
+                <div class="rating-card">
+                    <div class="rating-source">{{ rating.split(' ')[0] }}</div>
+                    <div class="rating-value">{{ rating.split(' ')[1] }}</div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <!-- Reparto -->
+            {% if movie_info.cast %}
+            <div class="cast-section">
+                <h3>Reparto principal</h3>
+                <div class="cast-list">
+                    {% for actor in movie_info.cast %}
+                    <span class="cast-item">{{ actor }}</span>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </section>
+
+        <!-- Mensaje si no hay información -->
+        {% else %}
+        <div class="no-info">
+            <p>🎬 No se encontró información adicional para esta película</p>
+            <p class="no-info-sub">Puedes seguir viendo la película sin problemas</p>
+        </div>
+        {% endif %}
     </div>
+
+    <script src="{{ url_for('static', filename='js/play/play.js') }}?v={{ range(1, 10000) | random }}" defer></script>
 </body>
 </html>

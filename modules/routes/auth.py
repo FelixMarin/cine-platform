@@ -2,12 +2,13 @@
 """
 Blueprint de autenticación: /login, /logout
 """
+import os
 import jwt
-import logging
 from flask import Blueprint, render_template, request, redirect, url_for, session
 from flask_wtf.csrf import generate_csrf
+from modules.logging.logging_config import setup_logging
 
-logger = logging.getLogger(__name__)
+logger = setup_logging(os.environ.get("LOG_FOLDER"))
 
 auth_bp = Blueprint('auth', __name__)
 
