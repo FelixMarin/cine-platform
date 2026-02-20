@@ -24,3 +24,34 @@
     content: "←";
     font-size: 1.2rem;
 }
+
+.refresh-btn {
+    background: transparent;
+    border: 2px solid var(--border-color);
+    color: var(--text-primary);
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 1.2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    margin-right: 10px;
+}
+
+.refresh-btn:hover {
+    background: var(--accent-color);
+    border-color: var(--accent-hover);
+    transform: rotate(180deg);
+}
+
+/* Versión para móvil */
+@media (max-width: 768px) {
+    .refresh-btn {
+        width: 36px;
+        height: 36px;
+        font-size: 1rem;
+    }
+}

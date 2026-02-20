@@ -3,8 +3,10 @@
 import os
 import unicodedata
 import threading
+import json
+import time
 from modules.core import IMediaRepository
-from modules.media.constants import VIDEO_EXTENSIONS
+from modules.media.constants import VIDEO_EXTENSIONS, CACHE_TTL, CACHE_FILE
 from modules.media.utils import (
     normalize_path,
     clean_filename,
@@ -40,6 +42,10 @@ class FileSystemMediaRepository(IMediaRepository):
         logger.info(f"Movies folder: {self.movies_folder}")
         self.thumbnails_folder = os.path.join(movies_folder, "thumbnails")
         logger.info(f"Thumbnails folder: {self.thumbnails_folder}")
+        
+        # Archivo de caché
+        self.cache_file = os.path.join(movies_folder, '.catalog_cache.json')
+        self.cache_ttl = 300  # 5 minutos en segundos
         
         # Inicializar el procesador de thumbnails
         self.thumbnail_processor = ThumbnailProcessor(self.thumbnails_folder)
@@ -85,15 +91,77 @@ class FileSystemMediaRepository(IMediaRepository):
         """Añade un thumbnail a la cola de procesamiento"""
         return self.thumbnail_processor.queue_thumbnail(video_path, base_name)
 
-    def list_content(self):
-        """Lista todo el contenido SIN re-encolar thumbnails existentes"""
+    def _load_cache(self):
+        """Carga el catálogo desde caché si es válido"""
+        try:
+            if not os.path.exists(self.cache_file):
+                return None
+            
+            with open(self.cache_file, 'r', encoding='utf-8') as f:
+                cache = json.load(f)
+            
+            # Verificar TTL
+            if time.time() - cache.get('timestamp', 0) > self.cache_ttl:
+                logger.info("🗑️ Caché expirado")
+                return None
+            
+            logger.info(f"📦 Cargando {cache.get('total_videos', 0)} videos desde caché")
+            return cache
+        except Exception as e:
+            logger.error(f"Error cargando caché: {e}")
+            return None
+
+    def _save_cache(self, categorias, series, total_videos):
+        """Guarda el catálogo en caché"""
+        try:
+            cache_data = {
+                'categorias': categorias,
+                'series': series,
+                'total_videos': total_videos,
+                'timestamp': time.time()
+            }
+            with open(self.cache_file, 'w', encoding='utf-8') as f:
+                json.dump(cache_data, f, ensure_ascii=False, indent=2)
+            logger.info(f"💾 {total_videos} videos guardados en caché")
+        except Exception as e:
+            logger.error(f"Error guardando caché: {e}")
+
+    def list_content(self, force_refresh=False):
+        """
+        Lista todo el contenido con caché para mejorar rendimiento
+        
+        Args:
+            force_refresh: Si es True, ignora la caché y escanea de nuevo
+        """
+        # Intentar cargar desde caché si no se fuerza refresco
+        if not force_refresh:
+            cached = self._load_cache()
+            if cached:
+                return cached['categorias'], cached['series']
+        
+        # Escaneo completo (tarda 5-10 segundos)
+        logger.info("🔍 Escaneando archivos... (puede tardar unos segundos)")
+        start_time = time.time()
+        
+        categorias, series, total_videos = self._scan_files()
+        
+        scan_time = time.time() - start_time
+        logger.info(f"✅ Escaneo completado en {scan_time:.2f} segundos: {total_videos} videos")
+        
+        # Guardar en caché
+        self._save_cache(categorias, series, total_videos)
+        
+        return categorias, series
+
+    def _scan_files(self):
+        """Método privado que realiza el escaneo real del sistema de archivos"""
         categorias = {}
         series = {}
         
         total_videos = 0
         thumbnails_faltantes = 0
         
-        # Primero, recopilar todos los thumbnails existentes
+        # Recopilar thumbnails existentes
         existing_thumbnails = self.thumbnail_processor.get_existing_thumbnails()
         
         for root, _, files in os.walk(self.movies_folder):
@@ -168,9 +236,7 @@ class FileSystemMediaRepository(IMediaRepository):
             for k, v in sorted(series.items())
         }
 
-        logger.info(f"📊 Escaneo: {total_videos} videos, {thumbnails_faltantes} thumbnails pendientes")
-
-        return categorias, series
+        return categorias, series, total_videos
 
     def get_thumbnail_status(self):
         """Devuelve el estado actualizado de la generación de thumbnails"""

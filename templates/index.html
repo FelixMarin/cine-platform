@@ -66,8 +66,7 @@
             <span class="menu-logout-text">Cerrar Sesión</span>
         </a>
     </div>
-
-    <!-- Añade esto donde quieras mostrar el progreso -->
+    
     <div id="thumbnail-progress" style="display: none; position: fixed; bottom: 20px; right: 20px; background: var(--bg-secondary); padding: 10px; border-radius: var(--border-radius); border-left: 4px solid var(--accent-color); z-index: 1000;">
         <span>Generando miniaturas: <span id="thumbnail-count">0</span> pendientes</span>
     </div>
@@ -85,7 +84,12 @@
         <!--      SECCIÓN PELÍCULAS    -->
         <!-- ========================= -->
         <section id="movies" class="tab-content" style="display: block;" role="tabpanel" aria-labelledby="moviesTab">
-            <h2 style="margin-bottom: 25px; border-left: 6px solid var(--accent-color); padding-left: 15px;">Películas</h2>
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 25px;">
+                <h2 style="border-left: 6px solid var(--accent-color); padding-left: 15px; margin-bottom: 0;">Películas</h2>
+                <button onclick="window.refreshContent()" class="refresh-btn" title="Refrescar catálogo">
+                    🔄
+                </button>
+            </div>
 
             <!-- El JS insertará aquí las categorías en carruseles -->
             <div id="movies" class="categories-container"></div>
@@ -95,7 +99,12 @@
         <!--        SECCIÓN SERIES     -->
         <!-- ========================= -->
         <section id="series" class="tab-content" style="display: none;" role="tabpanel" aria-labelledby="seriesTab">
-            <h2 style="margin-bottom: 25px; border-left: 6px solid var(--accent-color); padding-left: 15px;">Series</h2>
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 25px;">
+                <h2 style="border-left: 6px solid var(--accent-color); padding-left: 15px; margin-bottom: 0;">Series</h2>
+                <button onclick="window.refreshContent()" class="refresh-btn" title="Refrescar catálogo">
+                    🔄
+                </button>
+            </div>
 
             <!-- El JS insertará aquí las series en carruseles -->
             <div id="seriesContainer"></div>
