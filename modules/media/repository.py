@@ -334,7 +334,7 @@ class FileSystemMediaRepository(IMediaRepository):
         
         # Primero, añadir Novedades si existe (limitado a 20)
         if novedades:
-            categorias_lista.append(("🆕 Recientes", novedades[:20]))
+            categorias_lista.append(("🆕 Recien Añadidas", novedades[:20]))
         
         # Añadir el resto de categorías ordenadas alfabéticamente
         for cat in sorted(categorias.keys()):
