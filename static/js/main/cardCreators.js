@@ -73,7 +73,7 @@ function createMovieCard(movie) {
         card.appendChild(newIndicator);
     }
 
-    const playPath = movie.path || movie.id || movie.file;
+    const playPath = movie.id || movie.path || movie.file;
     card.onclick = () => window.playMovie(playPath);
 
     // Cargar thumbnail en segundo plano
@@ -171,7 +171,7 @@ async function createSerieCard(episodio) {
     card.appendChild(img);
     card.appendChild(titleDiv);
 
-    const playPath = episodio.path || episodio.id || episodio.file;
+    const playPath = episodio.id || episodio.path || episodio.file;
     card.onclick = () => window.playMovie(playPath);
 
     // Cargar póster (pasando el filename para fallback local)

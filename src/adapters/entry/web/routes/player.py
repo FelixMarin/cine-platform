@@ -72,6 +72,45 @@ def play_page(media_path):
                            year=year)
 
 
+@player_page_bp.route('/play/id/<movie_id>')
+def play_page_by_id(movie_id):
+    """Página de reproducción usando ID de película"""
+    from src.adapters.config.dependencies import get_movie_repository
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    logger.info(f"🎬 play_page_by_id: {movie_id}")
+    
+    try:
+        repo = get_movie_repository()
+        movie = repo.get_by_id(movie_id)
+        
+        if not movie:
+            logger.warning(f"⚠️ Película no encontrada: {movie_id}")
+            return "Película no encontrada", 404
+        
+        filename = movie['path']
+        basename = os.path.basename(filename)
+        sanitized_name = clean_filename(basename)
+        
+        year = movie.get('year')
+        clean_title = movie.get('title', sanitized_name)
+        
+        logger.info(f"✅ Reproduciendo: {clean_title} ({year})")
+        
+        return render_template('play.html', 
+                               filename=filename,
+                               sanitized_name=sanitized_name,
+                               media_path=movie_id,
+                               clean_title=clean_title,
+                               year=year,
+                               movie_id=movie_id)
+    
+    except Exception as e:
+        logger.error(f"❌ Error en play_page_by_id: {e}")
+        return f"Error: {str(e)}", 500
+
+
 @player_page_bp.route('/play')
 def play_page_root():
     """Página de reproducción (raíz)"""

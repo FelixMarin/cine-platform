@@ -17,8 +17,13 @@
             <div class="underline"></div>
             
             <div class="video-wrapper">
-                <video controls>
+                <!-- Usar movie_id si está disponible, sino filename legacy -->
+                <video controls preload="auto" autoplay id="videoPlayer">
+                    {% if movie_id %}
+                    <source src="/api/streaming/id/{{ movie_id }}" type="video/mp4">
+                    {% else %}
                     <source src="/stream/{{ filename }}" type="video/mp4">
+                    {% endif %}
                     Tu navegador no soporta este formato.
                 </video>
                 
@@ -46,45 +51,83 @@
     <div id="movie-data" 
          data-title="{{ clean_title | default('') }}" 
          data-year="{{ year if year else '' }}"
+         data-movie-id="{{ movie_id if movie_id else '' }}"
          style="display: none;">
     </div>
     
     <script src="{{ url_for('static', filename='js/play/play.js') }}?v={{ range(1, 10000) | random }}" defer></script>
     
     <script>
-    // Cargar metadatos de forma asíncrona
+    // 🚨 IMPORTANTE: El video debe empezar INMEDIATAMENTE
+    // No esperar a metadatos, no esperar a nada
     (function() {
-        var movieDataEl = document.getElementById('movie-data');
-        var cleanTitle = movieDataEl ? movieDataEl.getAttribute('data-title') : '';
-        var movieYear = movieDataEl ? movieDataEl.getAttribute('data-year') : '';
+        console.log('🎬 Página de reproducción cargando...');
         
-        if (cleanTitle) {
-            var url = '/api/movie/metadata?title=' + encodeURIComponent(cleanTitle);
-            if (movieYear) {
-                url += '&year=' + movieYear;
-            }
+        // 1. El video YA debería estar descargando por preload="auto"
+        // Verificar que existe
+        var video = document.getElementById('videoPlayer');
+        if (video) {
+            var source = video.querySelector('source');
+            console.log('📹 Video src:', source ? source.src : 'NO SOURCE');
             
-            fetch(url)
-                .then(function(response) {
-                    if (!response.ok) {
-                        throw new Error('Error en la respuesta');
-                    }
-                    return response.json();
-                })
-                .then(function(data) {
-                    if (data && data.title) {
-                        mostrarMovieInfo(data);
-                    } else {
-                        mostrarNoInfo();
-                    }
-                })
-                .catch(function(error) {
-                    console.log('No se pudieron cargar los metadatos:', error);
-                    mostrarNoInfo();
-                });
-        } else {
-            mostrarNoInfo();
+            // Forzar carga si no ha started
+            video.load();
+            
+            // Logs de eventos
+            video.addEventListener('loadstart', function() {
+                console.log('🔄 Video loadstart - empezando a descargar');
+            });
+            video.addEventListener('loadedmetadata', function() {
+                console.log('📊 Video metadata cargado');
+            });
+            video.addEventListener('canplay', function() {
+                console.log('✅ Video canplay - listo para reproducir');
+            });
+            video.addEventListener('playing', function() {
+                console.log('🎥 Video REPRODUCIENDO');
+            });
+            video.addEventListener('error', function(e) {
+                console.error('❌ Video error:', e);
+            });
         }
+        
+        // 2. Los metadatos se cargan en BACKGROUND (NO bloquea video)
+        // Pequeño delay para no competir con la descarga del video
+        setTimeout(function() {
+            var movieDataEl = document.getElementById('movie-data');
+            var cleanTitle = movieDataEl ? movieDataEl.getAttribute('data-title') : '';
+            var movieYear = movieDataEl ? movieDataEl.getAttribute('data-year') : '';
+            
+            console.log('📡 Cargando metadatos en background...');
+            
+            if (cleanTitle) {
+                var url = '/api/movie/metadata?title=' + encodeURIComponent(cleanTitle);
+                if (movieYear) {
+                    url += '&year=' + movieYear;
+                }
+                
+                fetch(url)
+                    .then(function(response) {
+                        if (!response.ok) {
+                            throw new Error('Error en la respuesta');
+                        }
+                        return response.json();
+                    })
+                    .then(function(data) {
+                        if (data && data.title) {
+                            mostrarMovieInfo(data);
+                        } else {
+                            mostrarNoInfo();
+                        }
+                    })
+                    .catch(function(error) {
+                        console.log('No se pudieron cargar los metadatos:', error);
+                        mostrarNoInfo();
+                    });
+            } else {
+                mostrarNoInfo();
+            }
+        }, 500);
         
         function mostrarMovieInfo(data) {
             var section = document.getElementById('movie-info-section');

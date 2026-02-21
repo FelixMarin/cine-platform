@@ -77,39 +77,169 @@ def get_movies():
     """Obtiene la lista de películas agrupadas por categorías"""
     global _list_movies_use_case, _list_series_use_case
     
+    # Crear logger local
+    import logging
+    import traceback
+    import time
+    logger = logging.getLogger(__name__)
+    
+    start_total = time.time()
+    logger.info("=== GET /api/movies ===")
+    
     if _list_movies_use_case is None:
+        logger.error("❌ _list_movies_use_case es None")
         return jsonify({'error': 'Servicio no inicializado'}), 500
     
     try:
-        # Parámetros de query
-        genre = request.args.get('genre')
-        year = request.args.get('year')
-        limit = request.args.get('limit', type=int)
-        offset = request.args.get('offset', 0, type=int)
-        random = request.args.get('random', 'false').lower() == 'true'
+        # PASO 1: Obtener películas
+        start_step1 = time.time()
+        movies = _list_movies_use_case.execute()
+        step1_time = time.time() - start_step1
+        logger.info(f"⏱️ PASO 1 (execute): {step1_time:.2f}s - {len(movies)} películas")
         
-        if random:
-            movies = _list_movies_use_case.get_random(limit=limit or 10)
-        else:
-            movies = _list_movies_use_case.execute(
-                genre=genre,
-                year=int(year) if year else None,
-                limit=limit,
-                offset=offset
-            )
+        # Verificar tipo
+        if movies is None:
+            movies = []
+        elif not isinstance(movies, list):
+            movies = list(movies) if movies else []
         
-        # Agrupar películas por categoría (basado en la ruta)
+        # PASO 2: Filtrar nuevas
+        start_step2 = time.time()
+        new_movies = []
+        for m in movies:
+            try:
+                if isinstance(m, dict) and m.get('is_new', False):
+                    new_movies.append(m)
+            except Exception:
+                pass
+        new_movies.sort(key=lambda x: x.get('days_ago', 999))
+        step2_time = time.time() - start_step2
+        logger.info(f"⏱️ PASO 2 (filtrar nuevas): {step2_time:.2f}s - {len(new_movies)} nuevas")
+        
+        # PASO 3: Construir categorías
+        start_step3 = time.time()
         categorias = []
         
-        # Obtener películas nuevas para el carrusel de Novedades
-        # Filtrar películas de los últimos 30 días
-        new_movies = [m for m in movies if m.get('is_new', False)]
-        # Ordenar por days_ago (más recientes primero)
-        new_movies.sort(key=lambda x: x.get('days_ago', 999))
-        
-        # Agregar carrusel de Novedades al inicio si hay películas nuevas
         if new_movies:
-            categorias.insert(0, ['Novedades', new_movies[:20]])  # Máximo 20 películas nuevas
+            categorias.append(['Novedades', new_movies[:20]])
+        
+        # Agrupar por categoría
+        categorias_dict = {}
+        for movie in movies:
+            if not isinstance(movie, dict):
+                continue
+            path = movie.get('path', '')
+            if not path:
+                categoria = 'Otros'
+            else:
+                parts = str(path).split('/')
+                if 'mkv' in parts:
+                    idx = parts.index('mkv')
+                    categoria = parts[idx + 1] if idx + 1 < len(parts) else 'Otros'
+                else:
+                    categoria = 'Otros'
+            
+            if categoria not in categorias_dict:
+                categorias_dict[categoria] = []
+            categorias_dict[categoria].append(movie)
+        
+        for cat_name, cat_movies in categorias_dict.items():
+            categorias.append([cat_name, cat_movies])
+        
+        step3_time = time.time() - start_step3
+        logger.info(f"⏱️ PASO 3 (categorizar): {step3_time:.2f}s - {len(categorias)} categorías")
+        
+        # PASO 4: Obtener series
+        start_step4 = time.time()
+        series = {}
+        if _list_series_use_case:
+            try:
+                raw_series = _list_series_use_case.execute()
+                for serie in raw_series:
+                    serie_name = serie.get('name', 'Unknown')
+                    if serie_name not in series:
+                        series[serie_name] = []
+                    if 'episodes' in serie:
+                        series[serie_name].extend(serie['episodes'])
+                    else:
+                        series[serie_name].append(serie)
+            except Exception as e:
+                logger.error(f"❌ Error obteniendo series: {e}")
+        step4_time = time.time() - start_step4
+        logger.info(f"⏱️ PASO 4 (series): {step4_time:.2f}s")
+        
+        # PASO 5: Normalizar
+        start_step5 = time.time()
+        response_data = {
+            'categorias': categorias,
+            'series': series
+        }
+        normalized = normalize_dict(response_data)
+        step5_time = time.time() - start_step5
+        logger.info(f"⏱️ PASO 5 (normalizar): {step5_time:.2f}s")
+        
+        total_time = time.time() - start_total
+        logger.info(f"⏱️ TOTAL: {total_time:.2f}s")
+        
+        return jsonify(normalized)
+    
+    except Exception as e:
+        logger.error(f"❌ ERROR CRÍTICO en /api/movies: {e}")
+        logger.error(traceback.format_exc())
+        return jsonify({'error': str(e)}), 500
+
+
+# Endpoint de debug ultra-simple
+@catalog_bp.route('/api/movies-test', methods=['GET'])
+def get_movies_test():
+    """Versión ultra simple para debug"""
+    global _list_movies_use_case
+    import traceback
+    
+    try:
+        if _list_movies_use_case is None:
+            return jsonify({'error': 'No inicializado'}), 500
+        
+        movies = _list_movies_use_case.execute()
+        
+        return jsonify({
+            'total': len(movies) if movies else 0,
+            'first': movies[0] if movies else None,
+            'type': str(type(movies))
+        })
+    except Exception as e:
+        return jsonify({
+            'error': str(e),
+            'trace': traceback.format_exc()
+        }), 500
+
+
+# Endpoint de debug del repositorio
+@catalog_bp.route('/api/debug/repo', methods=['GET'])
+def debug_repo():
+    """Endpoint para diagnosticar el repositorio"""
+    from src.adapters.config.dependencies import get_movie_repository
+    import traceback
+    
+    try:
+        repo = get_movie_repository()
+        if repo is None:
+            return jsonify({'error': 'Repositorio no inicializado'}), 500
+        
+        movies = repo.list_all()
+        
+        return jsonify({
+            'success': True,
+            'count': len(movies) if movies else 0,
+            'first_movie': movies[0] if movies else None,
+            'cache_stats': repo.get_cache_stats() if hasattr(repo, 'get_cache_stats') else {}
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'trace': traceback.format_exc()
+        }), 500
         
         # Agrupar el resto de películas por categoría
         for movie in movies:
@@ -157,6 +287,9 @@ def get_movies():
                 else:
                     series[serie_name].append(serie)
         
+        logger.info(f"✅ Categorías generadas: {len(categorias)}")
+        logger.info(f"📦 Estructura final: {{'categorias': {len(categorias)}, 'series': {len(series)}}}")
+        
         # Devolver estructura esperada por el frontend
         return jsonify(normalize_dict({
             'categorias': categorias,
@@ -164,6 +297,7 @@ def get_movies():
         }))
     
     except Exception as e:
+        logger.error(f"❌ Error en /api/movies: {e}", exc_info=True)
         return jsonify({'error': str(e)}), 500
 
 

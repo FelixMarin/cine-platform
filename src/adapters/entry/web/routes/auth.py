@@ -5,6 +5,7 @@ Blueprint para /api/auth y login
 from flask import Blueprint, jsonify, request, session, render_template, redirect, url_for
 
 from src.core.use_cases.auth import LoginUseCase, LogoutUseCase
+from src.adapters.entry.web.middleware.auth_middleware import require_auth
 
 logger = None
 
@@ -32,6 +33,7 @@ def status():
 
 
 @main_page_bp.route('/')
+@require_auth
 def index():
     """Página principal del catálogo"""
     return render_template('index.html')
@@ -75,8 +77,13 @@ def is_logged_in():
 def login():
     """Endpoint de login"""
     global _login_use_case
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    logger.info(f"[API LOGIN] Intento de login - LoginUseCase: {_login_use_case}")
     
     if _login_use_case is None:
+        logger.error("[API LOGIN] LoginUseCase no inicializado")
         return jsonify({'error': 'Servicio no inicializado'}), 500
     
     try:
@@ -88,6 +95,8 @@ def login():
         if not email or not password:
             return jsonify({'error': 'Email y password son requeridos'}), 400
         
+        logger.info(f"[API LOGIN] Email: {email}")
+        
         success, user_data = _login_use_case.execute(email, password)
         
         if success:
@@ -96,18 +105,23 @@ def login():
             session['user_id'] = user_data.get('id')
             session['email'] = user_data.get('email')
             session['username'] = user_data.get('username')
+            session['user_role'] = user_data.get('role', 'admin')
+            
+            logger.info(f"[API LOGIN] Login exitoso para: {email}")
             
             return jsonify({
                 'success': True,
                 'user': user_data
             })
         else:
+            logger.warning(f"[API LOGIN] Credenciales incorrectas para: {email}")
             return jsonify({
                 'success': False,
                 'error': 'Credenciales inválidas'
             }), 401
     
     except Exception as e:
+        logger.error(f"[API LOGIN] Error: {e}")
         return jsonify({'error': str(e)}), 500
 
 
@@ -184,10 +198,12 @@ def login_page():
     """Página de login (GET) y procesamiento del login (POST)"""
     from src.adapters.config.dependencies import get_oauth_service
     import os
+    import logging
+    logger = logging.getLogger(__name__)
     
     if request.method == 'GET':
         if is_logged_in():
-            return redirect(url_for('auth.index'))
+            return redirect(url_for('main_page.index'))
         return render_template('login.html')
     
     # POST - Procesar login
@@ -197,6 +213,8 @@ def login_page():
         
         if not email or not password:
             return render_template('login.html', error='Email y contraseña requeridos')
+        
+        logger.info(f"[LOGIN] Intento de login para usuario: {email}")
         
         # Intentar OAuth2 primero
         oauth_service = get_oauth_service()
@@ -208,12 +226,15 @@ def login_page():
                 if success:
                     session['logged_in'] = True
                     session['user_id'] = 1
-                    session['user_email'] = user_data.get('username', email)
+                    session['email'] = email
+                    session['username'] = user_data.get('username', email)
                     session['user_role'] = 'admin'
                     session['oauth_token'] = oauth_service.token
-                    return redirect(url_for('auth.index'))
+                    logger.info(f"[LOGIN] OAuth exitoso para: {email}")
+                    return redirect(url_for('main_page.index'))
                 # OAuth2 falló, intentar fallback
             except Exception as oauth_error:
+                logger.warning(f"[LOGIN] OAuth falló: {oauth_error}")
                 # OAuth2 no disponible, usar fallback
                 pass
         
@@ -221,33 +242,34 @@ def login_page():
         valid_user = os.environ.get('APP_USER', 'admin')
         valid_pass = os.environ.get('APP_PASSWORD', 'Admin1')
         
+        logger.info(f"[LOGIN] Verificando credenciales locales: {email} == {valid_user}")
+        
         if email == valid_user and password == valid_pass:
             session['logged_in'] = True
             session['user_id'] = 1
-            session['user_email'] = email
+            session['email'] = email
+            session['username'] = email
             session['user_role'] = 'admin'
-            return redirect(url_for('auth.root'))
+            logger.info(f"[LOGIN] Login exitoso para: {email}")
+            return redirect(url_for('main_page.index'))
         else:
+            logger.warning(f"[LOGIN] Credenciales incorrectas para: {email}")
             return render_template('login.html', error='Credenciales incorrectas')
             
     except Exception as e:
+        logger.error(f"[LOGIN] Error: {e}")
         return render_template('login.html', error=f'Error: {str(e)}')
 
 
 @auth_bp.route('/logout', methods=['GET', 'POST'])
 def logout_page():
     """Página de logout"""
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info("[LOGOUT] Usuario cerró sesión")
     session.clear()
     return redirect(url_for('auth.login_page'))
 
 
-@auth_bp.route('/')
-def root():
-    """Página principal"""
-    return render_template('index.html')
-
-
-@auth_bp.route('/index')
-def index():
-    """Página principal alternativa"""
-    return render_template('index.html')
+# NOTA: Las rutas / e /index están definidas en main_page_bp con @require_auth
+# Las rutas duplicadas aquí han sido eliminadas para evitar conflictos

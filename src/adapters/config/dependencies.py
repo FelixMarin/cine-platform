@@ -41,6 +41,7 @@ from src.adapters.outgoing.repositories.filesystem.serie_repository import Files
 from src.adapters.outgoing.services.omdb.client import OMDBMetadataService
 from src.adapters.outgoing.services.ffmpeg.encoder import FFmpegEncoderService
 from src.adapters.outgoing.services.oauth.client import OAuth2Client
+from src.adapters.outgoing.services.auth.auth_service import AuthService
 
 # === IMPORTS DE CASOS DE USO DEL CORE ===
 
@@ -85,6 +86,7 @@ _user_repository = None
 _metadata_service = None
 _encoder_service = None
 _oauth_service = None
+_auth_service = None
 
 # Casos de uso
 _list_movies_use_case = None
@@ -151,7 +153,7 @@ def init_repositories(use_postgresql: bool = False):
 
 def init_services():
     """Inicializa los servicios externos"""
-    global _metadata_service, _encoder_service, _oauth_service
+    global _metadata_service, _encoder_service, _oauth_service, _auth_service
     
     # OMDB Metadata Service
     _metadata_service = OMDBMetadataService()
@@ -161,6 +163,9 @@ def init_services():
     
     # OAuth2 Service
     _oauth_service = OAuth2Client()
+    
+    # Auth Service
+    _auth_service = AuthService()
 
 
 def init_use_cases():
@@ -202,9 +207,8 @@ def init_use_cases():
     _estimate_size_use_case = EstimateSizeUseCase(_encoder_service)
     
     # Auth
-    # TODO: Inicializar auth_service cuando esté implementado
-    _login_use_case = None  # LoginUseCase(auth_service, _user_repository)
-    _logout_use_case = None  # LogoutUseCase(auth_service)
+    _login_use_case = LoginUseCase(_auth_service, _user_repository)
+    _logout_use_case = LogoutUseCase(_auth_service)
 
 
 def init_all(use_postgresql: bool = False):
@@ -307,3 +311,8 @@ def get_encoder_service():
 def get_oauth_service():
     """Obtiene el servicio OAuth2"""
     return _oauth_service
+
+
+def get_auth_service():
+    """Obtiene el servicio de autenticación"""
+    return _auth_service

@@ -3,7 +3,13 @@ function playMovie(path) {
         console.error('Ruta de reproducción no válida');
         return;
     }
-    window.location.href = `/play/${path}`;
+    // Si es un ID de película (formato mov_xxxx), usar ruta específica
+    if (path.startsWith('mov_') || path.startsWith('ser_')) {
+        window.location.href = `/play/id/${path}`;
+    } else {
+        // Es una ruta legacy, usar ruta original
+        window.location.href = `/play/${path}`;
+    }
 }
 
 function setupClickOutside() {
