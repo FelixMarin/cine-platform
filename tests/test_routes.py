@@ -76,7 +76,7 @@ class TestAllBlueprints(unittest.TestCase):
         self.app.template_folder = self.template_dir
         
         # Importar función de registro de blueprints
-        from modules.routes import register_all_blueprints
+        from src.adapters.entry.web.routes import register_all_blueprints
         
         # Mock de servicios
         self.auth_service = MagicMock()
