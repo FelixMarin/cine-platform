@@ -40,6 +40,26 @@ def init_catalog_routes(
     _search_use_case = search_use_case
 
 
+@catalog_bp.route('/api/categories', methods=['GET'])
+def get_categories():
+    """Obtiene todas las categorías con películas y series"""
+    try:
+        # Obtener películas
+        movies = _list_movies_use_case.execute() if _list_movies_use_case else []
+        
+        # Obtener series
+        series = _list_series_use_case.execute() if _list_series_use_case else []
+        
+        return jsonify({
+            'movies': movies,
+            'series': series
+        })
+    except Exception as e:
+        import logging
+        logging.error(f"Error getting categories: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
 def normalize_dict(d):
     """Normaliza caracteres Unicode en diccionarios"""
     if isinstance(d, dict):

@@ -137,10 +137,10 @@ def create_app():
     from src.adapters.entry.web.routes import (
         catalog_bp, init_catalog_routes,
         player_bp, init_player_routes,
-        auth_bp, init_auth_routes,
-        optimizer_bp, init_optimizer_routes,
+        auth_bp, main_page_bp, init_auth_routes,
+        optimizer_bp, optimizer_page_bp, init_optimizer_routes,
         api_bp, init_api_routes,
-        admin_bp, init_admin_routes,
+        admin_bp, admin_page_bp, init_admin_routes,
         outputs_bp, init_outputs_routes,
         proxy_bp, init_proxy_routes,
         streaming_bp, init_streaming_routes,
@@ -167,12 +167,15 @@ def create_app():
     init_thumbnails_routes()
     
     # Registrar blueprints
+    app.register_blueprint(main_page_bp)  # Página principal y favicon
     app.register_blueprint(catalog_bp)
     app.register_blueprint(player_bp)
     app.register_blueprint(auth_bp)
     app.register_blueprint(optimizer_bp)
+    app.register_blueprint(optimizer_page_bp)  # Página del optimizador
     app.register_blueprint(api_bp)
     app.register_blueprint(admin_bp)
+    app.register_blueprint(admin_page_bp)  # Página del admin
     app.register_blueprint(outputs_bp)
     app.register_blueprint(proxy_bp)
     app.register_blueprint(streaming_bp)

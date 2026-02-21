@@ -1,9 +1,9 @@
 """
 Adaptador de entrada - Rutas del optimizador
-Blueprint para /api/optimizer
+Blueprint para /api/optimizer y /optimizer
 """
 import os
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, render_template
 
 from src.core.use_cases.optimizer import OptimizeMovieUseCase, EstimateSizeUseCase
 
@@ -20,6 +20,69 @@ def setup_logging(log_folder):
 
 
 optimizer_bp = Blueprint('optimizer', __name__)
+
+# Ruta para la página HTML del optimizador (sin prefijo /api)
+optimizer_page_bp = Blueprint('optimizer_page', __name__)
+
+@optimizer_page_bp.route('/optimizer')
+def optimizer_page():
+    """Página del optimizador de video"""
+    return render_template('optimizer.html')
+
+
+@optimizer_page_bp.route('/optimizer/profiles')
+def optimizer_profiles():
+    """API de perfiles del optimizador"""
+    from flask import jsonify
+    # Perfiles de optimización
+    profiles = {
+        "ultra_fast": {
+            "name": "ultra_fast",
+            "description": "📱 Móvil/3G - 360p (500 kbps)",
+            "preset": "veryfast",
+            "video_bitrate": "500k",
+            "audio_bitrate": "96k",
+            "resolution": "640:360",
+            "maxrate": "750k"
+        },
+        "fast": {
+            "name": "fast",
+            "description": "📱 Tablet/4G - 480p (1 Mbps)",
+            "preset": "veryfast",
+            "video_bitrate": "1000k",
+            "audio_bitrate": "128k",
+            "resolution": "854:480",
+            "maxrate": "1500k"
+        },
+        "balanced": {
+            "name": "balanced",
+            "description": "💻 WiFi - 720p (2 Mbps)",
+            "preset": "medium",
+            "video_bitrate": "2000k",
+            "audio_bitrate": "128k",
+            "resolution": "1280:720",
+            "maxrate": "3000k"
+        },
+        "high_quality": {
+            "name": "high_quality",
+            "description": "🚀 Fibra - 1080p (4 Mbps)",
+            "preset": "slow",
+            "video_bitrate": "4000k",
+            "audio_bitrate": "192k",
+            "resolution": "1920:1080",
+            "maxrate": "6000k"
+        },
+        "master": {
+            "name": "master",
+            "description": "🎬 4K - Calidad original (8 Mbps)",
+            "preset": "slow",
+            "video_bitrate": "8000k",
+            "audio_bitrate": "256k",
+            "resolution": "Original",
+            "maxrate": "12000k"
+        }
+    }
+    return jsonify(profiles)
 
 # Casos de uso inyectados
 _optimize_movie_use_case = None

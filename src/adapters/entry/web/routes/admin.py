@@ -5,6 +5,16 @@ from flask import Blueprint, render_template, jsonify
 
 admin_bp = Blueprint('admin', __name__, url_prefix='/api/admin')
 
+# Blueprint para la página HTML del admin (sin prefijo /api)
+admin_page_bp = Blueprint('admin_page', __name__)
+
+
+@admin_page_bp.route('/admin/manage')
+@admin_page_bp.route('/admin')
+def admin_page():
+    """Página del panel de administración"""
+    return render_template('admin_panel.html')
+
 
 def init_admin_routes():
     """Inicializa las rutas de admin"""

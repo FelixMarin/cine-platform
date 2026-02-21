@@ -20,6 +20,32 @@ def setup_logging(log_folder):
 
 auth_bp = Blueprint('auth', __name__)
 
+# Blueprint para la página principal (sin prefijo)
+main_page_bp = Blueprint('main_page', __name__)
+
+
+@main_page_bp.route('/status')
+def status():
+    """Estado de la API"""
+    from flask import jsonify
+    return jsonify({'status': 'ok'})
+
+
+@main_page_bp.route('/')
+def index():
+    """Página principal del catálogo"""
+    return render_template('index.html')
+
+
+@main_page_bp.route('/favicon.ico')
+def favicon():
+    """Favicon"""
+    from flask import send_from_directory
+    import os
+    # Get the static folder path - use current working directory
+    static_dir = os.path.join(os.getcwd(), 'static')
+    return send_from_directory(static_dir, 'favicon.ico', mimetype='image/vnd.microsoft.icon')
+
 # Casos de uso inyectados
 _login_use_case = None
 _logout_use_case = None
