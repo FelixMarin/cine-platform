@@ -136,14 +136,14 @@ def create_app():
     # Importar blueprints de la nueva arquitectura
     from src.adapters.entry.web.routes import (
         catalog_bp, init_catalog_routes,
-        player_bp, init_player_routes,
+        player_bp, player_page_bp, init_player_routes,
         auth_bp, main_page_bp, init_auth_routes,
         optimizer_bp, optimizer_page_bp, init_optimizer_routes,
         api_bp, init_api_routes,
         admin_bp, admin_page_bp, init_admin_routes,
         outputs_bp, init_outputs_routes,
         proxy_bp, init_proxy_routes,
-        streaming_bp, init_streaming_routes,
+        streaming_bp, stream_page_bp, init_streaming_routes,
         thumbnails_bp, init_thumbnails_routes
     )
     
@@ -170,6 +170,7 @@ def create_app():
     app.register_blueprint(main_page_bp)  # Página principal y favicon
     app.register_blueprint(catalog_bp)
     app.register_blueprint(player_bp)
+    app.register_blueprint(player_page_bp)  # Página de reproducción
     app.register_blueprint(auth_bp)
     app.register_blueprint(optimizer_bp)
     app.register_blueprint(optimizer_page_bp)  # Página del optimizador
@@ -179,6 +180,7 @@ def create_app():
     app.register_blueprint(outputs_bp)
     app.register_blueprint(proxy_bp)
     app.register_blueprint(streaming_bp)
+    app.register_blueprint(stream_page_bp)  # /stream/ para templates
     app.register_blueprint(thumbnails_bp)
     
     logger.info("[ROUTER] Blueprints registrados correctamente")

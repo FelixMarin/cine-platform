@@ -28,138 +28,162 @@
             </div>
         </section>
 
-        <!-- Sección de información de la película (solo si hay datos) -->
-        {% if movie_info and movie_info.title %}
-        <section class="movie-info">
-            <div class="info-header">
-                <!-- Póster -->
-                {% if movie_info.poster %}
-                <div class="movie-poster">
-                    <img src="{{ movie_info.poster[0] }}" 
-                        alt="{{ movie_info.title }}"
-                        onerror="this.onerror=null; this.src='{{ movie_info.poster[1] }}';">
-                </div>
-                {% else %}
-                <div class="movie-poster-placeholder">
-                    <span>🎬<br>Sin imagen</span>
-                </div>
-                {% endif %}
-
-                <!-- Cabecera -->
-                <div class="movie-header">
-                    <h2>{{ movie_info.title }} {% if movie_info.year %}<span class="movie-year">({{ movie_info.year }})</span>{% endif %}</h2>
-                    
-                    <div class="movie-meta">
-                        {% if movie_info.runtime and movie_info.runtime != 'N/A' %}
-                        <span class="meta-item">⏱️ {{ movie_info.runtime }}</span>
-                        {% endif %}
-                        
-                        {% if movie_info.released and movie_info.released != 'N/A' %}
-                        <span class="meta-item">📅 {{ movie_info.released }}</span>
-                        {% endif %}
-                        
-                        {% if movie_info.imdb_rating and movie_info.imdb_rating != 'N/A' %}
-                        <span class="meta-item rating">⭐ {{ movie_info.imdb_rating }}/10</span>
-                        {% endif %}
-                    </div>
-
-                    <!-- Géneros -->
-                    {% if movie_info.genres %}
-                    <div class="genres">
-                        {% for genre in movie_info.genres %}
-                        <span class="genre-tag">{{ genre }}</span>
-                        {% endfor %}
-                    </div>
-                    {% endif %}
-                </div>
+        <!-- Sección de información de la película (se carga de forma asíncrona) -->
+        <section class="movie-info" id="movie-info-section" style="display: none;">
+            <div class="loading-info">
+                <p>📽️ Cargando información de la película...</p>
             </div>
-
-            <!-- Sinopsis -->
-            {% if movie_info.plot and movie_info.plot != 'N/A' %}
-            <div class="plot">
-                {{ movie_info.plot }}
-            </div>
-            {% endif %}
-
-            <!-- Detalles en grid -->
-            <div class="details-grid">
-                {% if movie_info.director and movie_info.director != 'N/A' %}
-                <div class="detail-card">
-                    <div class="detail-label">Director</div>
-                    <div class="detail-value">{{ movie_info.director }}</div>
-                </div>
-                {% endif %}
-
-                {% if movie_info.writer and movie_info.writer != 'N/A' %}
-                <div class="detail-card">
-                    <div class="detail-label">Guionista</div>
-                    <div class="detail-value">{{ movie_info.writer }}</div>
-                </div>
-                {% endif %}
-
-                {% if movie_info.country and movie_info.country != 'N/A' %}
-                <div class="detail-card">
-                    <div class="detail-label">País</div>
-                    <div class="detail-value">{{ movie_info.country }}</div>
-                </div>
-                {% endif %}
-
-                {% if movie_info.language and movie_info.language != 'N/A' %}
-                <div class="detail-card">
-                    <div class="detail-label">Idioma</div>
-                    <div class="detail-value">{{ movie_info.language }}</div>
-                </div>
-                {% endif %}
-
-                {% if movie_info.box_office and movie_info.box_office != 'N/A' %}
-                <div class="detail-card">
-                    <div class="detail-label">Taquilla</div>
-                    <div class="detail-value">{{ movie_info.box_office }}</div>
-                </div>
-                {% endif %}
-
-                {% if movie_info.awards and movie_info.awards != 'N/A' %}
-                <div class="detail-card">
-                    <div class="detail-label">Premios</div>
-                    <div class="detail-value">{{ movie_info.awards }}</div>
-                </div>
-                {% endif %}
-            </div>
-
-            <!-- Ratings -->
-            {% if movie_info.ratings %}
-            <div class="ratings">
-                {% for rating in movie_info.ratings %}
-                <div class="rating-card">
-                    <div class="rating-source">{{ rating.split(' ')[0] }}</div>
-                    <div class="rating-value">{{ rating.split(' ')[1] }}</div>
-                </div>
-                {% endfor %}
-            </div>
-            {% endif %}
-
-            <!-- Reparto -->
-            {% if movie_info.cast %}
-            <div class="cast-section">
-                <h3>Reparto principal</h3>
-                <div class="cast-list">
-                    {% for actor in movie_info.cast %}
-                    <span class="cast-item">{{ actor }}</span>
-                    {% endfor %}
-                </div>
-            </div>
-            {% endif %}
         </section>
 
         <!-- Mensaje si no hay información -->
-        {% else %}
-        <div class="no-info">
+        <div class="no-info" id="no-movie-info" style="display: none;">
             <p>🎬 No se encontró información adicional para esta película</p>
             <p class="no-info-sub">Puedes seguir viendo la película sin problemas</p>
         </div>
-        {% endif %}
     </div>
 
+    <!-- Datos de la película para carga asíncrona -->
+    <div id="movie-data" 
+         data-title="{{ clean_title | default('') }}" 
+         data-year="{{ year if year else '' }}"
+         style="display: none;">
+    </div>
+    
     <script src="{{ url_for('static', filename='js/play/play.js') }}?v={{ range(1, 10000) | random }}" defer></script>
+    
+    <script>
+    // Cargar metadatos de forma asíncrona
+    (function() {
+        var movieDataEl = document.getElementById('movie-data');
+        var cleanTitle = movieDataEl ? movieDataEl.getAttribute('data-title') : '';
+        var movieYear = movieDataEl ? movieDataEl.getAttribute('data-year') : '';
+        
+        if (cleanTitle) {
+            var url = '/api/movie/metadata?title=' + encodeURIComponent(cleanTitle);
+            if (movieYear) {
+                url += '&year=' + movieYear;
+            }
+            
+            fetch(url)
+                .then(function(response) {
+                    if (!response.ok) {
+                        throw new Error('Error en la respuesta');
+                    }
+                    return response.json();
+                })
+                .then(function(data) {
+                    if (data && data.title) {
+                        mostrarMovieInfo(data);
+                    } else {
+                        mostrarNoInfo();
+                    }
+                })
+                .catch(function(error) {
+                    console.log('No se pudieron cargar los metadatos:', error);
+                    mostrarNoInfo();
+                });
+        } else {
+            mostrarNoInfo();
+        }
+        
+        function mostrarMovieInfo(data) {
+            var section = document.getElementById('movie-info-section');
+            var noInfo = document.getElementById('no-movie-info');
+            
+            if (!section) return;
+            
+            var html = '';
+            
+            html += '<div class="info-header">';
+            
+            if (data.poster) {
+                html += '<div class="movie-poster">';
+                html += '<img src="' + data.poster[0] + '" alt="' + data.title + '" onerror="this.onerror=null; this.src=\'' + data.poster[1] + '\';" />';
+                html += '</div>';
+            } else {
+                html += '<div class="movie-poster-placeholder"><span>🎬<br>Sin imagen</span></div>';
+            }
+            
+            html += '<div class="movie-header">';
+            html += '<h2>' + data.title + (data.year ? ' <span class="movie-year">(' + data.year + ')</span></h2>' : '</h2>');
+            
+            html += '<div class="movie-meta">';
+            if (data.runtime && data.runtime !== 'N/A') {
+                html += '<span class="meta-item">⏱️ ' + data.runtime + '</span>';
+            }
+            if (data.released && data.released !== 'N/A') {
+                html += '<span class="meta-item">📅 ' + data.released + '</span>';
+            }
+            if (data.imdb_rating && data.imdb_rating !== 'N/A') {
+                html += '<span class="meta-item rating">⭐ ' + data.imdb_rating + '/10</span>';
+            }
+            html += '</div>';
+            
+            if (data.genres && data.genres.length > 0) {
+                html += '<div class="genres">';
+                data.genres.forEach(function(genre) {
+                    html += '<span class="genre-tag">' + genre + '</span>';
+                });
+                html += '</div>';
+            }
+            
+            html += '</div></div>';
+            
+            if (data.plot && data.plot !== 'N/A') {
+                html += '<div class="plot">' + data.plot + '</div>';
+            }
+            
+            html += '<div class="details-grid">';
+            if (data.director && data.director !== 'N/A') {
+                html += '<div class="detail-card"><div class="detail-label">Director</div><div class="detail-value">' + data.director + '</div></div>';
+            }
+            if (data.writer && data.writer !== 'N/A') {
+                html += '<div class="detail-card"><div class="detail-label">Guionista</div><div class="detail-value">' + data.writer + '</div></div>';
+            }
+            if (data.country && data.country !== 'N/A') {
+                html += '<div class="detail-card"><div class="detail-label">País</div><div class="detail-value">' + data.country + '</div></div>';
+            }
+            if (data.language && data.language !== 'N/A') {
+                html += '<div class="detail-card"><div class="detail-label">Idioma</div><div class="detail-value">' + data.language + '</div></div>';
+            }
+            if (data.box_office && data.box_office !== 'N/A') {
+                html += '<div class="detail-card"><div class="detail-label">Taquilla</div><div class="detail-value">' + data.box_office + '</div></div>';
+            }
+            if (data.awards && data.awards !== 'N/A') {
+                html += '<div class="detail-card"><div class="detail-label">Premios</div><div class="detail-value">' + data.awards + '</div></div>';
+            }
+            html += '</div>';
+            
+            if (data.ratings && data.ratings.length > 0) {
+                html += '<div class="ratings">';
+                data.ratings.forEach(function(rating) {
+                    var parts = rating.split(' ');
+                    html += '<div class="rating-card"><div class="rating-source">' + parts[0] + '</div><div class="rating-value">' + (parts[1] || '') + '</div></div>';
+                });
+                html += '</div>';
+            }
+            
+            if (data.cast && data.cast.length > 0) {
+                html += '<div class="cast-section"><h3>Reparto principal</h3><div class="cast-list">';
+                data.cast.forEach(function(actor) {
+                    html += '<span class="cast-item">' + actor + '</span>';
+                });
+                html += '</div></div>';
+            }
+            
+            section.innerHTML = html;
+            section.style.display = 'block';
+            if (noInfo) noInfo.style.display = 'none';
+        }
+        
+        function mostrarNoInfo() {
+            var section = document.getElementById('movie-info-section');
+            var noInfo = document.getElementById('no-movie-info');
+            
+            if (section) section.style.display = 'none';
+            if (noInfo) noInfo.style.display = 'block';
+        }
+    })();
+    </script>
 </body>
 </html>

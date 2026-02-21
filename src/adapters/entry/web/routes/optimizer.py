@@ -84,6 +84,42 @@ def optimizer_profiles():
     }
     return jsonify(profiles)
 
+
+@optimizer_page_bp.route('/process-file', methods=['POST'])
+def process_file():
+    """Procesa un archivo de video para optimización"""
+    from flask import request, jsonify
+    import os
+    
+    # Obtener la carpeta de uploads desde variables de entorno
+    upload_folder = os.environ.get('UPLOAD_FOLDER', '/home/jetson/Public/cine-app/cine-platform/uploads')
+    
+    if 'file' not in request.files:
+        return jsonify({'error': 'No se ha proporcionado ningún archivo'}), 400
+    
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'error': 'No se ha seleccionado ningún archivo'}), 400
+    
+    try:
+        # Guardar el archivo
+        filename = file.filename
+        filepath = os.path.join(upload_folder, filename)
+        file.save(filepath)
+        
+        # Obtener perfil
+        profile = request.form.get('profile', 'balanced')
+        
+        # Notificar que el archivo está listo para procesar
+        return jsonify({
+            'success': True,
+            'message': f'Archivo {filename} subido correctamente',
+            'file_path': filepath,
+            'profile': profile
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 # Casos de uso inyectados
 _optimize_movie_use_case = None
 _estimate_size_use_case = None

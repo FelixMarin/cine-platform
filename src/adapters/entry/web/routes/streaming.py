@@ -7,6 +7,15 @@ import mimetypes
 
 streaming_bp = Blueprint('streaming', __name__, url_prefix='/api/streaming')
 
+# Blueprint adicional para /stream/ (sin prefijo /api/)
+stream_page_bp = Blueprint('stream_page', __name__)
+
+
+@stream_page_bp.route('/stream/<path:filename>')
+def stream_page_video(filename):
+    """Stream de video en /stream/ (para compatibilidad con templates)"""
+    return stream_video(filename)
+
 
 def init_streaming_routes():
     """Inicializa las rutas de streaming"""
@@ -18,7 +27,25 @@ def stream_video(filename):
     """Stream de video con soporte para Range requests"""
     # Obtener la ruta del archivo
     movies_folder = os.environ.get('MOVIES_FOLDER', '/mnt/servidor/Data2TB/audiovisual')
-    file_path = os.path.join(movies_folder, filename)
+    
+    # URL decode el filename
+    import urllib.parse
+    filename = urllib.parse.unquote(filename)
+    
+    # El path de la URL no incluye el leading slash, pero las rutas son absolutas
+    # Agregar '/' al inicio si no lo tiene
+    if not filename.startswith('/'):
+        filename = '/' + filename
+    
+    # Verificar si es una ruta válida existente
+    # Primero probar como ruta absoluta
+    if os.path.exists(filename):
+        file_path = filename
+    # Luego probar prependeando MOVIES_FOLDER
+    elif os.path.exists(os.path.join(movies_folder, filename)):
+        file_path = os.path.join(movies_folder, filename)
+    else:
+        return 'File not found', 404
     
     if not os.path.exists(file_path):
         return 'File not found', 404

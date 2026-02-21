@@ -58,7 +58,6 @@ h1 {
 
 video { 
     width: 100%;
-    max-height: 70vh;
     display: block;
     background: #000;
 }
