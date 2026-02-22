@@ -7,7 +7,7 @@ from src.adapters.entry.web.routes.auth import auth_bp, main_page_bp, init_auth_
 from src.adapters.entry.web.routes.optimizer import optimizer_bp, optimizer_page_bp, init_optimizer_routes
 from src.adapters.entry.web.routes.api import api_bp, init_api_routes
 from src.adapters.entry.web.routes.admin import admin_bp, admin_page_bp, init_admin_routes
-from src.adapters.entry.web.routes.outputs import outputs_bp, init_outputs_routes
+from src.adapters.entry.web.routes.outputs import outputs_bp, init_outputs_routes, download_bp
 from src.adapters.entry.web.routes.proxy import proxy_bp, init_proxy_routes
 from src.adapters.entry.web.routes.streaming import streaming_bp, stream_page_bp, init_streaming_routes
 from src.adapters.entry.web.routes.thumbnails import thumbnails_bp, init_thumbnails_routes
@@ -30,6 +30,7 @@ def register_all_blueprints(app, auth_service=None, media_service=None, optimize
     app.register_blueprint(admin_page_bp)  # Página HTML del admin
     app.register_blueprint(api_bp)
     app.register_blueprint(outputs_bp)
+    app.register_blueprint(download_bp)  # /download/ - solo admins
     app.register_blueprint(proxy_bp)
     app.register_blueprint(streaming_bp)
     app.register_blueprint(stream_page_bp)  # /stream/ para templates

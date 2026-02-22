@@ -4,6 +4,7 @@ Blueprint para /api/optimizer y /optimizer
 """
 import os
 from flask import Blueprint, jsonify, request, render_template
+from src.adapters.entry.web.middleware.auth_middleware import require_auth
 
 from src.core.use_cases.optimizer import OptimizeMovieUseCase, EstimateSizeUseCase
 
@@ -25,12 +26,14 @@ optimizer_bp = Blueprint('optimizer', __name__)
 optimizer_page_bp = Blueprint('optimizer_page', __name__)
 
 @optimizer_page_bp.route('/optimizer')
+@require_auth
 def optimizer_page():
     """Página del optimizador de video"""
     return render_template('optimizer.html')
 
 
 @optimizer_page_bp.route('/optimizer/profiles')
+@require_auth
 def optimizer_profiles():
     """API de perfiles del optimizador"""
     from flask import jsonify

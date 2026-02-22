@@ -28,7 +28,11 @@
                 </video>
                 
                 <div class="video-controls">
+                    {% if is_admin %}
                     <a href="/download/{{ filename }}" class="download-btn">⬇️ Descargar película</a>
+                    {% else %}
+                    <span class="download-disabled" title="Solo administradores pueden descargar">🔒 Descargar (admin)</span>
+                    {% endif %}
                 </div>
             </div>
         </section>
