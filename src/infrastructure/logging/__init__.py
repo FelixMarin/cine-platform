@@ -17,7 +17,7 @@ def setup_logging(log_folder=None):
         Logger configurado
     """
     if log_folder is None:
-        log_folder = os.environ.get('LOG_FOLDER', '/tmp/cineplatform/logs')
+        log_folder = os.environ.get('LOG_FOLDER', './logs')
     
     # Crear carpeta de logs
     os.makedirs(log_folder, exist_ok=True)

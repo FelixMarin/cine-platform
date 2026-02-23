@@ -51,3 +51,6 @@ k3s/cine-secret.yaml
 
 .coverage
 htmlcov/
+
+*.txt
+.movie_index_cache.json
