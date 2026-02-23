@@ -47,4 +47,4 @@ class Settings:
 
 
 # Instancia global de configuración
-settings = Settings.get_instance()
+settings = Settings()
