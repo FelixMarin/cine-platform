@@ -195,7 +195,7 @@ def verify_token():
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login_page():
-    """Página de login (GET) y procesamiento del login (POST)"""
+    """Página de login - GET muestra formulario OAuth2, POST es fallback"""
     from src.adapters.config.dependencies import get_oauth_service
     import os
     import logging
@@ -204,9 +204,21 @@ def login_page():
     if request.method == 'GET':
         if is_logged_in():
             return redirect(url_for('main_page.index'))
-        return render_template('login.html')
+        
+        # Obtener configuración OAuth2
+        oauth_service = get_oauth_service()
+        oauth2_url = os.environ.get('OAUTH2_URL', 'http://localhost:8080').rstrip('/')
+        client_id = os.environ.get('OAUTH2_CLIENT_ID', 'cine-platform')
+        client_secret = os.environ.get('OAUTH2_CLIENT_SECRET', 'cine-platform-secret')
+        redirect_uri = os.environ.get('OAUTH2_REDIRECT_URI', 'http://localhost:5000/oauth/callback')
+        
+        return render_template('login.html', 
+                              oauth2_url=oauth2_url,
+                              client_id=client_id,
+                              client_secret=client_secret,
+                              redirect_uri=redirect_uri)
     
-    # POST - Procesar login
+    # POST - Procesar login (fallback para desarrollo)
     try:
         email = request.form.get('email')
         password = request.form.get('password')
@@ -261,11 +273,176 @@ def login_page():
         return render_template('login.html', error=f'Error: {str(e)}')
 
 
+@auth_bp.route('/auth/callback', methods=['POST'])
+def oauth_callback():
+    """
+    Callback de OAuth2 - Intercambia código por token
+    
+    El código viene del frontend que hizo la redirección original.
+    El code_verifier está en el body (desde sessionStorage del cliente).
+    """
+    from src.adapters.config.dependencies import get_oauth_service
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    try:
+        data = request.get_json()
+        code = data.get('code')
+        code_verifier = data.get('code_verifier')
+        
+        if not code or not code_verifier:
+            logger.warning("[OAUTH_CALLBACK] Código o verifier faltante")
+            return jsonify({'success': False, 'error': 'Código o verifier faltante'}), 400
+        
+        logger.info("[OAUTH_CALLBACK] Intercambiando código por token")
+        
+        # Obtener servicio OAuth
+        oauth_service = get_oauth_service()
+        
+        if not oauth_service:
+            logger.error("[OAUTH_CALLBACK] Servicio OAuth no disponible")
+            return jsonify({'success': False, 'error': 'Servicio OAuth no disponible'}), 500
+        
+        # Intercambiar código por token
+        success, token_data = oauth_service.exchange_code_for_token(code, code_verifier)
+        
+        if not success:
+            logger.error(f"[OAUTH_CALLBACK] Error intercambiando código: {token_data}")
+            return jsonify({'success': False, 'error': token_data.get('error', 'Error desconocido')}), 400
+        
+        # Obtener información del usuario
+        access_token = token_data.get('access_token')
+        user_info = oauth_service.get_userinfo(access_token)
+        
+        # Guardar en sesión
+        session['logged_in'] = True
+        session['user_id'] = user_info.get('sub', 1) if user_info else 1
+        session['email'] = user_info.get('email', '') if user_info else ''
+        session['username'] = user_info.get('preferred_username', user_info.get('name', 'user')) if user_info else 'user'
+        session['user_role'] = 'admin'  # Por defecto, o extraer del token
+        session['oauth_token'] = access_token
+        session['oauth_refresh_token'] = token_data.get('refresh_token')
+        
+        logger.info(f"[OAUTH_CALLBACK] Login OAuth2 exitoso para: {session.get('username')}")
+        
+        return jsonify({'success': True})
+        
+    except Exception as e:
+        logger.error(f"[OAUTH_CALLBACK] Error: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@auth_bp.route('/oauth/callback', methods=['GET'])
+def oauth_callback_redirect():
+    """
+    Callback de OAuth2 - Recibe la redirección del servidor OAuth2 con el código
+    
+    El servidor OAuth2 redirige a esta ruta con:
+    - code: código de autorización
+    - state: state codificado en base64url (contiene {s: state, v: code_verifier})
+    """
+    from src.adapters.config.dependencies import get_oauth_service
+    import logging
+    from flask import redirect, url_for
+    import base64
+    import json
+    
+    logger = logging.getLogger(__name__)
+    
+    try:
+        code = request.args.get('code')
+        encoded_state = request.args.get('state')
+        
+        if not code:
+            logger.warning("[OAUTH_CALLBACK_REDIRECT] Código faltante")
+            return "Código faltante", 400
+        
+        # Decodificar el state desde base64url
+        code_verifier = None
+        original_state = None
+        
+        if encoded_state:
+            try:
+                # Convertir base64url a base64 estándar
+                # Reemplazar - con + y _ con /
+                padded_state = encoded_state.replace('-', '+').replace('_', '/')
+                # Añadir padding si es necesario
+                padding = 4 - len(padded_state) % 4
+                if padding != 4:
+                    padded_state += '=' * padding
+                
+                # Decodificar
+                state_data = json.loads(base64.b64decode(padded_state).decode('utf-8'))
+                original_state = state_data.get('s')
+                code_verifier = state_data.get('v')
+                logger.info("[OAUTH_CALLBACK_REDIRECT] Code verifier extraído del state codificado")
+            except Exception as e:
+                logger.warning(f"[OAUTH_CALLBACK_REDIRECT] Error decodificando state: {e}")
+        
+        if not code_verifier:
+            logger.warning("[OAUTH_CALLBACK_REDIRECT] Code verifier faltante")
+            return "Code verifier faltante. Inicia sesión desde el formulario de login.", 400
+        
+        logger.info(f"[OAUTH_CALLBACK_REDIRECT] Intercambiando código por token con verifier: {code_verifier[:20]}...")
+        
+        # Obtener servicio OAuth
+        oauth_service = get_oauth_service()
+        
+        if not oauth_service:
+            logger.error("[OAUTH_CALLBACK_REDIRECT] Servicio OAuth no disponible")
+            return "Servicio OAuth no disponible", 500
+        
+        # Intercambiar código por token
+        success, token_data = oauth_service.exchange_code_for_token(code, code_verifier)
+        
+        if not success:
+            logger.error(f"[OAUTH_CALLBACK_REDIRECT] Error intercambiando código: {token_data}")
+            return f"Error intercambiando código: {token_data.get('error', 'Error desconocido')}", 400
+        
+        # Obtener información del usuario
+        access_token = token_data.get('access_token')
+        user_info = oauth_service.get_userinfo(access_token)
+        
+        # Guardar en sesión
+        session['logged_in'] = True
+        session['user_id'] = user_info.get('sub', 1) if user_info else 1
+        session['email'] = user_info.get('email', '') if user_info else ''
+        session['username'] = user_info.get('preferred_username', user_info.get('name', 'user')) if user_info else 'user'
+        session['user_role'] = 'admin'
+        session['oauth_token'] = access_token
+        session['oauth_refresh_token'] = token_data.get('refresh_token')
+        
+        # Limpiar state y verifier de sesión
+        session.pop('oauth_state', None)
+        session.pop('oauth_code_verifier', None)
+        
+        logger.info(f"[OAUTH_CALLBACK_REDIRECT] Login OAuth2 exitoso para: {session.get('username')}")
+        
+        # Redirigir a la página principal
+        return redirect(url_for('main_page.index'))
+        
+    except Exception as e:
+        logger.error(f"[OAUTH_CALLBACK_REDIRECT] Error: {str(e)}")
+        return f"Error: {str(e)}", 500
+
+
 @auth_bp.route('/logout', methods=['GET', 'POST'])
 def logout_page():
     """Página de logout"""
+    from src.adapters.config.dependencies import get_oauth_service
     import logging
     logger = logging.getLogger(__name__)
+    
+    # Intentar revocar token
+    try:
+        oauth_token = session.get('oauth_token')
+        if oauth_token:
+            oauth_service = get_oauth_service()
+            if oauth_service:
+                oauth_service.revoke_token(oauth_token)
+    except:
+        pass
+    
     logger.info("[LOGOUT] Usuario cerró sesión")
     session.clear()
     return redirect(url_for('auth.login_page'))
