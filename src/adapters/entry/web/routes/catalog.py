@@ -5,6 +5,7 @@ Blueprint para /api/movies y endpoints relacionados
 import unicodedata
 import os
 from flask import Blueprint, jsonify, request
+from src.adapters.entry.web.middleware.auth_middleware import require_auth
 
 from src.core.use_cases.catalog import ListMoviesUseCase, ListSeriesUseCase, SearchUseCase
 
@@ -73,6 +74,7 @@ def normalize_dict(d):
 
 
 @catalog_bp.route('/api/movies', methods=['GET'])
+@require_auth
 def get_movies():
     """Obtiene la lista de películas agrupadas por categorías"""
     global _list_movies_use_case, _list_series_use_case

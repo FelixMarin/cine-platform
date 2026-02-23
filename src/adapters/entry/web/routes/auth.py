@@ -207,10 +207,10 @@ def login_page():
         
         # Obtener configuración OAuth2
         oauth_service = get_oauth_service()
-        oauth2_url = os.environ.get('OAUTH2_URL', 'http://localhost:8080').rstrip('/')
+        oauth2_url = os.environ.get('PUBLIC_OAUTH2_URL', 'http://localhost:8080').rstrip('/')
         client_id = os.environ.get('OAUTH2_CLIENT_ID', 'cine-platform')
         client_secret = os.environ.get('OAUTH2_CLIENT_SECRET', 'cine-platform-secret')
-        redirect_uri = os.environ.get('OAUTH2_REDIRECT_URI', 'http://localhost:5000/oauth/callback')
+        redirect_uri = os.environ.get('PUBLIC_REDIRECT_URI', 'http://localhost:5000/oauth/callback')
         
         return render_template('login.html', 
                               oauth2_url=oauth2_url,

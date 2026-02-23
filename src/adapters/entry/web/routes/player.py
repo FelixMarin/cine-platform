@@ -6,6 +6,7 @@ import os
 import re
 import urllib.parse
 from flask import Blueprint, jsonify, request, session, Response, stream_with_context, render_template
+from src.adapters.entry.web.middleware.auth_middleware import require_auth
 
 # Importar casos de uso (se inicializan después)
 from src.core.use_cases.player import (
@@ -43,6 +44,7 @@ def clean_filename(filename):
 
 
 @player_page_bp.route('/play/<path:media_path>')
+@require_auth
 def play_page(media_path):
     """Página de reproducción de video"""
     # URL decode the path

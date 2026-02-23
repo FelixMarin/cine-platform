@@ -56,6 +56,18 @@ spec:
                   name: cine-secret
                   key: OAUTH2_REDIRECT_URI
 
+            - name: PUBLIC_OAUTH2_URL
+              valueFrom:
+                secretKeyRef:
+                  name: cine-secret
+                  key: PUBLIC_OAUTH2_URL
+
+            - name: PUBLIC_REDIRECT_URI
+              valueFrom:
+                secretKeyRef:
+                  name: cine-secret
+                  key: PUBLIC_REDIRECT_URI
+
             - name: SESSION_COOKIE_DOMAIN
               valueFrom:
                 secretKeyRef:

@@ -10,46 +10,40 @@ from typing import Optional
 class Settings:
     """Configuración centralizada de la aplicación"""
     
-    # Rutas
-    MOVIES_FOLDER: str = os.environ.get('MOVIES_FOLDER', '/mnt/servidor/Data2TB/audiovisual')
-    SERIES_FOLDER: str = os.environ.get('SERIES_FOLDER', '/mnt/servidor/Data2TB/audiovisual/series')
-    UPLOAD_FOLDER: str = os.environ.get('UPLOAD_FOLDER', '/tmp/cineplatform/uploads')
-    OUTPUT_FOLDER: str = os.environ.get('OUTPUT_FOLDER', '/tmp/cineplatform/outputs')
-    THUMBNAIL_FOLDER: str = os.environ.get('THUMBNAIL_FOLDER', '/tmp/cineplatform/thumbnails')
-    LOG_FOLDER: str = os.environ.get('LOG_FOLDER', '/tmp/cineplatform/logs')
+    # ... (todo lo que ya tienes) ...
     
-    # Base de datos PostgreSQL
-    POSTGRES_HOST: str = os.environ.get('POSTGRES_HOST', 'localhost')
-    POSTGRES_PORT: int = int(os.environ.get('POSTGRES_PORT', '5432'))
-    POSTGRES_DB: str = os.environ.get('POSTGRES_DB', 'cineplatform')
-    POSTGRES_USER: str = os.environ.get('POSTGRES_USER', 'postgres')
-    POSTGRES_PASSWORD: str = os.environ.get('POSTGRES_PASSWORD', '')
-    
-    # OMDB API
-    OMDB_API_KEY: str = os.environ.get('OMDB_API_KEY', '')
-    OMDB_LANGUAGE: str = os.environ.get('OMDB_LANGUAGE', 'es')
-    
-    # OAuth
+    # ============================
+    # 🔐 OAuth2 - Comunicación INTERNA (backend-to-backend)
+    # ============================
     OAUTH2_URL: str = os.environ.get('OAUTH2_URL', '')
     OAUTH2_CLIENT_ID: str = os.environ.get('OAUTH2_CLIENT_ID', '')
     OAUTH2_CLIENT_SECRET: str = os.environ.get('OAUTH2_CLIENT_SECRET', '')
     
-    # Aplicación
-    SECRET_KEY: str = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
-    DEBUG: bool = os.environ.get('DEBUG', 'false').lower() == 'true'
+    # ============================
+    # 🌐 OAuth2 - URLs PÚBLICAS (para el navegador)
+    # ============================
+    PUBLIC_OAUTH2_URL: str = os.environ.get('PUBLIC_OAUTH2_URL', '')
+    PUBLIC_REDIRECT_URI: str = os.environ.get('PUBLIC_REDIRECT_URI', '')
     
-    # FFmpeg
-    FFMPEG_THREADS: int = int(os.environ.get('FFMPEG_THREADS', '4'))
+    # ============================
+    # 📍 OAuth2 - Endpoints (desde ConfigMap)
+    # ============================
+    OAUTH2_AUTHORIZE_ENDPOINT: str = os.environ.get('OAUTH2_AUTHORIZE_ENDPOINT', '/oauth2/authorize')
+    OAUTH2_TOKEN_ENDPOINT: str = os.environ.get('OAUTH2_TOKEN_ENDPOINT', '/oauth/token')
+    OAUTH2_USERINFO_ENDPOINT: str = os.environ.get('OAUTH2_USERINFO_ENDPOINT', '/user/me')
+    OAUTH2_REVOKE_ENDPOINT: str = os.environ.get('OAUTH2_REVOKE_ENDPOINT', '/oauth2/revoke')
     
-    # PostgreSQL disponible (para migración)
-    USE_POSTGRESQL: bool = os.environ.get('USE_POSTGRESQL', 'false').lower() == 'true'
+    # ... resto de tu configuración ...
     
     @classmethod
-    def get_instance(cls) -> 'Settings':
-        """Obtiene la instancia singleton"""
-        if not hasattr(cls, '_instance'):
-            cls._instance = cls()
-        return cls._instance
+    def get_oauth_config_for_frontend(cls) -> dict:
+        """Devuelve la configuración OAuth2 para el frontend"""
+        return {
+            'serverUrl': cls.PUBLIC_OAUTH2_URL,
+            'clientId': cls.OAUTH2_CLIENT_ID,
+            'redirectUri': cls.PUBLIC_REDIRECT_URI,
+            'scopes': 'openid profile read write'
+        }
 
 
 # Instancia global de configuración

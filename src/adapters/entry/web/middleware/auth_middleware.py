@@ -42,7 +42,7 @@ def require_role(*roles):
             if user_role not in roles:
                 if request.is_json or request.path.startswith('/api/'):
                     return jsonify({'error': 'Permisos insuficientes', 'code': 'FORBIDDEN'}), 403
-                return redirect(url_for('auth.index'))
+                return redirect(url_for('auth.login_page'))
             
             return f(*args, **kwargs)
         return decorated_function

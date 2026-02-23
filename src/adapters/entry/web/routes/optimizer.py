@@ -4,7 +4,7 @@ Blueprint para /api/optimizer y /optimizer
 """
 import os
 from flask import Blueprint, jsonify, request, render_template
-from src.adapters.entry.web.middleware.auth_middleware import require_auth
+from src.adapters.entry.web.middleware.auth_middleware import require_auth, require_role
 
 from src.core.use_cases.optimizer import OptimizeMovieUseCase, EstimateSizeUseCase
 
@@ -26,14 +26,14 @@ optimizer_bp = Blueprint('optimizer', __name__)
 optimizer_page_bp = Blueprint('optimizer_page', __name__)
 
 @optimizer_page_bp.route('/optimizer')
-@require_auth
+@require_role('admin')
 def optimizer_page():
     """Página del optimizador de video"""
     return render_template('optimizer.html')
 
 
 @optimizer_page_bp.route('/optimizer/profiles')
-@require_auth
+@require_role('admin')
 def optimizer_profiles():
     """API de perfiles del optimizador"""
     from flask import jsonify
@@ -213,6 +213,8 @@ def get_status():
 
 
 @optimizer_bp.route('/api/optimizer/cancel', methods=['POST'])
+@require_auth
+@require_role('admin')
 def cancel_current():
     """Cancela el procesamiento actual"""
     global _optimize_movie_use_case

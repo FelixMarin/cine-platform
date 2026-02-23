@@ -6,8 +6,21 @@ import sys
 import os
 from unittest.mock import Mock, MagicMock
 
-project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))))
+# Agregar el directorio raíz al path para poder importar
+# Este archivo está en: tests/src/core/use_cases/auth/test_auth.py
+# El raíz del proyecto es: cine-platform (5 niveles arriba)
+test_dir = os.path.dirname(os.path.abspath(__file__))
+# auth -> use_cases -> core -> tests -> project_root (5 niveles)
+project_root = os.path.abspath(os.path.join(test_dir, '..', '..', '..', '..', '..'))
+
+# Agregar el raíz y src al path
 sys.path.insert(0, project_root)
+sys.path.insert(0, os.path.join(project_root, 'src'))
+
+# Verificar la configuración del path (debug)
+print(f"Test directory: {test_dir}")
+print(f"Project root: {project_root}")
+print(f"Path: {sys.path[:3]}")
 
 from src.core.use_cases.auth.login import LoginUseCase, LogoutUseCase
 
