@@ -9,16 +9,8 @@ from src.adapters.entry.web.middleware.auth_middleware import require_auth
 
 from src.core.use_cases.catalog import ListMoviesUseCase, ListSeriesUseCase, SearchUseCase
 
-logger = None
-
-
-def setup_logging(log_folder):
-    """Setup de logging - se configurará después"""
-    import logging
-    global logger
-    if logger is None:
-        logger = logging.getLogger(__name__)
-    return logger
+from src.infrastructure.logging import setup_logging
+logger = setup_logging(os.environ.get("LOG_FOLDER"))
 
 
 catalog_bp = Blueprint('catalog', __name__)

@@ -6,29 +6,13 @@ from flask import Blueprint, jsonify, request, session, render_template, redirec
 import os
 import base64
 import json
-import logging
 
 from src.core.use_cases.auth import LoginUseCase, LogoutUseCase
 from src.adapters.entry.web.middleware.auth_middleware import require_auth
 from src.adapters.config.dependencies import get_oauth_service
 
-# Logger global
-logger = None
-
-
-def _get_logger():
-    """Obtener o crear el logger"""
-    global logger
-    if logger is None:
-        import logging
-        logger = logging.getLogger(__name__)
-    return logger
-
-
-def setup_logging(log_folder):
-    """Setup de logging - se configurará después"""
-    return _get_logger()
-
+from src.infrastructure.logging import setup_logging
+logger = setup_logging(os.environ.get("LOG_FOLDER"))
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -87,10 +71,10 @@ def login():
     """Endpoint de login"""
     global _login_use_case
     
-    _get_logger().info(f"[API LOGIN] Intento de login - LoginUseCase: {_login_use_case}")
+    logger.info(f"[API LOGIN] Intento de login - LoginUseCase: {_login_use_case}")
     
     if _login_use_case is None:
-        _get_logger().error("[API LOGIN] LoginUseCase no inicializado")
+        logger.error("[API LOGIN] LoginUseCase no inicializado")
         return jsonify({'error': 'Servicio no inicializado'}), 500
     
     try:
@@ -102,7 +86,7 @@ def login():
         if not email or not password:
             return jsonify({'error': 'Email y password son requeridos'}), 400
         
-        _get_logger().info(f"[API LOGIN] Email: {email}")
+        logger.info(f"[API LOGIN] Email: {email}")
         
         success, user_data = _login_use_case.execute(email, password)
         
@@ -114,21 +98,21 @@ def login():
             session['username'] = user_data.get('username')
             session['user_role'] = user_data.get('role', 'admin')
             
-            _get_logger().info(f"[API LOGIN] Login exitoso para: {email}")
+            logger.info(f"[API LOGIN] Login exitoso para: {email}")
             
             return jsonify({
                 'success': True,
                 'user': user_data
             })
         else:
-            _get_logger().warning(f"[API LOGIN] Credenciales incorrectas para: {email}")
+            logger.warning(f"[API LOGIN] Credenciales incorrectas para: {email}")
             return jsonify({
                 'success': False,
                 'error': 'Credenciales inválidas'
             }), 401
     
     except Exception as e:
-        _get_logger().error(f"[API LOGIN] Error: {e}")
+        logger.error(f"[API LOGIN] Error: {e}")
         return jsonify({'error': str(e)}), 500
 
 
@@ -212,7 +196,8 @@ def login_page():
             if not value:
                 return default
             try:
-                return base64.b64decode(value).decode('utf-8').rstrip('/')
+                decoded = base64.b64decode(value).decode('utf-8').strip()
+                return decoded.rstrip('/')
             except:
                 return default
         
@@ -235,9 +220,9 @@ def login_page():
         )
         
         # Logging para depuración
-        _get_logger().info(f"PUBLIC_OAUTH2_URL decodificada: {oauth2_url}")
-        _get_logger().info(f"OAUTH2_CLIENT_ID: {client_id}")
-        _get_logger().info(f"PUBLIC_REDIRECT_URI decodificada: {redirect_uri}")
+        logger.info(f"PUBLIC_OAUTH2_URL decodificada: {oauth2_url}")
+        logger.info(f"OAUTH2_CLIENT_ID: {client_id}")
+        logger.info(f"PUBLIC_REDIRECT_URI decodificada: {redirect_uri}")
         
         return render_template('login.html', 
                               oauth2_url=oauth2_url,
@@ -253,7 +238,7 @@ def login_page():
         if not email or not password:
             return render_template('login.html', error='Email y contraseña requeridos')
         
-        _get_logger().info(f"[LOGIN] Intento de login para usuario: {email}")
+        logger.info(f"[LOGIN] Intento de login para usuario: {email}")
         
         # Intentar OAuth2 primero
         oauth_service = get_oauth_service()
@@ -268,11 +253,11 @@ def login_page():
                     session['username'] = user_data.get('username', email)
                     session['user_role'] = 'admin'
                     session['oauth_token'] = oauth_service.token
-                    _get_logger().info(f"[LOGIN] OAuth exitoso para: {email}")
+                    logger.info(f"[LOGIN] OAuth exitoso para: {email}")
                     return redirect(url_for('main_page.index'))
                 # OAuth2 falló, intentar fallback
             except Exception as oauth_error:
-                _get_logger().warning(f"[LOGIN] OAuth falló: {oauth_error}")
+                logger.warning(f"[LOGIN] OAuth falló: {oauth_error}")
                 # OAuth2 no disponible, usar fallback
                 pass
         
@@ -280,7 +265,7 @@ def login_page():
         valid_user = os.environ.get('APP_USER', 'admin')
         valid_pass = os.environ.get('APP_PASSWORD', 'Admin1')
         
-        _get_logger().info(f"[LOGIN] Verificando credenciales locales: {email} == {valid_user}")
+        logger.info(f"[LOGIN] Verificando credenciales locales: {email} == {valid_user}")
         
         if email == valid_user and password == valid_pass:
             session['logged_in'] = True
@@ -288,14 +273,14 @@ def login_page():
             session['email'] = email
             session['username'] = email
             session['user_role'] = 'admin'
-            _get_logger().info(f"[LOGIN] Login exitoso para: {email}")
+            logger.info(f"[LOGIN] Login exitoso para: {email}")
             return redirect(url_for('main_page.index'))
         else:
-            _get_logger().warning(f"[LOGIN] Credenciales incorrectas para: {email}")
+            logger.warning(f"[LOGIN] Credenciales incorrectas para: {email}")
             return render_template('login.html', error='Credenciales incorrectas')
             
     except Exception as e:
-        _get_logger().error(f"[LOGIN] Error: {e}")
+        logger.error(f"[LOGIN] Error: {e}")
         return render_template('login.html', error=f'Error: {str(e)}')
 
 
@@ -310,23 +295,23 @@ def oauth_callback():
         code_verifier = data.get('code_verifier')
         
         if not code or not code_verifier:
-            _get_logger().warning("[OAUTH_CALLBACK] Código o verifier faltante")
+            logger.warning("[OAUTH_CALLBACK] Código o verifier faltante")
             return jsonify({'success': False, 'error': 'Código o verifier faltante'}), 400
         
-        _get_logger().info("[OAUTH_CALLBACK] Intercambiando código por token")
+        logger.info("[OAUTH_CALLBACK] Intercambiando código por token")
         
         # Obtener servicio OAuth
         oauth_service = get_oauth_service()
         
         if not oauth_service:
-            _get_logger().error("[OAUTH_CALLBACK] Servicio OAuth no disponible")
+            logger.error("[OAUTH_CALLBACK] Servicio OAuth no disponible")
             return jsonify({'success': False, 'error': 'Servicio OAuth no disponible'}), 500
         
         # Intercambiar código por token
         success, token_data = oauth_service.exchange_code_for_token(code, code_verifier)
         
         if not success:
-            _get_logger().error(f"[OAUTH_CALLBACK] Error intercambiando código: {token_data}")
+            logger.error(f"[OAUTH_CALLBACK] Error intercambiando código: {token_data}")
             return jsonify({'success': False, 'error': token_data.get('error', 'Error desconocido')}), 400
         
         # Obtener información del usuario
@@ -342,12 +327,12 @@ def oauth_callback():
         session['oauth_token'] = access_token
         session['oauth_refresh_token'] = token_data.get('refresh_token')
         
-        _get_logger().info(f"[OAUTH_CALLBACK] Login OAuth2 exitoso para: {session.get('username')}")
+        logger.info(f"[OAUTH_CALLBACK] Login OAuth2 exitoso para: {session.get('username')}")
         
         return jsonify({'success': True})
         
     except Exception as e:
-        _get_logger().error(f"[OAUTH_CALLBACK] Error: {e}")
+        logger.error(f"[OAUTH_CALLBACK] Error: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
@@ -361,7 +346,7 @@ def oauth_callback_redirect():
         encoded_state = request.args.get('state')
         
         if not code:
-            _get_logger().warning("[OAUTH_CALLBACK_REDIRECT] Código faltante")
+            logger.warning("[OAUTH_CALLBACK_REDIRECT] Código faltante")
             return "Código faltante", 400
         
         # Decodificar el state desde base64url
@@ -380,28 +365,28 @@ def oauth_callback_redirect():
                 state_data = json.loads(base64.b64decode(padded_state).decode('utf-8'))
                 original_state = state_data.get('s')
                 code_verifier = state_data.get('v')
-                _get_logger().info("[OAUTH_CALLBACK_REDIRECT] Code verifier extraído del state codificado")
+                logger.info("[OAUTH_CALLBACK_REDIRECT] Code verifier extraído del state codificado")
             except Exception as e:
-                _get_logger().warning(f"[OAUTH_CALLBACK_REDIRECT] Error decodificando state: {e}")
+                logger.warning(f"[OAUTH_CALLBACK_REDIRECT] Error decodificando state: {e}")
         
         if not code_verifier:
-            _get_logger().warning("[OAUTH_CALLBACK_REDIRECT] Code verifier faltante")
+            logger.warning("[OAUTH_CALLBACK_REDIRECT] Code verifier faltante")
             return "Code verifier faltante. Inicia sesión desde el formulario de login.", 400
         
-        _get_logger().info(f"[OAUTH_CALLBACK_REDIRECT] Intercambiando código por token con verifier: {code_verifier[:20]}...")
+        logger.info(f"[OAUTH_CALLBACK_REDIRECT] Intercambiando código por token con verifier: {code_verifier[:20]}...")
         
         # Obtener servicio OAuth
         oauth_service = get_oauth_service()
         
         if not oauth_service:
-            _get_logger().error("[OAUTH_CALLBACK_REDIRECT] Servicio OAuth no disponible")
+            logger.error("[OAUTH_CALLBACK_REDIRECT] Servicio OAuth no disponible")
             return "Servicio OAuth no disponible", 500
         
         # Intercambiar código por token
         success, token_data = oauth_service.exchange_code_for_token(code, code_verifier)
         
         if not success:
-            _get_logger().error(f"[OAUTH_CALLBACK_REDIRECT] Error intercambiando código: {token_data}")
+            logger.error(f"[OAUTH_CALLBACK_REDIRECT] Error intercambiando código: {token_data}")
             return f"Error intercambiando código: {token_data.get('error', 'Error desconocido')}", 400
         
         # Obtener información del usuario
@@ -421,13 +406,13 @@ def oauth_callback_redirect():
         session.pop('oauth_state', None)
         session.pop('oauth_code_verifier', None)
         
-        _get_logger().info(f"[OAUTH_CALLBACK_REDIRECT] Login OAuth2 exitoso para: {session.get('username')}")
+        logger.info(f"[OAUTH_CALLBACK_REDIRECT] Login OAuth2 exitoso para: {session.get('username')}")
         
         # Redirigir a la página principal
         return redirect(url_for('main_page.index'))
         
     except Exception as e:
-        _get_logger().error(f"[OAUTH_CALLBACK_REDIRECT] Error: {str(e)}")
+        logger.error(f"[OAUTH_CALLBACK_REDIRECT] Error: {str(e)}")
         return f"Error: {str(e)}", 500
 
 
@@ -444,6 +429,6 @@ def logout_page():
     except:
         pass
     
-    _get_logger().info("[LOGOUT] Usuario cerró sesión")
+    logger.info("[LOGOUT] Usuario cerró sesión")
     session.clear()
     return redirect(url_for('auth.login_page'))

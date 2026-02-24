@@ -13,7 +13,8 @@ WORKDIR /app
 
 # Copiar y instalar dependencias de Python
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --upgrade pip && \
+    pip install -r requirements.txt
 
 # Copiar el código de la aplicación
 COPY . .

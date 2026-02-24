@@ -8,16 +8,8 @@ from src.adapters.entry.web.middleware.auth_middleware import require_auth, requ
 
 from src.core.use_cases.optimizer import OptimizeMovieUseCase, EstimateSizeUseCase
 
-logger = None
-
-
-def setup_logging(log_folder):
-    """Setup de logging - se configurará después"""
-    import logging
-    global logger
-    if logger is None:
-        logger = logging.getLogger(__name__)
-    return logger
+from src.infrastructure.logging import setup_logging
+logger = setup_logging(os.environ.get("LOG_FOLDER"))
 
 
 optimizer_bp = Blueprint('optimizer', __name__)
