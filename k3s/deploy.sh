@@ -15,15 +15,26 @@ echo "======================================"
 echo "  🚀 Construyendo imagen: $FULL_IMAGE"
 echo "======================================"
 
+# 🔥 FORZAR LIMPIEZA DE CACHÉ DE BUILDX
+echo "🧹 Limpiando caché de buildx..."
+docker buildx prune -f
+
 # Crear builder si no existe
 docker buildx inspect cinebuilder >/dev/null 2>&1 || docker buildx create --name cinebuilder --use
 
-# Build ARM64 real (sin plataformas unknown)
-docker buildx build \
-  --platform linux/amd64,linux/arm64 \
-  -t $FULL_IMAGE \
-  --push \
-  .
+# 🔥 FORZAR BUILD SIN CACHÉ (--no-cache) Y CON PUSH DIRECTO
+docker build --no-cache -t $FULL_IMAGE .
+docker push $FULL_IMAGE
+# docker buildx build \
+#   --pull \
+#   --platform linux/amd64 \
+#   -t $FULL_IMAGE \
+#   --push \
+#   .
+
+# 🔥 FORZAR PULL LOCAL DE LA IMAGEN RECIÉN SUBIDA (para evitar cache local)
+echo "📥 Forzando pull local de la imagen..."
+docker pull $FULL_IMAGE
 
 echo "======================================"
 echo "  📦 Aplicando YAMLs de producción"

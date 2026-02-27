@@ -91,6 +91,12 @@ def get_movies():
         step1_time = time.time() - start_step1
         logger.info(f"⏱️ PASO 1 (execute): {step1_time:.2f}s - {len(movies)} películas")
         
+        # === LOGS DE DEPURACIÓN ===
+        logger.info(f"🔍 Movies tipo: {type(movies)}")
+        if movies:
+            logger.info(f"🔍 Primera película: {movies[0]}")
+        # ===========================
+        
         # Verificar tipo
         if movies is None:
             movies = []
@@ -168,6 +174,14 @@ def get_movies():
             'categorias': categorias,
             'series': series
         }
+        
+        # === LOGS DE DEPURACIÓN ===
+        logger.info(f"🔍 Response categorias: {len(categorias)} categorías")
+        logger.info(f"🔍 Response series: {len(series)} series")
+        if categorias:
+            logger.info(f"🔍 Primera categoría: {categorias[0]}")
+        # ===========================
+        
         normalized = normalize_dict(response_data)
         step5_time = time.time() - start_step5
         logger.info(f"⏱️ PASO 5 (normalizar): {step5_time:.2f}s")
@@ -189,6 +203,11 @@ def get_movies_test():
     """Versión ultra simple para debug"""
     global _list_movies_use_case
     import traceback
+    import os
+    
+    # Añadir logs de debug
+    logger.info(f"🔍 DEBUG: MOVIES_FOLDER env = {os.environ.get('MOVIES_FOLDER')}")
+    logger.info(f"🔍 DEBUG: Base folder path = {os.environ.get('MOVIES_FOLDER')}")
     
     try:
         if _list_movies_use_case is None:

@@ -9,6 +9,13 @@ function loadContent(forceRefresh = false) {
 
     // Si se fuerza refresco, ignorar caché
     if (!forceRefresh) {
+        // Por ahora, siempre invalidar caché para obtener datos frescos
+        // Esto se puede cambiar después cuando todo funcione
+        console.log('🗑️ Invalidando caché para obtener datos frescos...');
+        localStorage.removeItem(CACHE_KEY);
+        localStorage.removeItem(CACHE_TIMESTAMP_KEY);
+
+        /*
         const cachedData = loadFromCache();
         if (cachedData) {
             console.log('📦 Usando datos cacheados');
@@ -17,6 +24,7 @@ function loadContent(forceRefresh = false) {
             refreshInBackground();
             return;
         }
+        */
     }
 
     // No hay caché, expiró o se fuerza refresco → cargar del servidor
@@ -51,7 +59,8 @@ function saveToCache(data) {
         // Guardar tal cual, sin modificar el orden
         localStorage.setItem(CACHE_KEY, JSON.stringify(data));
         localStorage.setItem(CACHE_TIMESTAMP_KEY, Date.now().toString());
-        console.log('💾 Datos guardados en caché');
+        console.log('💾 Datos guardados en caché:', data);
+        console.log('💾 Estructura de categorías en caché:', data && data.categorias ? `${data.categorias.length} categorías` : 'SIN categorías');
     } catch (e) {
         console.error('Error guardando en caché:', e);
     }
@@ -93,17 +102,28 @@ function fetchFromServer(forceRefresh = false) {
 async function renderContent(data) {
     const startTime = performance.now();
 
+    // === LOGS DE DEPURACIÓN ===
+    console.log('📊 Datos recibidos en renderContent:', data);
+    console.log('📊 Tipo de data:', typeof data);
+    console.log('📊 ¿data.categorias existe?:', data && data.categorias !== undefined);
+    console.log('📊 ¿data.categorias tiene contenido?:', data && data.categorias ? ` length=${data.categorias.length}` : 'undefined/null');
+    console.log('📊 ¿data.series existe?:', data && data.series !== undefined);
+    console.log('📊 ¿data.series tiene contenido?:', data && data.series ? ` keys=${Object.keys(data.series).length}` : 'undefined/null');
+    // ==========================
+
     if (data.categorias) {
+        console.log('📂 Renderizando películas por categoría...');
         await window.renderMoviesByCategory(data.categorias);
     } else {
-        console.warn('No hay categorías en los datos');
+        console.warn('⚠️ No hay categorías en los datos - mostrando mensaje');
         document.getElementById('moviesContainer').innerHTML = '<div class="no-content-message">No hay películas disponibles</div>';
     }
 
     if (data.series) {
+        console.log('📺 Renderizando series...');
         await window.renderSeries(data.series);
     } else {
-        console.warn('No hay series en los datos');
+        console.warn('⚠️ No hay series en los datos - mostrando mensaje');
         document.getElementById('seriesContainer').innerHTML = '<div class="no-content-message">No hay series disponibles</div>';
     }
 

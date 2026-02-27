@@ -237,7 +237,7 @@ spec:
             type: DirectoryOrCreate
         - name: movies
           hostPath:
-            path: /mnt/servidor/Data2TB/audiovisual/
+            path: /mnt/DATA_2TB/audiovisual/
             type: Directory
         - name: certs
           hostPath:
