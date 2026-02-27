@@ -96,6 +96,9 @@
                 if (data.success && data.authorization_url) {
                     // Redirigir al servidor OAuth2
                     window.location.href = data.authorization_url;
+                } else if (data.redirect) {
+                    // Ya hay una sesión activa, redirigir
+                    window.location.href = data.redirect;
                 } else {
                     alert('Error al iniciar OAuth2: ' + (data.error || 'Error desconocido'));
                 }
@@ -104,6 +107,16 @@
                 alert('Error al iniciar OAuth2');
             }
         }
+        
+        // Limpiar localStorage al cargar la página de login
+        // Esto asegura que cualquier token antiguo se elimine
+        window.addEventListener('DOMContentLoaded', function() {
+            console.log('Login page loaded, cleaning localStorage...');
+            localStorage.removeItem('access_token');
+            localStorage.removeItem('refresh_token');
+            sessionStorage.removeItem('oauth_code_verifier');
+            sessionStorage.removeItem('oauth_state');
+        });
     </script>
 </body>
 </html>

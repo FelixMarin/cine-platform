@@ -3,7 +3,6 @@ Rutas de API - Endpoints JSON
 """
 from flask import Blueprint, jsonify, request
 from src.adapters.config.dependencies import (
-    get_list_movies_use_case,
     get_search_use_case,
     get_continue_watching_use_case,
     get_track_progress_use_case
@@ -15,16 +14,6 @@ api_bp = Blueprint('api', __name__, url_prefix='/api')
 def init_api_routes():
     """Inicializa las rutas de API"""
     pass
-
-
-@api_bp.route('/movies', methods=['GET'])
-def list_movies():
-    """Lista todas las películas"""
-    use_case = get_list_movies_use_case()
-    if use_case:
-        movies = use_case.execute()
-        return jsonify({'movies': [m.to_dict() for m in movies]})
-    return jsonify({'error': 'Service not available'}), 503
 
 
 @api_bp.route('/search', methods=['GET'])

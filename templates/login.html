@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-    <title>Login - Mi Cine Jetson</title>
+    <title>Login - Cine Platform</title>
     <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
 
     <!-- CSS del login -->
@@ -12,20 +12,16 @@
 
 <body>
     <div class="login-box" id="login-container">
-        <h2>Mi Cine Jetson</h2>
+        <h2 class="menu-title-full">Cine<span>Platform</span></h2>
         
         {% if error %}
             <p class="error-msg">{{ error }}</p>
         {% endif %}
-        
-        <p class="info-text">Inicia sesión con tu cuenta de OAuth2</p>
-        
+                
         <!-- Botón de OAuth2 -->
         <button type="button" id="oauth-login-btn" class="oauth-btn">
-            Iniciar sesión con OAuth2
+            Iniciar sesión
         </button>
-        
-        <p class="note">Serás redirigido al servidor de autenticación</p>
     </div>
 
     <script src="{{ url_for('static', filename='js/oauth-client.js') }}"></script>

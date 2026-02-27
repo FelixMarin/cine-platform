@@ -193,11 +193,27 @@ def start_oauth2_flow():
     El frontend debe redirigir a esta URL.
     """
     try:
+        # Verificar que no hay sesión activa (para evitar accesos no autorizados)
+        logger.info(f"[OAUTH_START] Request cookies: {dict(request.cookies)}")
+        logger.info(f"[OAUTH_START] Session keys: {list(session.keys()) if session else 'No session'}")
+        logger.info(f"[OAUTH_START] Is logged in: {is_logged_in()}")
+        
+        # Si ya hay una sesión activa, no permitir iniciar OAuth2
+        if is_logged_in():
+            logger.warning(f"[OAUTH_START] Usuario ya logueado, redirigiendo a página principal")
+            return jsonify({
+                'success': False,
+                'error': 'Ya hay una sesión activa',
+                'redirect': '/'
+            })
+        
         # Generar code_verifier y code_challenge
         code_verifier = _generate_code_verifier()
         code_challenge = _generate_code_challenge(code_verifier)
         
-        # Guardar code_verifier en sesión
+        # Limpiar cualquier code_verifier anterior y guardar el nuevo
+        session.pop('oauth_code_verifier', None)
+        session.pop('oauth_state', None)
         session['oauth_code_verifier'] = code_verifier
         
         # Generar state aleatorio
@@ -210,6 +226,9 @@ def start_oauth2_flow():
         redirect_uri = os.environ.get('PUBLIC_REDIRECT_URI', 'http://localhost:5000/oauth/callback').rstrip('/')
         
         # Construir URL de autorización
+        # NOTA: prompt=login fuerza al servidor OAuth2 a mostrar la pantalla de login
+        # Esto asegura que el usuario tenga que introducir credenciales incluso si tiene
+        # una sesión activa en el servidor OAuth2
         from urllib.parse import urlencode
         params = {
             'response_type': 'code',
@@ -219,10 +238,11 @@ def start_oauth2_flow():
             'code_challenge': code_challenge,
             'code_challenge_method': 'S256',
             'state': state,
+            'prompt': 'login',  # Forzar login screen en OAuth2 server
         }
         
         auth_url = f"{oauth2_url}/oauth2/authorize?{urlencode(params)}"
-        logger.info(f"[OAUTH_START] URL de autorización: {auth_url}")
+        logger.info(f"[OAUTH_START] URL de autorización generada: {auth_url[:100]}...")
         
         return jsonify({
             'success': True,
@@ -230,7 +250,7 @@ def start_oauth2_flow():
         })
         
     except Exception as e:
-        logger.error(f"[OAUTH_START] Error: {e}")
+        logger.error(f"[OAUTH_START] Error: {e}", exc_info=True)
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
@@ -242,11 +262,14 @@ def login_page():
     oauth_state = request.args.get('state')
     
     if request.method == 'GET':
+        logger.info(f"[LOGIN_PAGE] GET request, is_logged_in: {is_logged_in()}, session keys: {list(session.keys())}")
+        
         if is_logged_in():
             # Si ya está logueado y hay parámetros OAuth2, completar el flujo
             if code_challenge:
                 # Regenerar verifier desde la sesión o generar nuevo
                 return _complete_oauth_flow(code_challenge, oauth_state)
+            logger.info("[LOGIN_PAGE] User is logged in, redirecting to main page")
             return redirect(url_for('main_page.index'))
 
         # Usar variables directamente, sin base64
@@ -369,6 +392,7 @@ def _complete_oauth_flow(code_challenge: str, state: str = None):
         redirect_uri = os.environ.get('PUBLIC_REDIRECT_URI', 'http://localhost:5000/oauth/callback').rstrip('/')
         
         # Construir URL de autorización
+        # prompt=login fuerza al servidor OAuth2 a mostrar la pantalla de login
         from urllib.parse import urlencode
         params = {
             'response_type': 'code',
@@ -377,6 +401,7 @@ def _complete_oauth_flow(code_challenge: str, state: str = None):
             'scope': 'openid profile read write',
             'code_challenge': code_challenge,
             'code_challenge_method': 'S256',
+            'prompt': 'login',  # Forzar login screen
         }
         if state:
             params['state'] = state
@@ -535,16 +560,75 @@ def oauth_callback_redirect():
 @auth_bp.route('/logout', methods=['GET', 'POST'])
 def logout_page():
     """Página de logout"""
-    # Intentar revocar token
+    from flask import current_app, make_response
+    
+    # Ver cookies recibidas
+    logger.info(f"[LOGOUT] Cookies recibidas: {dict(request.cookies)}")
+    
+    # Intentar revocar token en el servidor OAuth2
     try:
         oauth_token = session.get('oauth_token')
         if oauth_token:
             oauth_service = get_oauth_service()
             if oauth_service:
                 oauth_service.revoke_token(oauth_token)
-    except:
-        pass
+                logger.info("[LOGOUT] Token revocado en servidor OAuth2")
+    except Exception as e:
+        logger.warning(f"[LOGOUT] Error revocando token: {e}")
     
-    logger.info("[LOGOUT] Usuario cerró sesión")
+    logger.info("[LOGOUT] Usuario cerró sesión - limpiando datos")
+    
+    # Limpiar TODOS los datos de sesión
+    session_keys = list(session.keys())
+    logger.info(f"[LOGOUT] Keys en sesión antes de limpiar: {session_keys}")
     session.clear()
-    return redirect(url_for('auth.login_page'))
+    
+    # Forzar la modificación de la sesión para que se guarde
+    session.modified = True
+    
+    # Crear respuesta de redirección
+    response = make_response(redirect(url_for('auth.login_page')))
+    
+    # Opciones de cookie base
+    base_options = {
+        'httponly': True,
+        'samesite': 'Lax',
+    }
+    
+    # Añadir secure si está configurado
+    if current_app.config.get('SESSION_COOKIE_SECURE', False):
+        base_options['secure'] = True
+    
+    # 1. Sin dominio (cookie por defecto)
+    response.set_cookie('session', '', max_age=0, path='/', **base_options)
+    
+    # 2. Con el dominio configurado
+    try:
+        cookie_domain = current_app.config.get('SESSION_COOKIE_DOMAIN')
+        cookie_path = current_app.config.get('SESSION_COOKIE_PATH', '/')
+        logger.info(f"[LOGOUT] Cookie domain: {cookie_domain}, path: {cookie_path}")
+        if cookie_domain:
+            # Usar solo el dominio, NO path de nuevo (evitar error "multiple values for keyword argument 'path'")
+            response.set_cookie('session', '', max_age=0, domain=cookie_domain, **base_options)
+    except Exception as e:
+        logger.warning(f"[LOGOUT] Error eliminando cookie de dominio: {e}")
+    
+    logger.info("[LOGOUT] Session cleared, all cookies set to expire, redirecting to login")
+    return response
+
+
+# ============================
+# RUTAS DE LOGOUT
+# ============================
+
+@auth_bp.route('/logout-check', methods=['GET'])
+def logout_check():
+    """Endpoint para verificar el estado del logout"""
+    logger.info(f"[LOGOUT_CHECK] Cookies: {dict(request.cookies)}")
+    logger.info(f"[LOGOUT_CHECK] Session keys: {list(session.keys())}")
+    logger.info(f"[LOGOUT_CHECK] Is logged in: {is_logged_in()}")
+    return jsonify({
+        'logged_in': is_logged_in(),
+        'session_keys': list(session.keys()),
+        'cookies': list(request.cookies.keys())
+    })
