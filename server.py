@@ -69,6 +69,8 @@ def create_app():
     app.secret_key = secret
     app.config['JSON_AS_ASCII'] = False
     app.config['JSONIFY_PRETTYPRINT_REGULAR'] = True
+    app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024 * 1024  # 50GB
+    app.config['TIMEOUT'] = 7200  # 2 horas
     logger.info(f"[CONFIG] SECRET_KEY cargada: {secret[:8]}********")
 
     # ============================
