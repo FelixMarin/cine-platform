@@ -9,24 +9,38 @@ import hashlib
 import requests
 from typing import Tuple, Dict, Optional
 
+import logging
+logger = logging.getLogger(__name__)
+
 
 class OAuth2Client:
     """Cliente OAuth2 para autenticación de usuarios"""
     
     def __init__(self):
         """Inicializa el cliente OAuth2 con las credenciales del entorno"""
-        self.base_url = os.environ.get("OAUTH2_URL", "http://localhost:8080").rstrip('/')
+        # Priority: OAUTH2_URL (internal k8s) > PUBLIC_OAUTH2_URL (tailscale public)
+        # This allows the service to work both in Kubernetes and locally
+        self.base_url = os.environ.get("OAUTH2_URL") or os.environ.get("PUBLIC_OAUTH2_URL", "http://localhost:8080").rstrip('/')
         self.client_id = os.environ.get("OAUTH2_CLIENT_ID", "cine-platform")
         self.client_secret = os.environ.get("OAUTH2_CLIENT_SECRET", "cine-platform-secret")
         
-        # Endpoints
+        # Log the URL being used
+        logger.info(f"[OAuth2Client] Initialized with base_url: {self.base_url}")
+        logger.info(f"[OAuth2Client] OAUTH2_URL env: {os.environ.get('OAUTH2_URL', 'NOT SET')}")
+        logger.info(f"[OAuth2Client] PUBLIC_OAUTH2_URL env: {os.environ.get('PUBLIC_OAUTH2_URL', 'NOT SET')}")
+        
+        # Endpoints - Note: OAUTH2_TOKEN_ENDPOINT in configmap uses /oauth/token
         self.token_endpoint = os.environ.get("OAUTH2_TOKEN_ENDPOINT", "/oauth2/token")
         self.authorize_endpoint = os.environ.get("OAUTH2_AUTHORIZE_ENDPOINT", "/oauth2/authorize")
         self.userinfo_endpoint = os.environ.get("OAUTH2_USERINFO_ENDPOINT", "/userinfo")
         self.revoke_endpoint = os.environ.get("OAUTH2_REVOKE_ENDPOINT", "/oauth2/revoke")
         
-        # Redirect URI
-        self.redirect_uri = os.environ.get("OAUTH2_REDIRECT_URI", "http://localhost:5000/oauth/callback")
+        logger.info(f"[OAuth2Client] Token endpoint: {self.token_endpoint}")
+        logger.info(f"[OAuth2Client] Authorize endpoint: {self.authorize_endpoint}")
+        
+        # Redirect URI - IMPORTANTE: Debe ser la URL PÚBLICA que el navegador usará
+        # ya que el servidor OAuth2 valida que coincida con su redirect_uri registrado
+        self.redirect_uri = os.environ.get("PUBLIC_REDIRECT_URI", "http://localhost:5000/oauth/callback").rstrip('/')
         
         self.token: Optional[str] = None
         self.refresh_token: Optional[str] = None
@@ -91,35 +105,88 @@ class OAuth2Client:
         Returns:
             Tupla (success, token_data)
         """
-        url = f"{self.base_url}{self.token_endpoint}"
+        # Try primary URL first, then fallback
+        primary_url = os.environ.get("OAUTH2_URL")
+        fallback_url = os.environ.get("PUBLIC_OAUTH2_URL")
         
-        payload = {
-            "grant_type": "authorization_code",
-            "code": code,
-            "redirect_uri": self.redirect_uri,
-            "code_verifier": code_verifier,
-        }
+        urls_to_try = []
+        if primary_url:
+            urls_to_try.append(primary_url.rstrip('/'))
+        if fallback_url and fallback_url != primary_url:
+            urls_to_try.append(fallback_url.rstrip('/'))
         
-        try:
-            response = requests.post(
-                url, 
-                data=payload, 
-                headers=self._get_basic_auth_header(),
-                timeout=10
-            )
+        if not urls_to_try:
+            urls_to_try = ["http://localhost:8080"]
+        
+        last_error = None
+        for base_url in urls_to_try:
+            url = f"{base_url}{self.token_endpoint}"
             
-            if response.status_code == 200:
-                data = response.json()
-                self.token = data.get("access_token")
-                self.refresh_token = data.get("refresh_token")
-                return True, data
-            else:
-                return False, {"error": response.text, "status": response.status_code}
+            # Log detallado para debugging
+            logger.info(f"[OAUTH_TOKEN_EXCHANGE] Intentando URL: {url}")
+            logger.info(f"[OAUTH_TOKEN_EXCHANGE] Client ID: {self.client_id}")
+            logger.info(f"[OAUTH_TOKEN_EXCHANGE] Redirect URI: {self.redirect_uri}")
+            
+            # Headers que se envían
+            auth_header = self._get_basic_auth_header()
+            # No loguear el secret completo por seguridad
+            auth_header_preview = f"Basic {auth_header['Authorization'].split(' ')[1][:20]}..."
+            logger.info(f"[OAUTH_TOKEN_EXCHANGE] Authorization header: {auth_header_preview}")
+            
+            payload = {
+                "grant_type": "authorization_code",
+                "code": code,
+                "redirect_uri": self.redirect_uri,
+                "code_verifier": code_verifier,
+            }
+            
+            logger.info(f"[OAUTH_TOKEN_EXCHANGE] Payload: grant_type={payload['grant_type']}, code={code[:20]}..., redirect_uri={self.redirect_uri}, code_verifier={code_verifier[:20]}...")
+            
+            try:
+                logger.info(f"[OAUTH_TOKEN_EXCHANGE] Haciendo petición POST a {url}...")
+                response = requests.post(
+                    url, 
+                    data=payload, 
+                    headers=auth_header,
+                    timeout=10,
+                    verify=False  # Para certificados autofirmados en desarrollo
+                )
                 
-        except requests.exceptions.ConnectionError:
-            return False, {"error": "Servidor OAuth no disponible"}
-        except Exception as e:
-            return False, {"error": str(e)}
+                logger.info(f"[OAUTH_TOKEN_EXCHANGE] Respuesta recibida: status_code={response.status_code}")
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    self.token = data.get("access_token")
+                    self.refresh_token = data.get("refresh_token")
+                    logger.info(f"[OAUTH_TOKEN_EXCHANGE] Token obtenido exitosamente con URL: {url}")
+                    return True, data
+                else:
+                    logger.error(f"[OAUTH_TOKEN_EXCHANGE] Error response from {url}: {response.text}")
+                    # Try next URL if available
+                    if len(urls_to_try) > 1:
+                        logger.warning(f"[OAUTH_TOKEN_EXCHANGE] Error con URL {url}, intentando siguiente...")
+                        last_error = {"error": response.text, "status": response.status_code, "url": url}
+                        continue
+                    return False, {"error": response.text, "status": response.status_code}
+                    
+            except requests.exceptions.ConnectionError as e:
+                logger.error(f"[OAUTH_TOKEN_EXCHANGE] ConnectionError con URL {url}: {e}")
+                # Try next URL if available
+                if len(urls_to_try) > 1:
+                    logger.warning(f"[OAUTH_TOKEN_EXCHANGE] Error de conexión con {url}, intentando siguiente...")
+                    last_error = {"error": "Servidor OAuth no disponible", "details": str(e), "url": url}
+                    continue
+                return False, {"error": "Servidor OAuth no disponible", "details": str(e)}
+            except requests.exceptions.Timeout as e:
+                logger.error(f"[OAUTH_TOKEN_EXCHANGE] Timeout con URL {url}: {e}")
+                return False, {"error": "Timeout conectando al servidor OAuth", "details": str(e)}
+            except Exception as e:
+                logger.error(f"[OAUTH_TOKEN_EXCHANGE] Error general con URL {url}: {e}")
+                return False, {"error": str(e)}
+        
+        # All URLs failed
+        logger.error(f"[OAUTH_TOKEN_EXCHANGE] Todas las URLs fallaron. Última URL intentada: {urls_to_try[-1] if urls_to_try else 'N/A'}")
+        return False, last_error or {"error": "Servidor OAuth no disponible en ninguna URL"}
     
     def refresh_access_token(self, refresh_token: str = None) -> Tuple[bool, Dict]:
         """

@@ -6,6 +6,8 @@ from flask import Blueprint, jsonify, request, session, render_template, redirec
 import os
 import base64
 import json
+import secrets
+import hashlib
 
 from src.core.use_cases.auth import LoginUseCase, LogoutUseCase
 from src.adapters.entry.web.middleware.auth_middleware import require_auth
@@ -184,65 +186,102 @@ def verify_token():
 #  RUTAS DE PÁGINAS HTML
 # ============================
 
+@auth_bp.route('/api/auth/oauth2/start', methods=['POST'])
+def start_oauth2_flow():
+    """
+    Inicia el flujo OAuth2. Genera code_verifier, guarda en sesión y devuelve la URL de autorización.
+    El frontend debe redirigir a esta URL.
+    """
+    try:
+        # Generar code_verifier y code_challenge
+        code_verifier = _generate_code_verifier()
+        code_challenge = _generate_code_challenge(code_verifier)
+        
+        # Guardar code_verifier en sesión
+        session['oauth_code_verifier'] = code_verifier
+        
+        # Generar state aleatorio
+        state = secrets.token_urlsafe(16)
+        session['oauth_state'] = state
+        
+        # Obtener configuración
+        oauth2_url = os.environ.get('PUBLIC_OAUTH2_URL', 'http://localhost:8080').rstrip('/')
+        client_id = os.environ.get('OAUTH2_CLIENT_ID', 'cine-platform')
+        redirect_uri = os.environ.get('PUBLIC_REDIRECT_URI', 'http://localhost:5000/oauth/callback').rstrip('/')
+        
+        # Construir URL de autorización
+        from urllib.parse import urlencode
+        params = {
+            'response_type': 'code',
+            'client_id': client_id,
+            'redirect_uri': redirect_uri,
+            'scope': 'openid profile read write',
+            'code_challenge': code_challenge,
+            'code_challenge_method': 'S256',
+            'state': state,
+        }
+        
+        auth_url = f"{oauth2_url}/oauth2/authorize?{urlencode(params)}"
+        logger.info(f"[OAUTH_START] URL de autorización: {auth_url}")
+        
+        return jsonify({
+            'success': True,
+            'authorization_url': auth_url
+        })
+        
+    except Exception as e:
+        logger.error(f"[OAUTH_START] Error: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login_page():
-    """Página de login - GET muestra formulario OAuth2, POST es fallback"""
+    """Página de login"""
+    # Verificar si hay parámetros OAuth2 en la query string (el usuario vino del flujo OAuth2)
+    code_challenge = request.args.get('code_challenge')
+    oauth_state = request.args.get('state')
+    
     if request.method == 'GET':
         if is_logged_in():
+            # Si ya está logueado y hay parámetros OAuth2, completar el flujo
+            if code_challenge:
+                # Regenerar verifier desde la sesión o generar nuevo
+                return _complete_oauth_flow(code_challenge, oauth_state)
             return redirect(url_for('main_page.index'))
-        
-        # Función auxiliar para decodificar base64
-        def decode_b64(value, default):
-            if not value:
-                return default
-            try:
-                decoded = base64.b64decode(value).decode('utf-8').strip()
-                return decoded.rstrip('/')
-            except:
-                return default
-        
-        # Obtener y decodificar valores base64
-        oauth2_url = decode_b64(
-            os.environ.get('PUBLIC_OAUTH2_URL'), 
-            'http://localhost:8080'
-        )
-        
+
+        # Usar variables directamente, sin base64
+        oauth2_url = os.environ.get('PUBLIC_OAUTH2_URL', 'http://localhost:8080').rstrip('/')
         client_id = os.environ.get('OAUTH2_CLIENT_ID', 'cine-platform')
-        
-        client_secret = decode_b64(
-            os.environ.get('OAUTH2_CLIENT_SECRET'), 
-            'cine-platform-secret'
-        )
-        
-        redirect_uri = decode_b64(
-            os.environ.get('PUBLIC_REDIRECT_URI'), 
-            'http://localhost:5000/oauth/callback'
-        )
-        
-        # Logging para depuración
-        logger.info(f"PUBLIC_OAUTH2_URL decodificada: {oauth2_url}")
+        client_secret = os.environ.get('OAUTH2_CLIENT_SECRET', 'cine-platform-secret')
+        redirect_uri = os.environ.get('PUBLIC_REDIRECT_URI', 'http://localhost:5000/oauth/callback').rstrip('/')
+
+        logger.info(f"PUBLIC_OAUTH2_URL: {oauth2_url}")
         logger.info(f"OAUTH2_CLIENT_ID: {client_id}")
-        logger.info(f"PUBLIC_REDIRECT_URI decodificada: {redirect_uri}")
-        
-        return render_template('login.html', 
+        logger.info(f"PUBLIC_REDIRECT_URI: {redirect_uri}")
+
+        return render_template('login.html',
                               oauth2_url=oauth2_url,
                               client_id=client_id,
                               client_secret=client_secret,
                               redirect_uri=redirect_uri)
-    
-    # POST - Procesar login (fallback para desarrollo)
+
+    # POST - Procesar login
     try:
         email = request.form.get('email')
         password = request.form.get('password')
         
+        # Obtener parámetros OAuth2 del form (si existen)
+        code_challenge = request.form.get('code_challenge')
+        oauth_state = request.form.get('state')
+
         if not email or not password:
             return render_template('login.html', error='Email y contraseña requeridos')
-        
+
         logger.info(f"[LOGIN] Intento de login para usuario: {email}")
-        
+
         # Intentar OAuth2 primero
         oauth_service = get_oauth_service()
-        
+
         if oauth_service:
             try:
                 success, user_data = oauth_service.login(email, password)
@@ -254,17 +293,22 @@ def login_page():
                     session['user_role'] = 'admin'
                     session['oauth_token'] = oauth_service.token
                     logger.info(f"[LOGIN] OAuth exitoso para: {email}")
+                    
+                    # Si hay code_challenge, completar el flujo OAuth2
+                    if code_challenge:
+                        return _complete_oauth_flow(code_challenge, oauth_state)
+                    
                     return redirect(url_for('main_page.index'))
                 # OAuth2 falló, intentar fallback
             except Exception as oauth_error:
                 logger.warning(f"[LOGIN] OAuth falló: {oauth_error}")
                 # OAuth2 no disponible, usar fallback
                 pass
-        
+
         # Fallback a credenciales locales (útil para desarrollo)
         valid_user = os.environ.get('APP_USER', 'admin')
         valid_pass = os.environ.get('APP_PASSWORD', 'Admin1')
-        
+
         logger.info(f"[LOGIN] Verificando credenciales locales: {email} == {valid_user}")
         
         if email == valid_user and password == valid_pass:
@@ -274,6 +318,11 @@ def login_page():
             session['username'] = email
             session['user_role'] = 'admin'
             logger.info(f"[LOGIN] Login exitoso para: {email}")
+            
+            # Si hay code_challenge, completar el flujo OAuth2
+            if code_challenge:
+                return _complete_oauth_flow(code_challenge, oauth_state)
+            
             return redirect(url_for('main_page.index'))
         else:
             logger.warning(f"[LOGIN] Credenciales incorrectas para: {email}")
@@ -282,6 +331,64 @@ def login_page():
     except Exception as e:
         logger.error(f"[LOGIN] Error: {e}")
         return render_template('login.html', error=f'Error: {str(e)}')
+
+
+def _generate_code_verifier() -> str:
+    """Genera un code_verifier aleatorio (43-128 caracteres)"""
+    random_bytes = secrets.token_bytes(32)
+    verifier = base64.urlsafe_b64encode(random_bytes).decode('utf-8').rstrip('=')
+    return verifier
+
+
+def _generate_code_challenge(verifier: str) -> str:
+    """Genera un code_challenge a partir del code_verifier usando SHA-256"""
+    digest = hashlib.sha256(verifier.encode('utf-8')).digest()
+    challenge = base64.urlsafe_b64encode(digest).decode('utf-8').rstrip('=')
+    return challenge
+
+
+def _complete_oauth_flow(code_challenge: str, state: str = None):
+    """
+    Completa el flujo OAuth2 después del login.
+    Genera el code_verifier, lo guarda en sesión y redirige al servidor OAuth2.
+    """
+    try:
+        logger.info(f"[OAUTH_FLOW] Iniciando flujo OAuth2 con code_challenge: {code_challenge[:30]}...")
+        
+        # Generar code_verifier
+        code_verifier = _generate_code_verifier()
+        logger.info(f"[OAUTH_FLOW] Code verifier generado: {code_verifier[:30]}...")
+        
+        # Guardar en sesión para usarlo después en el callback
+        session['oauth_code_verifier'] = code_verifier
+        logger.info(f"[OAUTH_FLOW] Code verifier guardado en sesión")
+        
+        # Obtener configuración
+        oauth2_url = os.environ.get('PUBLIC_OAUTH2_URL', 'http://localhost:8080').rstrip('/')
+        client_id = os.environ.get('OAUTH2_CLIENT_ID', 'cine-platform')
+        redirect_uri = os.environ.get('PUBLIC_REDIRECT_URI', 'http://localhost:5000/oauth/callback').rstrip('/')
+        
+        # Construir URL de autorización
+        from urllib.parse import urlencode
+        params = {
+            'response_type': 'code',
+            'client_id': client_id,
+            'redirect_uri': redirect_uri,
+            'scope': 'openid profile read write',
+            'code_challenge': code_challenge,
+            'code_challenge_method': 'S256',
+        }
+        if state:
+            params['state'] = state
+        
+        auth_url = f"{oauth2_url}/oauth2/authorize?{urlencode(params)}"
+        logger.info(f"[OAUTH_FLOW] Redirigiendo a: {auth_url}")
+        
+        return redirect(auth_url)
+        
+    except Exception as e:
+        logger.error(f"[OAUTH_FLOW] Error: {e}")
+        return render_template('login.html', error=f'Error al completar OAuth: {str(e)}')
 
 
 @auth_bp.route('/auth/callback', methods=['POST'])
@@ -293,31 +400,31 @@ def oauth_callback():
         data = request.get_json()
         code = data.get('code')
         code_verifier = data.get('code_verifier')
-        
+
         if not code or not code_verifier:
             logger.warning("[OAUTH_CALLBACK] Código o verifier faltante")
             return jsonify({'success': False, 'error': 'Código o verifier faltante'}), 400
-        
+
         logger.info("[OAUTH_CALLBACK] Intercambiando código por token")
-        
+
         # Obtener servicio OAuth
         oauth_service = get_oauth_service()
-        
+
         if not oauth_service:
             logger.error("[OAUTH_CALLBACK] Servicio OAuth no disponible")
             return jsonify({'success': False, 'error': 'Servicio OAuth no disponible'}), 500
-        
+
         # Intercambiar código por token
         success, token_data = oauth_service.exchange_code_for_token(code, code_verifier)
-        
+
         if not success:
             logger.error(f"[OAUTH_CALLBACK] Error intercambiando código: {token_data}")
             return jsonify({'success': False, 'error': token_data.get('error', 'Error desconocido')}), 400
-        
+
         # Obtener información del usuario
         access_token = token_data.get('access_token')
         user_info = oauth_service.get_userinfo(access_token)
-        
+
         # Guardar en sesión
         session['logged_in'] = True
         session['user_id'] = user_info.get('sub', 1) if user_info else 1
@@ -326,11 +433,12 @@ def oauth_callback():
         session['user_role'] = 'admin'
         session['oauth_token'] = access_token
         session['oauth_refresh_token'] = token_data.get('refresh_token')
-        
+        session['oauth_expires_at'] = token_data.get('expires_at')
+
         logger.info(f"[OAUTH_CALLBACK] Login OAuth2 exitoso para: {session.get('username')}")
-        
+
         return jsonify({'success': True})
-        
+
     except Exception as e:
         logger.error(f"[OAUTH_CALLBACK] Error: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
@@ -349,11 +457,19 @@ def oauth_callback_redirect():
             logger.warning("[OAUTH_CALLBACK_REDIRECT] Código faltante")
             return "Código faltante", 400
         
-        # Decodificar el state desde base64url
+        # Decodificar el state desde base64url o obtener desde sesión
         code_verifier = None
         original_state = None
         
-        if encoded_state:
+        # Primero intentar obtener desde la sesión (nuevo flujo)
+        code_verifier = session.get('oauth_code_verifier')
+        logger.info(f"[OAUTH_CALLBACK_REDIRECT] Sesión keys: {list(session.keys())}")
+        logger.info(f"[OAUTH_CALLBACK_REDIRECT] Code verifier en sesión: {bool(code_verifier)}")
+        if code_verifier:
+            logger.info(f"[OAUTH_CALLBACK_REDIRECT] Code verifier obtenido de la sesión: {code_verifier[:20]}...")
+        elif encoded_state:
+            # Fallback: intentar decodificar desde state (flujo antiguo)
+            logger.info(f"[OAUTH_CALLBACK_REDIRECT] Intentando decodificar state: {encoded_state}")
             try:
                 # Convertir base64url a base64 estándar
                 padded_state = encoded_state.replace('-', '+').replace('_', '/')

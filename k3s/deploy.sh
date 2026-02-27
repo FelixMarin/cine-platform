@@ -20,7 +20,7 @@ docker buildx inspect cinebuilder >/dev/null 2>&1 || docker buildx create --name
 
 # Build ARM64 real (sin plataformas unknown)
 docker buildx build \
-  --platform linux/arm64 \
+  --platform linux/amd64,linux/arm64 \
   -t $FULL_IMAGE \
   --push \
   .
