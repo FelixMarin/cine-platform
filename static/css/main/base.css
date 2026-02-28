@@ -27,10 +27,9 @@ body {
 
 .tab-content {
     display: none;
-    padding: 20px;
+    padding: 10px;
     background-color: var(--bg-primary);
     border-radius: var(--border-radius);
-    margin-top: 20px;
 }
 
 .tab-content.active {
