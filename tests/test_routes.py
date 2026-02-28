@@ -98,7 +98,7 @@ class TestAllBlueprints(unittest.TestCase):
         self.media_service = MagicMock()
         self.media_service.get_thumbnails_folder.return_value = "/tmp/thumbnails"
         self.media_service.get_movies_folder.return_value = "/data/media"
-        self.media_service.list_content.return_value = ({"Acción": []}, {})
+        self.media_service.list_content.return_value = ([('Action', [])], {})
         self.media_service.get_thumbnail_status.return_value = {"queue_size": 0, "total_pending": 0, "processed": 0, "processing": True}
         self.media_service.is_path_safe.return_value = True
         
@@ -217,9 +217,7 @@ class TestAllBlueprints(unittest.TestCase):
         with self.client.session_transaction() as sess:
             sess['logged_in'] = True
             sess['user_role'] = 'user'
-        
-        self.media_service.list_content.return_value = ({}, {})
-        
+                
         response = self.client.get('/')
         
         self.assertEqual(response.status_code, 200)
