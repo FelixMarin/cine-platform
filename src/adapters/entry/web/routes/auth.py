@@ -222,7 +222,7 @@ def start_oauth2_flow():
         
         # Obtener configuración
         oauth2_url = os.environ.get('PUBLIC_OAUTH2_URL', 'http://localhost:8080').rstrip('/')
-        client_id = os.environ.get('OAUTH2_CLIENT_ID', 'cine-platform')
+        client_id = os.environ.get('OAUTH2_CLIENT_ID', 'default-user')
         redirect_uri = os.environ.get('PUBLIC_REDIRECT_URI', 'http://localhost:5000/oauth/callback').rstrip('/')
         
         # Construir URL de autorización
@@ -274,8 +274,8 @@ def login_page():
 
         # Usar variables directamente, sin base64
         oauth2_url = os.environ.get('PUBLIC_OAUTH2_URL', 'http://localhost:8080').rstrip('/')
-        client_id = os.environ.get('OAUTH2_CLIENT_ID', 'cine-platform')
-        client_secret = os.environ.get('OAUTH2_CLIENT_SECRET', 'cine-platform-secret')
+        client_id = os.environ.get('OAUTH2_CLIENT_ID', 'default-user')
+        client_secret = os.environ.get('OAUTH2_CLIENT_SECRET', 'default-user-secret')
         redirect_uri = os.environ.get('PUBLIC_REDIRECT_URI', 'http://localhost:5000/oauth/callback').rstrip('/')
 
         logger.info(f"PUBLIC_OAUTH2_URL: {oauth2_url}")
