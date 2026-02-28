@@ -313,25 +313,46 @@ def get_movie_thumbnail(filename):
 def get_movie_thumbnail_by_title():
     """Obtiene el thumbnail de una película por título (query param)"""
     from src.adapters.config.dependencies import get_metadata_service
+    import os
+    from flask import send_file
     
     title = request.args.get('title')
     year = request.args.get('year')
+    filename = request.args.get('filename')
     
     if not title:
         return jsonify({'error': 'Título no proporcionado'}), 400
     
+    # 1. PRIMERO: Intentar obtener de OMDB
     metadata_service = get_metadata_service()
-    if not metadata_service:
-        return jsonify({'error': 'Servicio de metadatos no disponible'}), 500
+    if metadata_service:
+        try:
+            year_int = int(year) if year else None
+            thumbnail_url = metadata_service.get_movie_thumbnail(title, year_int)
+            
+            if thumbnail_url:
+                # Si encontramos en OMDB, devolver la URL
+                return jsonify({'thumbnail': thumbnail_url})
+        except Exception as e:
+            # Log del error pero continuar con búsqueda local
+            import logging
+            logging.error(f"Error buscando en OMDB: {e}")
     
-    try:
-        year_int = int(year) if year else None
-        thumbnail = metadata_service.get_movie_thumbnail(title, year_int)
-        if thumbnail:
-            return jsonify({'thumbnail': thumbnail})
-        return jsonify({'error': 'Thumbnail no encontrado'}), 404
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+    # 2. SEGUNDO: Si no hay en OMDB, buscar en local
+    if filename:
+        # Generar nombre de archivo para thumbnail local
+        base_name = os.path.splitext(filename)[0]
+        thumbnail_filename = f"{base_name}.jpg"
+        
+        from src.infrastructure.config.settings import Settings
+        settings = Settings()
+        local_thumbnail_path = os.path.join(settings.THUMBNAIL_FOLDER, thumbnail_filename)
+        
+        if os.path.exists(local_thumbnail_path):
+            return send_file(local_thumbnail_path, mimetype='image/jpeg')
+    
+    # 3. Si no se encontró en ningún lado
+    return jsonify({'error': 'Thumbnail no encontrado'}), 404
 
 
 @catalog_bp.route('/api/serie-poster', methods=['GET'])

@@ -54,7 +54,7 @@ class FilesystemSerieRepository(ISerieRepository):
         Args:
             base_folder: Carpeta base donde están las series
         """
-        self._base_folder = base_folder or os.environ.get('MOVIES_FOLDER', '/mnt/servidor/Data2TB/audiovisual')
+        self._base_folder = base_folder or os.environ.get('MOVIES_FOLDER', '/mnt/DATA_2TB/audiovisual')
         self._valid_extensions = {".mp4", ".mkv", ".avi", ".mov", ".flv", ".wmv"}
     
     def _parse_season_folder(self, folder_name: str) -> tuple:

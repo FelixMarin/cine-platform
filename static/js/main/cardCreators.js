@@ -83,8 +83,21 @@ function createMovieCard(movie) {
 }
 
 async function loadMovieThumbnail(imgElement, title, year, filename) {
-    // Limpiar título
-    const searchTitle = title.replace(/\s*\(?\d{4}\)?\s*/g, '').trim();
+    // Limpiar título: eliminar año, sufijos como -optimized, (2024), etc.
+    let searchTitle = title;
+    // Eliminar año entre paréntesis o al final
+    searchTitle = searchTitle.replace(/\s*\(?\d{4}\)?\s*$/g, '');
+    // Eliminar sufijos comunes
+    searchTitle = searchTitle.replace(/[-_]?optimized/gi, '');
+    searchTitle = searchTitle.replace(/[-_]?hd/gi, '');
+    searchTitle = searchTitle.replace(/[-_]?bluray/gi, '');
+    searchTitle = searchTitle.replace(/[-_]?webrip/gi, '');
+    searchTitle = searchTitle.replace(/[-_]?web-dl/gi, '');
+    // Eliminar cualquier patrón restante de (año)
+    searchTitle = searchTitle.replace(/\s*\([^)]*\)\s*/g, ' ');
+    // Limpiar espacios
+    searchTitle = searchTitle.replace(/\s+/g, ' ').trim();
+
     const cacheKey = `thumb_${searchTitle}_${year || 'no-year'}`;
 
     // Intentar cargar de caché
@@ -144,15 +157,30 @@ async function loadMovieThumbnail(imgElement, title, year, filename) {
     }
 }
 
-// Función para series (mantener igual, pero podemos mejorar)
-async function createSerieCard(episodio) {
+// Función para series (optimizada para una sola llamada por serie)
+async function createSerieCard(episodio, preloadedPoster = null) {
     const card = document.createElement("div");
     card.classList.add("movie-card");
 
     const title = episodio.name || episodio.title || 'Sin título';
 
-    // Extraer nombre de la serie
-    let serieName = episodio.serie_name || title.replace(/[Tt]\d+[Cc]\d+/g, '').trim();
+    // Extraer nombre de la serie y limpiar sufijos
+    let serieName = episodio.serie_name || title;
+    // Limpiar nombre de serie: eliminar patrones de episodio y sufijos
+    serieName = serieName.replace(/[Tt]\d+[Cc]\d+/g, '');  // T1C01
+    serieName = serieName.replace(/[Ss]\d+[Ee]\d+/g, '');  // S01E01
+    serieName = serieName.replace(/season\s*\d+/gi, '');    // Season 1
+    serieName = serieName.replace(/episode\s*\d+/gi, '');   // Episode 1
+    serieName = serieName.replace(/\d+x\d+/g, '');         // 1x01
+    serieName = serieName.replace(/serie/gi, '');            // serie
+    serieName = serieName.replace(/optimized/gi, '');        // optimized
+    serieName = serieName.replace(/hd/gi, '');              // hd
+    serieName = serieName.replace(/bluray/gi, '');           // bluray
+    serieName = serieName.replace(/webrip/gi, '');           // webrip
+    serieName = serieName.replace(/web-dl/gi, '');          // web-dl
+    serieName = serieName.replace(/[-_(]/g, ' ');            // guiones y paréntesis
+    serieName = serieName.replace(/\)/g, '');               // cerrar paréntesis
+    serieName = serieName.replace(/\s+/g, ' ').trim();      // espacios múltiples
 
     // Crear imagen con placeholder
     const img = document.createElement('img');
@@ -174,8 +202,14 @@ async function createSerieCard(episodio) {
     const playPath = episodio.id || episodio.path || episodio.file;
     card.onclick = () => window.playMovie(playPath);
 
-    // Cargar póster (pasando el filename para fallback local)
-    loadSeriePoster(img, serieName, episodio.filename);
+    // Si tenemos póster pre-cargado, usarlo directamente
+    if (preloadedPoster) {
+        img.src = preloadedPoster;
+        console.log(`📺 Usando póster pre-cargado para: ${serieName}`);
+    } else {
+        // Cargar póster solo si no hay pre-carga
+        loadSeriePoster(img, serieName, episodio.filename);
+    }
 
     return card;
 }
@@ -222,8 +256,19 @@ async function loadSeriePoster(imgElement, serieName, firstEpisodeFilename) {
         console.log(`📁 Intentando thumbnail local para serie: ${serieName}`);
 
         if (firstEpisodeFilename) {
-            // Quitar extensión (ej: .mkv)
-            const baseName = firstEpisodeFilename.replace(/\.[^/.]+$/, '');
+            // Quitar extensión y limpiar sufijos (ej: .mkv)
+            let baseName = firstEpisodeFilename.replace(/\.[^/.]+$/, '');
+            // Limpiar sufijos del filename
+            baseName = baseName.replace(/T\d+C\d+/gi, '');
+            baseName = baseName.replace(/S\d+E\d+/gi, '');
+            baseName = baseName.replace(/serie/gi, '');
+            baseName = baseName.replace(/optimized/gi, '');
+            baseName = baseName.replace(/hd/gi, '');
+            baseName = baseName.replace(/bluray/gi, '');
+            baseName = baseName.replace(/webrip/gi, '');
+            baseName = baseName.replace(/web-dl/gi, '');
+            baseName = baseName.replace(/[-_]/g, ' ');
+            baseName = baseName.replace(/\s+/g, ' ').trim();
 
             // === LOGS PARA DEPURACIÓN ===
             console.log(`📁 firstEpisodeFilename: ${firstEpisodeFilename}`);
@@ -251,7 +296,18 @@ async function loadSeriePoster(imgElement, serieName, firstEpisodeFilename) {
     } catch (error) {
         console.error(`❌ Error cargando póster de serie:`, error);
         if (firstEpisodeFilename) {
-            const baseName = firstEpisodeFilename.replace(/\.[^/.]+$/, '');
+            // Limpiar sufijos del filename
+            let baseName = firstEpisodeFilename.replace(/\.[^/.]+$/, '');
+            baseName = baseName.replace(/T\d+C\d+/gi, '');
+            baseName = baseName.replace(/S\d+E\d+/gi, '');
+            baseName = baseName.replace(/serie/gi, '');
+            baseName = baseName.replace(/optimized/gi, '');
+            baseName = baseName.replace(/hd/gi, '');
+            baseName = baseName.replace(/bluray/gi, '');
+            baseName = baseName.replace(/webrip/gi, '');
+            baseName = baseName.replace(/web-dl/gi, '');
+            baseName = baseName.replace(/[-_]/g, ' ');
+            baseName = baseName.replace(/\s+/g, ' ').trim();
             imgElement.src = `/thumbnails/${baseName}.jpg`;
         }
     }

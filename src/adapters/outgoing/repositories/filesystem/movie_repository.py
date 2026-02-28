@@ -28,7 +28,7 @@ class FilesystemMovieRepository(IMovieRepository):
             base_folder: Carpeta base donde están las películas
             ttl_seconds: Tiempo de vida de la caché en segundos (default: 300 = 5 minutos)
         """
-        self._base_folder = base_folder or os.environ.get('MOVIES_FOLDER', '/mnt/servidor/Data2TB/audiovisual')
+        self._base_folder = base_folder or os.environ.get('MOVIES_FOLDER', '/mnt/DATA_2TB/audiovisual')
         self._valid_extensions = {".mp4", ".mkv", ".avi", ".mov", ".flv", ".wmv"}
         
         # Configuración de caché
