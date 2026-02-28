@@ -253,65 +253,6 @@ def debug_repo():
             'error': str(e),
             'trace': traceback.format_exc()
         }), 500
-        
-        # Agrupar el resto de películas por categoría
-        for movie in movies:
-            # Extraer categoría de la ruta
-            path = movie.get('path', '')
-            parts = path.split('/')
-            if len(parts) > 1:
-                # La categoría es el penúltimo directorio (después de 'mkv')
-                if 'mkv' in parts:
-                    idx = parts.index('mkv')
-                    if idx + 1 < len(parts):
-                        categoria = parts[idx + 1]
-                    else:
-                        categoria = 'Otros'
-                else:
-                    categoria = 'Otros'
-            else:
-                categoria = 'Otros'
-            
-            # Buscar si ya existe la categoría
-            found = False
-            for cat in categorias:
-                if cat[0] == categoria:
-                    cat[1].append(movie)
-                    found = True
-                    break
-            if not found:
-                categorias.append([categoria, [movie]])
-        
-        # Obtener series
-        series = {}
-        if _list_series_use_case:
-            raw_series = _list_series_use_case.execute()
-            # Agrupar por nombre de serie - el caso de uso ya devuelve el nombre
-            for serie in raw_series:
-                # Usar el nombre directo del caso de uso
-                serie_name = serie.get('name', 'Unknown')
-                
-                if serie_name not in series:
-                    series[serie_name] = []
-                
-                # Agregar los episodios de esta serie
-                if 'episodes' in serie:
-                    series[serie_name].extend(serie['episodes'])
-                else:
-                    series[serie_name].append(serie)
-        
-        logger.info(f"✅ Categorías generadas: {len(categorias)}")
-        logger.info(f"📦 Estructura final: {{'categorias': {len(categorias)}, 'series': {len(series)}}}")
-        
-        # Devolver estructura esperada por el frontend
-        return jsonify(normalize_dict({
-            'categorias': categorias,
-            'series': series
-        }))
-    
-    except Exception as e:
-        logger.error(f"❌ Error en /api/movies: {e}", exc_info=True)
-        return jsonify({'error': str(e)}), 500
 
 
 @catalog_bp.route('/api/series', methods=['GET'])
