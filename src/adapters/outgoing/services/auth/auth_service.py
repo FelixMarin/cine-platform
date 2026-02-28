@@ -12,8 +12,8 @@ class AuthService(IAuthService):
     """Servicio de autenticación básico con credenciales de entorno"""
     
     def __init__(self):
-        self._valid_user = os.environ.get('APP_USER', 'admin')
-        self._valid_password = os.environ.get('APP_PASSWORD', 'Admin1')
+        self._valid_user = os.environ.get('APP_USER', 'default-user')
+        self._valid_password = os.environ.get('APP_PASSWORD', 'default-user-password')
         self._tokens = {}  # Almacén temporal de tokens
     
     def login(self, email: str, password: str) -> Tuple[bool, Optional[Dict]]:
