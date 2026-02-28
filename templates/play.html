@@ -1,59 +1,236 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Reproducción</title>
+    <title>{{ sanitized_name }} - Reproducción</title>
     <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
-    <style>
-        body { 
-            font-family: Arial, sans-serif; 
-            margin: 0; 
-            padding: 0; 
-            background-color: #121212; 
-            color: #ffffff; 
-        }
-        .container { 
-            display: flex; 
-            flex-direction: column; 
-            align-items: center; 
-            padding: 20px; 
-        }
-        h1 {
-            font-size: 24px;
-            text-align: center;
-            margin-bottom: 10px;
-        }
-        .underline {
-            width: 80%;
-            height: 2px;
-            background: linear-gradient(to right, #444, #1e1e1e);
-            margin-bottom: 20px;
-        }
-        video { 
-            max-width: 100%; 
-            height: auto; 
-            margin-top: 20px; 
-            border: 1px solid #444; 
-        }
-        a { 
-            color: #ffffff; 
-            text-decoration: none; 
-            margin-top: 20px; 
-        }
-        a:hover { 
-            text-decoration: underline; 
-        }
-    </style>
+    
+    <!-- CSS del reproductor -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/play/play.css') }}?v={{ range(1, 10000) | random }}">
 </head>
 <body>
     <div class="container">
-        <h1>{{ sanitized_name }}</h1>
-        <div class="underline"></div>
-        <video controls>
-            <source src="/stream/{{ filename }}" type="video/mp4">
-            Tu navegador no soporta este formato. <a href="/download/{{ filename }}">Descargar aquí</a>.
-        </video>
+        <!-- Sección del reproductor -->
+        <section class="video-section">
+            <h1>{{ sanitized_name }}</h1>
+            <div class="underline"></div>
+            
+            <div class="video-wrapper">
+                <!-- Usar movie_id si está disponible, sino filename legacy -->
+                <video controls preload="auto" autoplay id="videoPlayer">
+                    {% if movie_id %}
+                    <source src="/api/streaming/id/{{ movie_id }}" type="video/mp4">
+                    {% else %}
+                    <source src="/stream/{{ filename }}" type="video/mp4">
+                    {% endif %}
+                    Tu navegador no soporta este formato.
+                </video>
+                
+                <div class="video-controls">
+                    {% if is_admin %}
+                    <a href="/download/{{ filename }}" class="download-btn">⬇️ Descargar película</a>
+                    {% else %}
+                    <span class="download-disabled" title="Solo administradores pueden descargar">🔒 Descargar (admin)</span>
+                    {% endif %}
+                </div>
+            </div>
+        </section>
+
+        <!-- Sección de información de la película (se carga de forma asíncrona) -->
+        <section class="movie-info" id="movie-info-section" style="display: none;">
+            <div class="loading-info">
+                <p>📽️ Cargando información de la película...</p>
+            </div>
+        </section>
+
+        <!-- Mensaje si no hay información -->
+        <div class="no-info" id="no-movie-info" style="display: none;">
+            <p>🎬 No se encontró información adicional para esta película</p>
+            <p class="no-info-sub">Puedes seguir viendo la película sin problemas</p>
+        </div>
     </div>
+
+    <!-- Datos de la película para carga asíncrona -->
+    <div id="movie-data" 
+         data-title="{{ clean_title | default('') }}" 
+         data-year="{{ year if year else '' }}"
+         data-movie-id="{{ movie_id if movie_id else '' }}"
+         style="display: none;">
+    </div>
+    
+    <script src="{{ url_for('static', filename='js/play/play.js') }}?v={{ range(1, 10000) | random }}" defer></script>
+    
+    <script>
+    // 🚨 IMPORTANTE: El video debe empezar INMEDIATAMENTE
+    // No esperar a metadatos, no esperar a nada
+    (function() {
+        console.log('🎬 Página de reproducción cargando...');
+        
+        // 1. El video YA debería estar descargando por preload="auto"
+        // Verificar que existe
+        var video = document.getElementById('videoPlayer');
+        if (video) {
+            var source = video.querySelector('source');
+            console.log('📹 Video src:', source ? source.src : 'NO SOURCE');
+            
+            // Forzar carga si no ha started
+            video.load();
+            
+            // Logs de eventos
+            video.addEventListener('loadstart', function() {
+                console.log('🔄 Video loadstart - empezando a descargar');
+            });
+            video.addEventListener('loadedmetadata', function() {
+                console.log('📊 Video metadata cargado');
+            });
+            video.addEventListener('canplay', function() {
+                console.log('✅ Video canplay - listo para reproducir');
+            });
+            video.addEventListener('playing', function() {
+                console.log('🎥 Video REPRODUCIENDO');
+            });
+            video.addEventListener('error', function(e) {
+                console.error('❌ Video error:', e);
+            });
+        }
+        
+        // 2. Los metadatos se cargan en BACKGROUND (NO bloquea video)
+        // Pequeño delay para no competir con la descarga del video
+        setTimeout(function() {
+            var movieDataEl = document.getElementById('movie-data');
+            var cleanTitle = movieDataEl ? movieDataEl.getAttribute('data-title') : '';
+            var movieYear = movieDataEl ? movieDataEl.getAttribute('data-year') : '';
+            
+            console.log('📡 Cargando metadatos en background...');
+            
+            if (cleanTitle) {
+                var url = '/api/movie/metadata?title=' + encodeURIComponent(cleanTitle);
+                if (movieYear) {
+                    url += '&year=' + movieYear;
+                }
+                
+                fetch(url)
+                    .then(function(response) {
+                        if (!response.ok) {
+                            throw new Error('Error en la respuesta');
+                        }
+                        return response.json();
+                    })
+                    .then(function(data) {
+                        if (data && data.title) {
+                            mostrarMovieInfo(data);
+                        } else {
+                            mostrarNoInfo();
+                        }
+                    })
+                    .catch(function(error) {
+                        console.log('No se pudieron cargar los metadatos:', error);
+                        mostrarNoInfo();
+                    });
+            } else {
+                mostrarNoInfo();
+            }
+        }, 500);
+        
+        function mostrarMovieInfo(data) {
+            var section = document.getElementById('movie-info-section');
+            var noInfo = document.getElementById('no-movie-info');
+            
+            if (!section) return;
+            
+            var html = '';
+            
+            html += '<div class="info-header">';
+            
+            if (data.poster) {
+                html += '<div class="movie-poster">';
+                html += '<img src="' + data.poster[0] + '" alt="' + data.title + '" onerror="this.onerror=null; this.src=\'' + data.poster[1] + '\';" />';
+                html += '</div>';
+            } else {
+                html += '<div class="movie-poster-placeholder"><span>🎬<br>Sin imagen</span></div>';
+            }
+            
+            html += '<div class="movie-header">';
+            html += '<h2>' + data.title + (data.year ? ' <span class="movie-year">(' + data.year + ')</span></h2>' : '</h2>');
+            
+            html += '<div class="movie-meta">';
+            if (data.runtime && data.runtime !== 'N/A') {
+                html += '<span class="meta-item">⏱️ ' + data.runtime + '</span>';
+            }
+            if (data.released && data.released !== 'N/A') {
+                html += '<span class="meta-item">📅 ' + data.released + '</span>';
+            }
+            if (data.imdb_rating && data.imdb_rating !== 'N/A') {
+                html += '<span class="meta-item rating">⭐ ' + data.imdb_rating + '/10</span>';
+            }
+            html += '</div>';
+            
+            if (data.genres && data.genres.length > 0) {
+                html += '<div class="genres">';
+                data.genres.forEach(function(genre) {
+                    html += '<span class="genre-tag">' + genre + '</span>';
+                });
+                html += '</div>';
+            }
+            
+            html += '</div></div>';
+            
+            if (data.plot && data.plot !== 'N/A') {
+                html += '<div class="plot">' + data.plot + '</div>';
+            }
+            
+            html += '<div class="details-grid">';
+            if (data.director && data.director !== 'N/A') {
+                html += '<div class="detail-card"><div class="detail-label">Director</div><div class="detail-value">' + data.director + '</div></div>';
+            }
+            if (data.writer && data.writer !== 'N/A') {
+                html += '<div class="detail-card"><div class="detail-label">Guionista</div><div class="detail-value">' + data.writer + '</div></div>';
+            }
+            if (data.country && data.country !== 'N/A') {
+                html += '<div class="detail-card"><div class="detail-label">País</div><div class="detail-value">' + data.country + '</div></div>';
+            }
+            if (data.language && data.language !== 'N/A') {
+                html += '<div class="detail-card"><div class="detail-label">Idioma</div><div class="detail-value">' + data.language + '</div></div>';
+            }
+            if (data.box_office && data.box_office !== 'N/A') {
+                html += '<div class="detail-card"><div class="detail-label">Taquilla</div><div class="detail-value">' + data.box_office + '</div></div>';
+            }
+            if (data.awards && data.awards !== 'N/A') {
+                html += '<div class="detail-card"><div class="detail-label">Premios</div><div class="detail-value">' + data.awards + '</div></div>';
+            }
+            html += '</div>';
+            
+            if (data.ratings && data.ratings.length > 0) {
+                html += '<div class="ratings">';
+                data.ratings.forEach(function(rating) {
+                    var parts = rating.split(' ');
+                    html += '<div class="rating-card"><div class="rating-source">' + parts[0] + '</div><div class="rating-value">' + (parts[1] || '') + '</div></div>';
+                });
+                html += '</div>';
+            }
+            
+            if (data.cast && data.cast.length > 0) {
+                html += '<div class="cast-section"><h3>Reparto principal</h3><div class="cast-list">';
+                data.cast.forEach(function(actor) {
+                    html += '<span class="cast-item">' + actor + '</span>';
+                });
+                html += '</div></div>';
+            }
+            
+            section.innerHTML = html;
+            section.style.display = 'block';
+            if (noInfo) noInfo.style.display = 'none';
+        }
+        
+        function mostrarNoInfo() {
+            var section = document.getElementById('movie-info-section');
+            var noInfo = document.getElementById('no-movie-info');
+            
+            if (section) section.style.display = 'none';
+            if (noInfo) noInfo.style.display = 'block';
+        }
+    })();
+    </script>
 </body>
 </html>

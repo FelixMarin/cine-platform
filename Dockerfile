@@ -1,10 +1,9 @@
-FROM python:3.10-slim
+FROM python:3.10-bullseye
 
-# Instalar dependencias del sistema (FFmpeg es requerido)
-RUN apt-get update && apt-get install -y \
-    python3 \
-    python3-pip \
-    python3-venv \
+# Actualizar repositorios e instalar dependencias del sistema
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    g++ \
     ffmpeg \
     libmagic1 \
     && rm -rf /var/lib/apt/lists/*
@@ -13,7 +12,8 @@ WORKDIR /app
 
 # Copiar y instalar dependencias de Python
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --upgrade pip && \
+    pip install -r requirements.txt
 
 # Copiar el código de la aplicación
 COPY . .

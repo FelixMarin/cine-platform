@@ -1,0 +1,6 @@
+[project]
+name = "cine-platform"
+version = "0.1.0"
+
+[project.scripts]
+optimize_movie = "src.adapters.entry.cli.commands.optimize_movie:main"

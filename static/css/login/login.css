@@ -4,3 +4,31 @@
 @import url('box.css');
 @import url('form.css');
 @import url('responsive.css');
+
+/* Estilo del título (debe ser el mismo que en el header) */
+.menu-title-full {
+    color: var(--text-primary);
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin: 0 0 2rem 0;  /* Ajuste para login */
+    text-align: center;
+    white-space: nowrap;
+}
+
+.menu-title-full span {
+    color: var(--accent-color);
+}
+
+/* Si quieres que herede del .menu-header automáticamente */
+.login-box h2 {
+    /* Estos valores deberían ser los mismos que .menu-header h2 */
+    color: var(--text-primary);
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin-bottom: 2rem;
+    white-space: nowrap;
+}
+
+.login-box h2 span {
+    color: red;
+}

@@ -80,11 +80,29 @@ spec:
                   name: cine-secret
                   key: OAUTH2_REDIRECT_URI
 
+            - name: PUBLIC_OAUTH2_URL
+              valueFrom:
+                secretKeyRef:
+                  name: cine-secret
+                  key: PUBLIC_OAUTH2_URL
+
+            - name: PUBLIC_REDIRECT_URI
+              valueFrom:
+                secretKeyRef:
+                  name: cine-secret
+                  key: PUBLIC_REDIRECT_URI
+
             - name: SESSION_COOKIE_DOMAIN
               valueFrom:
                 secretKeyRef:
                   name: cine-secret
                   key: SESSION_COOKIE_DOMAIN
+
+            - name: OMDB_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: cine-secret
+                  key: OMDB_API_KEY
 
             # ============================
             # 🟦 ConfigMap variables (App config)
@@ -130,6 +148,12 @@ spec:
                 configMapKeyRef:
                   name: cine-config
                   key: SESSION_COOKIE_PATH
+
+            - name: OMDB_LANGUAGE
+              valueFrom:
+                configMapKeyRef:
+                  name: cine-config
+                  key: OMDB_LANGUAGE
 
             - name: MOVIES_FOLDER
               valueFrom:
@@ -213,7 +237,7 @@ spec:
             type: DirectoryOrCreate
         - name: movies
           hostPath:
-            path: /mnt/servidor/Data2TB/audiovisual/
+            path: /mnt/DATA_2TB/audiovisual/
             type: Directory
         - name: certs
           hostPath:
