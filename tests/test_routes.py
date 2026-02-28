@@ -78,6 +78,19 @@ class TestAllBlueprints(unittest.TestCase):
         # Importar función de registro de blueprints
         from src.adapters.entry.web.routes import register_all_blueprints
         
+        from src.adapters.entry.web.routes.catalog import init_catalog_routes
+
+        # Crear mock del caso de uso
+        self.list_movies_use_case = MagicMock()
+        self.list_movies_use_case.execute.return_value = []
+
+        # Inicializar rutas de catálogo con el mock
+        init_catalog_routes(
+            list_movies_use_case=self.list_movies_use_case,
+            list_series_use_case=None,
+            search_use_case=None
+        )
+
         # Mock de servicios
         self.auth_service = MagicMock()
         self.auth_service.token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX25hbWUiOiJ0ZXN0IiwidXNlcl9yb2xlIjoidXNlciIsImF1dGhvcml0aWVzIjpbIlJPTEVfVVNFUiJdfQ.signature"

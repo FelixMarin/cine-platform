@@ -329,8 +329,8 @@ def login_page():
                 pass
 
         # Fallback a credenciales locales (útil para desarrollo)
-        valid_user = os.environ.get('APP_USER', 'admin')
-        valid_pass = os.environ.get('APP_PASSWORD', 'Admin1')
+        valid_user = os.environ.get('APP_USER', 'default-user')
+        valid_pass = os.environ.get('APP_PASSWORD', 'default-user-password')
 
         logger.info(f"[LOGIN] Verificando credenciales locales: {email} == {valid_user}")
         
