@@ -349,7 +349,8 @@ def get_movie_thumbnail_by_title():
         local_thumbnail_path = os.path.join(settings.THUMBNAIL_FOLDER, thumbnail_filename)
         
         if os.path.exists(local_thumbnail_path):
-            return send_file(local_thumbnail_path, mimetype='image/jpeg')
+            # Devolver JSON con la ruta en lugar de enviar el archivo
+            return jsonify({'thumbnail': '/thumbnails/' + thumbnail_filename})
     
     # 3. Si no se encontró en ningún lado
     return jsonify({'error': 'Thumbnail no encontrado'}), 404
