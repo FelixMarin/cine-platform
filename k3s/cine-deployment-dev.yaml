@@ -179,11 +179,11 @@ spec:
                   name: cine-config
                   key: OAUTH2_USERINFO_ENDPOINT
 
-            - name: THUMBNAILS_FOLDER
+            - name: THUMBNAIL_FOLDER
               valueFrom:
                 configMapKeyRef:
                   name: cine-config
-                  key: THUMBNAILS_FOLDER
+                  key: THUMBNAIL_FOLDER
 
           volumeMounts:
             - name: src
