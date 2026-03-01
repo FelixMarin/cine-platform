@@ -313,25 +313,90 @@ def get_movie_thumbnail(filename):
 def get_movie_thumbnail_by_title():
     """Obtiene el thumbnail de una película por título (query param)"""
     from src.adapters.config.dependencies import get_metadata_service
+    import logging
+    import os
+    import re
+    from flask import send_file
+    
+    logger = logging.getLogger(__name__)
     
     title = request.args.get('title')
     year = request.args.get('year')
+    filename = request.args.get('filename')
     
     if not title:
         return jsonify({'error': 'Título no proporcionado'}), 400
     
+    # 1. PRIMERO: Intentar obtener de OMDB
     metadata_service = get_metadata_service()
-    if not metadata_service:
-        return jsonify({'error': 'Servicio de metadatos no disponible'}), 500
+    if metadata_service:
+        try:
+            year_int = int(year) if year else None
+            thumbnail_url = metadata_service.get_movie_thumbnail(title, year_int)
+            
+            if thumbnail_url:
+                # Si encontramos en OMDB, devolver la URL
+                logger.info(f"🌐 OMDB OK: encontró póster para [{title}]")
+                return jsonify({'thumbnail': thumbnail_url})
+        except Exception as e:
+            # Log del error pero continuar con búsqueda local
+            logger.error(f"⚠️ Error en OMDB para [{title}]: {e}")
     
-    try:
-        year_int = int(year) if year else None
-        thumbnail = metadata_service.get_movie_thumbnail(title, year_int)
-        if thumbnail:
-            return jsonify({'thumbnail': thumbnail})
-        return jsonify({'error': 'Thumbnail no encontrado'}), 404
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+    # 2. SEGUNDO: Si no hay en OMDB, buscar thumbnail local
+    # Extraer nombre base del filename o del título
+    if filename:
+        # El filename ya tiene el nombre completo (ej: Red-One-(2023)-optimized.mkv)
+        # Usar tal cual pero sin extensión - NO hacer limpieza
+        base_name = os.path.splitext(filename)[0]
+    else:
+        # Limpiar el título para crear nombre de archivo
+        base_name = title
+        # Eliminar año entre paréntesis o al final
+        base_name = re.sub(r'\s*\(?\d{4}\)?\s*$', '', base_name)
+        # Eliminar sufijos comunes PERO mantener -optimized si es parte del nombre
+        base_name = re.sub(r'[-_](optimized|hd|bluray|webrip|web-dl)$', '', base_name, flags=re.IGNORECASE)
+        # Eliminar patrones restantes de (año)
+        base_name = re.sub(r'\s*\([^)]*\)\s*', ' ', base_name)
+        # Limpiar espacios
+        base_name = re.sub(r'\s+', ' ', base_name).strip()
+    
+    # Buscar en carpeta de thumbnails local
+    from src.infrastructure.config.settings import Settings
+    settings = Settings()
+    thumbnail_folder = settings.THUMBNAIL_FOLDER
+    
+    logger.info(f"⚠️ OMDB 404, buscando thumbnail local para [{title}]")
+    
+    # Construir nombres de archivo a buscar
+    # Si base_name ya termina en -optimized, no agregar otro
+    search_names = []
+    if not base_name.lower().endswith('optimized'):
+        search_names.extend([
+            f"{base_name}-optimized.jpg",
+            f"{base_name}-optimized.webp"
+        ])
+    search_names.extend([
+        f"{base_name}.jpg",
+        f"{base_name}.webp"
+    ])
+    
+    local_thumbnail_path = None
+    found_filename = None
+    
+    for search_name in search_names:
+        local_path = os.path.join(thumbnail_folder, search_name)
+        if os.path.exists(local_path):
+            local_thumbnail_path = local_path
+            found_filename = search_name
+            break
+    
+    if local_thumbnail_path and found_filename:
+        logger.info(f"✅ Thumbnail local encontrado: [{found_filename}]")
+        return jsonify({'thumbnail': '/thumbnails/' + found_filename})
+    
+    # 3. Si no se encontró en ningún lado, devolver 404
+    logger.info(f"❌ Sin datos: usando default.jpg para [{title}]")
+    return jsonify({'error': 'Thumbnail no encontrado'}), 404
 
 
 @catalog_bp.route('/api/serie-poster', methods=['GET'])

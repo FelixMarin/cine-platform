@@ -228,6 +228,80 @@ def get_movie_metadata():
         return jsonify({'error': str(e)}), 500
 
 
+@player_bp.route('/api/serie/metadata', methods=['GET'])
+def get_serie_metadata():
+    """Endpoint para obtener metadatos de una serie de forma asíncrona"""
+    title = request.args.get('title', '')
+    
+    if not title:
+        return jsonify({'error': 'title es requerido'}), 400
+    
+    try:
+        from src.adapters.outgoing.services.omdb.client import OMDBMetadataService
+        omdb_service = OMDBMetadataService()
+        
+        if omdb_service.is_available():
+            # Intentar primero con el título tal cual
+            omdb_data = omdb_service.get_serie_metadata(title)
+            
+            if not omdb_data:
+                logger.warning(f"⚠️ No se encontraron metadatos para '{title}'. Si el título está en español, se requiere traducción manual.")
+            
+            if omdb_data:
+                serie_info = {
+                    'title': omdb_data.get('Title'),
+                    'year': omdb_data.get('Year'),
+                    'released': omdb_data.get('Released'),
+                    'runtime': omdb_data.get('Runtime'),
+                    'genre': omdb_data.get('Genre'),
+                    'genres': [g.strip() for g in omdb_data.get('Genre', '').split(',') if g.strip()],
+                    'director': omdb_data.get('Director'),
+                    'writer': omdb_data.get('Writer'),
+                    'actors': omdb_data.get('Actors'),
+                    'plot': omdb_data.get('Plot'),
+                    'language': omdb_data.get('Language'),
+                    'country': omdb_data.get('Country'),
+                    'awards': omdb_data.get('Awards'),
+                    'imdb_rating': omdb_data.get('imdbRating'),
+                    'imdb_votes': omdb_data.get('imdbVotes'),
+                    'total_seasons': omdb_data.get('totalSeasons'),
+                }
+                
+                # Procesar póster
+                poster = omdb_data.get('Poster')
+                if poster and poster != 'N/A':
+                    import requests
+                    serie_info['poster'] = [
+                        f"/proxy-image?url={requests.utils.quote(poster)}",
+                        '/static/images/default-poster.jpg'
+                    ]
+                else:
+                    serie_info['poster'] = None
+                
+                # Procesar ratings
+                ratings = []
+                for rating in omdb_data.get('Ratings', []):
+                    source = rating.get('Source', '')
+                    value = rating.get('Value', '')
+                    if 'Rotten Tomatoes' in source:
+                        ratings.append(f"🍅 {value}")
+                    elif 'Metacritic' in source:
+                        ratings.append(f"📊 {value}")
+                    elif 'Internet Movie Database' in source:
+                        ratings.append(f"⭐ {value}")
+                serie_info['ratings'] = ratings
+                
+                # Procesar reparto
+                serie_info['cast'] = [a.strip() for a in omdb_data.get('Actors', '').split(',')[:5] if a.strip()]
+                
+                return jsonify(serie_info)
+        
+        return jsonify({'error': 'No se encontraron metadatos'}), 404
+            
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 # === ENDPOINTS DE STREAMING ===
 
 @player_bp.route('/api/stream/movie/<int:movie_id>', methods=['GET'])

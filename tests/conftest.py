@@ -11,8 +11,8 @@ def setup_environment(monkeypatch):
     """Configurar entorno para tests"""
     
     # Variables de entorno necesarias
-    os.environ.setdefault('MOVIES_FOLDER', '/mnt/servidor/Data2TB/audiovisual')
-    os.environ.setdefault('SERIES_FOLDER', '/mnt/servidor/Data2TB/audiovisual/series')
+    os.environ.setdefault('MOVIES_FOLDER', '/mnt/DATA_2TB/audiovisual')
+    os.environ.setdefault('SERIES_FOLDER', '/mnt/DATA_2TB/audiovisual/series')
     os.environ.setdefault('UPLOAD_FOLDER', '/tmp/cineplatform/uploads')
     os.environ.setdefault('OUTPUT_FOLDER', '/tmp/cineplatform/outputs')
     os.environ.setdefault('THUMBNAIL_FOLDER', '/tmp/cineplatform/thumbnails')

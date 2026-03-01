@@ -293,6 +293,11 @@ def get_movie_repository():
     return _movie_repository
 
 
+def get_serie_repository():
+    """Obtiene el repositorio de series"""
+    return _serie_repository
+
+
 def get_progress_repository():
     """Obtiene el repositorio de progreso"""
     return _progress_repository

@@ -17,10 +17,12 @@
             <div class="underline"></div>
             
             <div class="video-wrapper">
-                <!-- Usar movie_id si está disponible, sino filename legacy -->
-                <video controls preload="auto" autoplay id="videoPlayer">
-                    {% if movie_id %}
-                    <source src="/api/streaming/id/{{ movie_id }}" type="video/mp4">
+                <!-- Usar media_id para streaming (soporta películas y episodios) -->
+                <video controls preload="auto" id="videoPlayer">
+                    {% if media_type == 'serie' %}
+                    <source src="/api/streaming/episode/{{ media_path }}" type="video/mp4">
+                    {% elif media_path and (media_path.startswith('mov_') or media_path.startswith('ep_') or media_path.startswith('ser_')) %}
+                    <source src="/api/streaming/id/{{ media_path }}" type="video/mp4">
                     {% else %}
                     <source src="/stream/{{ filename }}" type="video/mp4">
                     {% endif %}
@@ -51,11 +53,13 @@
         </div>
     </div>
 
-    <!-- Datos de la película para carga asíncrona -->
+    <!-- Datos del medio para carga asíncrona -->
     <div id="movie-data" 
          data-title="{{ clean_title | default('') }}" 
          data-year="{{ year if year else '' }}"
-         data-movie-id="{{ movie_id if movie_id else '' }}"
+         data-media-id="{{ media_path if media_path else '' }}"
+         data-media-type="{{ media_type if media_type else 'movie' }}"
+         data-serie-name="{{ serie_name if serie_name else '' }}"
          style="display: none;">
     </div>
     
@@ -101,16 +105,82 @@
             var movieDataEl = document.getElementById('movie-data');
             var cleanTitle = movieDataEl ? movieDataEl.getAttribute('data-title') : '';
             var movieYear = movieDataEl ? movieDataEl.getAttribute('data-year') : '';
+            var mediaType = movieDataEl ? movieDataEl.getAttribute('data-media-type') : 'movie';
+            var serieName = movieDataEl ? movieDataEl.getAttribute('data-serie-name') : '';
+            var mediaPath = movieDataEl ? movieDataEl.getAttribute('data-media-id') : '';
             
-            console.log('📡 Cargando metadatos en background...');
-            
-            if (cleanTitle) {
-                var url = '/api/movie/metadata?title=' + encodeURIComponent(cleanTitle);
-                if (movieYear) {
-                    url += '&year=' + movieYear;
+            // Detectar si es una serie basándose en el patrón del filename
+            // Esto es necesario para rutas legacy donde no se pasa media_type
+            if (!mediaType || mediaType === 'movie') {
+                var filename = '';
+                var video = document.getElementById('videoPlayer');
+                if (video) {
+                    var source = video.querySelector('source');
+                    if (source) {
+                        filename = source.src || '';
+                    }
                 }
                 
-                fetch(url)
+                // Patrones de serie en el filename o URL
+                var seriePatterns = [/T\d+C\d+/i, /S\d+E\d+/i, /season\s*\d+/i, /episode\s*\d+/i, /\d+x\d+/];
+                for (var i = 0; i < seriePatterns.length; i++) {
+                    if (seriePatterns[i].test(cleanTitle) || seriePatterns[i].test(filename)) {
+                        mediaType = 'serie';
+                        break;
+                    }
+                }
+            }
+            
+            console.log('📡 Cargando metadatos en background...');
+            console.log('📊 Tipo de medio:', mediaType, '| Título:', cleanTitle);
+            
+            if (cleanTitle) {
+                // Usar el endpoint correcto según el tipo de medio
+                var metadataUrl;
+                // Función para limpiar títulos (elimina sufijos como -optimized, (año), T1C01, etc.)
+                function cleanMediaTitle(title) {
+                    var cleaned = title;
+                    // Eliminar patrones de episodio (T1C01, S01E01, etc.)
+                    cleaned = cleaned.replace(/T\d+C\d+/gi, '');
+                    cleaned = cleaned.replace(/S\d+E\d+/gi, '');
+                    cleaned = cleaned.replace(/season\s*\d+/gi, '');
+                    cleaned = cleaned.replace(/episode\s*\d+/gi, '');
+                    cleaned = cleaned.replace(/\d+x\d+/g, '');
+                    // Eliminar palabras comunes de sufijos
+                    cleaned = cleaned.replace(/serie/gi, '');
+                    cleaned = cleaned.replace(/optimized/gi, '');
+                    cleaned = cleaned.replace(/hd/gi, '');
+                    cleaned = cleaned.replace(/bluray/gi, '');
+                    cleaned = cleaned.replace(/webrip/gi, '');
+                    cleaned = cleaned.replace(/web-dl/gi, '');
+                    // Eliminar años entre paréntesis
+                    cleaned = cleaned.replace(/\([^)]*\)/g, '');
+                    // Reemplazar guiones y underscore por espacios
+                    cleaned = cleaned.replace(/[-_]/g, ' ');
+                    // Eliminar espacios múltiples y trim
+                    cleaned = cleaned.replace(/\s+/g, ' ').trim();
+                    return cleaned;
+                }
+                
+                var finalTitle = cleanMediaTitle(cleanTitle);
+                
+                if (mediaType === 'serie') {
+                    // Para series, usar el nombre de la serie
+                    var serieTitle = serieName || finalTitle;
+                    console.log('📺 Título de serie extraído:', serieTitle);
+                    metadataUrl = '/api/serie/metadata?title=' + encodeURIComponent(serieTitle);
+                    console.log('📺 Cargando metadatos de serie:', serieTitle);
+                } else {
+                    // Para películas
+                    metadataUrl = '/api/movie/metadata?title=' + encodeURIComponent(finalTitle);
+                    console.log('🎬 Cargando metadatos de película:', cleanTitle);
+                }
+                
+                if (movieYear) {
+                    metadataUrl += '&year=' + movieYear;
+                }
+                
+                fetch(metadataUrl)
                     .then(function(response) {
                         if (!response.ok) {
                             throw new Error('Error en la respuesta');

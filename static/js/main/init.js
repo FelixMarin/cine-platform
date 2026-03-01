@@ -1,6 +1,8 @@
 // Punto de entrada principal que carga todos los módulos
 // y configura los event listeners iniciales
 
+// El CacheManager se carga desde cache.js en el HTML
+
 document.addEventListener('DOMContentLoaded', function () {
     console.log('✅ DOM Content Loaded - iniciando...');
 
@@ -31,6 +33,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
 function initializeApp() {
     console.log('🚀 Inicializando aplicación...');
+
+    // Inicializar CacheManager
+    if (window.CacheManager) {
+        window.CacheManager.init();
+    }
 
     window.setupClickOutside();
     window.setupEmptyLinks();
