@@ -22,6 +22,55 @@ Plataforma unificada que combina **streaming de películas/series**, **optimizac
 
 ---
 
+# 🖼️ Sistema de Fallback para Pósters
+
+El sistema de thumbnails implementa un **fallback automático** con esta prioridad:
+
+1. **OMDB API** - Póster oficial desde la base de datos de OMDB
+2. **Thumbnail Local** - Imagen almacenada en el sistema de archivos
+3. **Imagen por Defecto** - `default.jpg` cuando no hay otras opciones
+
+### Endpoint: `/api/movie-thumbnail`
+
+```
+GET /api/movie-thumbnail?title=<título>&year=<año>&filename=<filename>
+```
+
+**Parámetros:**
+- `title` (requerido): Título de la película
+- `year` (opcional): Año de lanzamiento
+- `filename` (opcional): Nombre del archivo de video para fallback local
+
+### Flujo de Búsqueda
+
+1. **Primero**: Consulta OMDB API para obtener póster oficial
+2. **Segundo**: Si OMDB no tiene datos, busca thumbnail local:
+   - Ruta: configurable via `THUMBNAIL_FOLDER` (por defecto `/mnt/DATA_2TB/audiovisual/thumbnails`)
+   - Nomenclatura: `[nombre]-[año]-optimized.jpg` o `.webp`
+   - Ejemplo: `Red-One-(2023)-optimized.jpg`
+3. **Tercero**: Devuelve 404 si no se encuentra ningún thumbnail
+
+### Configuración
+
+```env
+# Archivos de medios
+MOVIES_FOLDER=/mnt/DATA_2TB/audiovisual
+THUMBNAIL_FOLDER=/mnt/DATA_2TB/audiovisual/thumbnails
+
+# OMDB API (opcional)
+OMDB_API_KEY=tu_api_key
+```
+
+### Logs de Debug
+
+El endpoint genera logs para depuración:
+- `🌐 OMDB OK: encontró póster para [película]` - OMDB tiene datos
+- `⚠️ OMDB 404, buscando thumbnail local para [película]` - Sin datos en OMDB
+- `✅ Thumbnail local encontrado: [archivo]` - Encontrado en sistema local
+- `❌ Sin datos: usando default.jpg para [película]` - No hay thumbnail disponible
+
+---
+
 # 🏗️ Arquitectura Hexagonal
 
 El proyecto sigue los principios de **Ports & Adapters**, desacoplando la lógica de negocio de los detalles de infraestructura.
@@ -157,6 +206,17 @@ Acceso:
 - `GET /login`
 - `GET /logout`
 
+### Películas y Series
+- `GET /api/movies` - Lista de películas autenticado
+- `GET /api/series` - Lista de series
+- `GET /api/categories` - Categorías con películas y series
+- `GET /api/search?q=<query>` - Búsqueda de contenido
+
+### Thumbnails y Pósters
+- `GET /api/movie-thumbnail?title=<title>&year=<year>&filename=<filename>` - Obtiene thumbnail de película (con fallback automático)
+- `GET /api/serie-poster?name=<name>` - Obtiene póster de serie
+- `GET /thumbnails/<filename>` - Servir thumbnail local
+
 ### Streaming
 - `GET /`
 - `GET /play/<path>`
@@ -255,5 +315,5 @@ curl http://tu-oauth2-server:8080/health
 
 ---
 
-**Versión**: 2.0.0  
-**Última actualización**: 2026-02-12
+**Versión**: 2.1.0  
+**Última actualización**: 2026-03-01

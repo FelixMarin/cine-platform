@@ -51,6 +51,7 @@ pb_data/
 k3s/cine-secret.yaml
 
 .coverage
+.coveragerc
 htmlcov/
 
 *.txt
