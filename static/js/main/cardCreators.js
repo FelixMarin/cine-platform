@@ -1,7 +1,16 @@
 // Depende de categoryUtils.js
 
-// Caché para thumbnails (24 horas)
-const THUMBNAIL_CACHE_TTL = 24 * 60 * 60 * 1000; // 24 horas en ms
+// Caché para thumbnails (24 horas) - Ahora usa Cache API
+const THUMBNAIL_CACHE_TTL = 24 * 60 * 60 * 1000;
+
+// Importar el gestor de caché dinámicamente
+let cacheManager = null;
+async function getCacheManager() {
+    if (!cacheManager && window.CacheManager) {
+        cacheManager = window.CacheManager;
+    }
+    return cacheManager;
+}
 
 function createMovieCard(movie) {
     const card = document.createElement("div");
@@ -100,13 +109,45 @@ async function loadMovieThumbnail(imgElement, title, year, filename) {
 
     const cacheKey = `thumb_${searchTitle}_${year || 'no-year'}`;
 
-    // Intentar cargar de caché
+    // Intentar primero con CacheManager (nueva implementación)
+    const cm = await getCacheManager();
+
+    try {
+        // Construir URL base
+        let url = `/api/movie-thumbnail?title=${encodeURIComponent(searchTitle)}`;
+        if (year) url += `&year=${year}`;
+
+        // Añadir filename SOLO si existe (para fallback local)
+        if (filename) {
+            url += `&filename=${encodeURIComponent(filename)}`;
+        }
+
+        // Si tenemos CacheManager, intentar obtener del caché
+        if (cm) {
+            const cachedUrl = await cm.getCachedImageUrl(url);
+            if (cachedUrl !== url) {
+                console.log(`📦 Thumbnail desde Cache API para: ${searchTitle}`);
+                imgElement.src = cachedUrl;
+
+                // También guardar en localStorage para compatibilidad
+                localStorage.setItem(cacheKey, JSON.stringify({
+                    url: cachedUrl,
+                    timestamp: Date.now()
+                }));
+                return;
+            }
+        }
+    } catch (e) {
+        // Fallback a localStorage si CacheManager falla
+    }
+
+    // Fallback: Intentar cargar de localStorage (compatibilidad)
     const cached = localStorage.getItem(cacheKey);
     if (cached) {
         try {
             const cachedData = JSON.parse(cached);
             if (Date.now() - cachedData.timestamp < THUMBNAIL_CACHE_TTL) {
-                console.log(`📦 Thumbnail en caché para: ${searchTitle}`);
+                console.log(`📦 Thumbnail en localStorage para: ${searchTitle}`);
                 imgElement.src = cachedData.url;
                 return;
             } else {
@@ -142,7 +183,7 @@ async function loadMovieThumbnail(imgElement, title, year, filename) {
         const data = await response.json();
 
         if (data.thumbnail) {
-            // Guardar en caché
+            // Guardar en caché (localStorage para compatibilidad)
             localStorage.setItem(cacheKey, JSON.stringify({
                 url: data.thumbnail,
                 timestamp: Date.now()
@@ -217,7 +258,33 @@ async function createSerieCard(episodio, preloadedPoster = null) {
 async function loadSeriePoster(imgElement, serieName, firstEpisodeFilename) {
     const cacheKey = `serie_poster_${serieName.replace(/\s+/g, '_').toLowerCase()}`;
 
-    // Intentar cargar de caché
+    // Intentar primero con CacheManager
+    const cm = await getCacheManager();
+
+    // Construir URL de OMDB
+    const omdbUrl = `/api/serie-poster?name=${encodeURIComponent(serieName)}`;
+
+    // Si tenemos CacheManager, intentar obtener del caché
+    if (cm) {
+        try {
+            const cachedUrl = await cm.getCachedImageUrl(omdbUrl);
+            if (cachedUrl !== omdbUrl) {
+                console.log(`📦 Póster desde Cache API para: ${serieName}`);
+                imgElement.src = cachedUrl;
+
+                // También guardar en localStorage para compatibilidad
+                localStorage.setItem(cacheKey, JSON.stringify({
+                    url: cachedUrl,
+                    timestamp: Date.now()
+                }));
+                return;
+            }
+        } catch (e) {
+            // Fallback a localStorage
+        }
+    }
+
+    // Fallback: Intentar cargar de localStorage
     const cached = localStorage.getItem(cacheKey);
     if (cached) {
         try {

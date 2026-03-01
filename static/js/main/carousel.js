@@ -1,3 +1,28 @@
+// Caché de pósters de series (en memoria)
+let seriePosterCache = {};
+
+// Inicializar caché de localStorage al cargar
+(function initSeriePosterCache() {
+    try {
+        const cached = localStorage.getItem('cine_serie_posters');
+        if (cached) {
+            seriePosterCache = JSON.parse(cached);
+            console.log('📺 Caché de pósters de series cargado:', Object.keys(seriePosterCache).length, 'series');
+        }
+    } catch (e) {
+        console.warn('No se pudo cargar el caché de pósters:', e);
+    }
+})();
+
+// Función para guardar pósters en localStorage
+function saveSeriePosterCache() {
+    try {
+        localStorage.setItem('cine_serie_posters', JSON.stringify(seriePosterCache));
+    } catch (e) {
+        console.warn('No se pudo guardar el caché de pósters:', e);
+    }
+}
+
 // Función para desplazar el carrusel
 function scrollCarousel(button, direction) {
     const carouselContainer = button.closest('.carousel-container');
@@ -94,7 +119,27 @@ async function renderMoviesByCategory(categoriasLista) {
 }
 
 // Caché global para pósters de series (una sola llamada a OMDB por serie)
-const seriePosterCache = {};
+// Ahora persistente con localStorage
+(function initSeriePosterCache() {
+    try {
+        const cached = localStorage.getItem('cine_serie_posters');
+        if (cached) {
+            seriePosterCache = JSON.parse(cached);
+            console.log('📺 Caché de pósters de series cargado:', Object.keys(seriePosterCache).length, 'series');
+        }
+    } catch (e) {
+        console.warn('No se pudo cargar el caché de pósters:', e);
+    }
+})();
+
+// Función para guardar pósters en localStorage
+function saveSeriePosterCache() {
+    try {
+        localStorage.setItem('cine_serie_posters', JSON.stringify(seriePosterCache));
+    } catch (e) {
+        console.warn('No se pudo guardar el caché de pósters:', e);
+    }
+}
 
 // Función para limpiar nombre de serie
 function cleanSerieName(name) {
@@ -137,6 +182,7 @@ async function preloadSeriesPosters(series) {
                     const data = await response.json();
                     if (data.poster) {
                         seriePosterCache[cleanName] = data.poster;
+                        saveSeriePosterCache(); // Guardar en localStorage
                         console.log(`📺 Póster precargado para: ${cleanName}`);
                     }
                 }

@@ -1,30 +1,28 @@
 // Depende de carousel.js
 
+// Legacy cache (mantenido para compatibilidad)
 const CACHE_KEY = 'cine_movies_cache';
 const CACHE_TIMESTAMP_KEY = 'cine_movies_timestamp';
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutos en milisegundos
 
+// Obtener referencia al CacheManager
+function getCacheManager() {
+    return window.CacheManager || null;
+}
+
 function loadContent(forceRefresh = false) {
     console.log('Cargando contenido...', forceRefresh ? '(forzando refresco)' : '');
 
-    // Si se fuerza refresco, ignorar caché
+    // Si NO se fuerza refresco, intentar usar el caché
     if (!forceRefresh) {
-        // Por ahora, siempre invalidar caché para obtener datos frescos
-        // Esto se puede cambiar después cuando todo funcione
-        console.log('🗑️ Invalidando caché para obtener datos frescos...');
-        localStorage.removeItem(CACHE_KEY);
-        localStorage.removeItem(CACHE_TIMESTAMP_KEY);
-
-        /*
+        // Intentar obtener datos del caché
         const cachedData = loadFromCache();
         if (cachedData) {
             console.log('📦 Usando datos cacheados');
             renderContent(cachedData);
-            // Refrescar en segundo plano (opcional)
-            refreshInBackground();
             return;
         }
-        */
+        console.log('� свежих datos en caché, cargando del servidor...');
     }
 
     // No hay caché, expiró o se fuerza refresco → cargar del servidor
@@ -168,14 +166,21 @@ function refreshContent(forceReload = false) {
 }
 
 function invalidateCache() {
-    // Forzar invalidación del caché
+    // Forzar invalidación del caché (localStorage legacy)
     localStorage.removeItem(CACHE_KEY);
     localStorage.removeItem(CACHE_TIMESTAMP_KEY);
-    console.log('🗑️ Caché invalidado manualmente');
+
+    // También invalidar en CacheManager si está disponible
+    const cm = getCacheManager();
+    if (cm) {
+        cm.invalidateApiCache('/api/movies');
+    }
+
+    console.log('🗑️ Caché invalidado manualmente (localStorage + Cache API)');
 }
 
-// Nueva función: Precargar thumbnails en segundo plano
-function preloadThumbnails(data) {
+// Nueva función: Precargar thumbnails en segundo plano usando CacheManager
+async function preloadThumbnails(data) {
     if (!data || !data.categorias) return;
 
     const thumbnailsToPreload = [];
@@ -189,28 +194,37 @@ function preloadThumbnails(data) {
         });
     });
 
-    // Precargar en segundo plano (solo los primeros 20)
-    console.log(`🖼️ Precargando ${Math.min(thumbnailsToPreload.length, 20)} thumbnails...`);
+    // Usar CacheManager para precargar si está disponible
+    const cm = getCacheManager();
+    if (cm && thumbnailsToPreload.length > 0) {
+        console.log(`🖼️ Precargando ${Math.min(thumbnailsToPreload.length, 20)} thumbnails con CacheManager...`);
+        await cm.preloadImages(thumbnailsToPreload.slice(0, 20), 'thumbnail');
+    } else {
+        // Fallback al método original
+        console.log(`🖼️ Precargando ${Math.min(thumbnailsToPreload.length, 20)} thumbnails...`);
 
-    let loaded = 0;
-    thumbnailsToPreload.slice(0, 20).forEach(url => {
-        const img = new Image();
-        img.onload = () => {
-            loaded++;
-            if (loaded === 20 || loaded === thumbnailsToPreload.length) {
-                console.log(`✅ Precarga de thumbnails completada (${loaded})`);
-            }
-        };
-        img.src = url;
-    });
+        let loaded = 0;
+        thumbnailsToPreload.slice(0, 20).forEach(url => {
+            const img = new Image();
+            img.onload = () => {
+                loaded++;
+                if (loaded === 20 || loaded === thumbnailsToPreload.length) {
+                    console.log(`✅ Precarga de thumbnails completada (${loaded})`);
+                }
+            };
+            img.src = url;
+        });
+    }
 }
 
 // Modificar renderContent para incluir precarga
 const originalRenderContent = renderContent;
 renderContent = async function (data) {
     await originalRenderContent(data);
-    // Precargar thumbnails después de renderizar
-    setTimeout(() => preloadThumbnails(data), 500);
+    // Precargar thumbnails después de renderizar (ahora es async)
+    setTimeout(async () => {
+        await preloadThumbnails(data);
+    }, 500);
 };
 
 // Exportar funciones
