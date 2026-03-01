@@ -86,7 +86,31 @@ El proyecto sigue los principios de **Ports & Adapters**, desacoplando la lógic
 
 ---
 
-# 📋 Requisitos Previos
+## Requisitos Previos
+
+- **Docker / Docker Desktop**  
+- Python 3.8+ (solo si se ejecuta manualmente)  
+- FFmpeg instalado (solo ejecución manual)  
+- Un servidor OAuth2 accesible (interno o externo)
+
+---
+
+# ⚠️ Dependencia con OAuth2Server
+
+Esta aplicación **depende directamente** del servidor OAuth2 externo para la autenticación y gestión de usuarios.
+
+## Repositorio Requerido
+
+**OAuth2Server**: [https://github.com/FelixMarin/OAuth2Server](https://github.com/FelixMarin/OAuth2Server)
+
+## Funcionalidades Dependientes
+
+- **Login de usuarios**: El sistema de autenticación está delegado completamente en OAuth2Server
+- **Gestión de usuarios**: Creación, modificación y eliminación de usuarios
+- **Roles y permisos**: Administración de roles (admin, usuario estándar)
+- **Tokens JWT**: Emisión y validación de tokens de sesión
+
+----
 
 - **Docker / Docker Desktop**  
 - Python 3.8+ (solo si se ejecuta manualmente)  
