@@ -4,6 +4,8 @@ metadata:
   name: cine-config
   namespace: cine
 data:
+  THUMBNAILS_FOLDER: "/data/thumbnails"
+
   # ============================
   # 🌍 Flask
   # ============================

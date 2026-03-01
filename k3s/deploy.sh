@@ -54,6 +54,9 @@ kubectl set image deployment/$DEPLOYMENT \
   -n $NAMESPACE \
   --record
 
+# Verificar que se actualizó
+kubectl get deployment -n $NAMESPACE $DEPLOYMENT -o yaml | grep image:
+
 echo "======================================"
 echo "  🧹 Eliminando imágenes antiguas de cine-platform"
 echo "======================================"
@@ -99,4 +102,4 @@ echo "======================================"
 echo "  📜 Logs del nuevo pod"
 echo "======================================"
 
-kubectl logs -n $NAMESPACE -l app=$DEPLOYMENT -f
+kubectl logs -n $NAMESPACE -l app=$DEPLOYMENT --tail=50

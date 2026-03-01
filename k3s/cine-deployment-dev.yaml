@@ -179,6 +179,12 @@ spec:
                   name: cine-config
                   key: OAUTH2_USERINFO_ENDPOINT
 
+            - name: THUMBNAILS_FOLDER
+              valueFrom:
+                configMapKeyRef:
+                  name: cine-config
+                  key: THUMBNAILS_FOLDER
+
           volumeMounts:
             - name: src
               mountPath: /app
@@ -197,6 +203,9 @@ spec:
 
             - name: movies
               mountPath: /data/movies
+
+            - name: thumbnails
+              mountPath: /data/thumbnails
 
       volumes:
         - name: src
@@ -227,4 +236,9 @@ spec:
         - name: movies
           hostPath:
             path: /mnt/servidor/Data2TB/audiovisual/
+            type: Directory
+
+        - name: thumbnails
+          hostPath:
+            path: /mnt/servidor/Data2TB/audiovisual/thumbnails/
             type: Directory

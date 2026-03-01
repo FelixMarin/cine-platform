@@ -203,6 +203,12 @@ spec:
                   name: cine-config
                   key: OAUTH2_USERINFO_ENDPOINT
 
+            - name: THUMBNAILS_FOLDER
+              valueFrom:
+                configMapKeyRef:
+                  name: cine-config
+                  key: THUMBNAILS_FOLDER
+
           volumeMounts:
             - name: uploads
               mountPath: /app/uploads
@@ -214,6 +220,8 @@ spec:
               mountPath: /app/logs
             - name: movies
               mountPath: /data/movies
+            - name: thumbnails
+              mountPath: /data/thumbnails
             - name: certs
               mountPath: /certs
               readOnly: true
@@ -238,6 +246,10 @@ spec:
         - name: movies
           hostPath:
             path: /mnt/DATA_2TB/audiovisual/
+            type: Directory
+        - name: thumbnails
+          hostPath:
+            path: /mnt/DATA_2TB/audiovisual/thumbnails/
             type: Directory
         - name: certs
           hostPath:
