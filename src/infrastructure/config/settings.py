@@ -84,7 +84,13 @@ class Settings:
     FFMPEG_THREADS: int = int(os.environ.get('FFMPEG_THREADS', '4'))
     
     # ============================
-    # 🌍 Entorno
+    # Traduccion automatica
+    # ============================
+    TRANSLATION_ENABLED: bool = os.environ.get('TRANSLATION_ENABLED', 'true').lower() == 'true'
+    TRANSLATION_TARGET_LANG: str = os.environ.get('TRANSLATION_TARGET_LANG', 'es')
+    
+    # ============================
+    # Entorno
     # ============================
     APP_ENV: str = os.environ.get('APP_ENV', 'development')
     
