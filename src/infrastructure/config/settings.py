@@ -66,7 +66,8 @@ class Settings:
     # ============================
     # 📤 Configuración de upload
     # ============================
-    MAX_CONTENT_LENGTH: int = int(os.environ.get('MAX_CONTENT_LENGTH', '100000000'))  # 100MB
+    MAX_CONTENT_LENGTH: int = int(os.environ.get('MAX_CONTENT_LENGTH', 100 * 1024 * 1024))
+    UPLOAD_TIMEOUT: int = int(os.environ.get('UPLOAD_TIMEOUT', 3600))
     
     # ============================
     # 🍪 Cookies

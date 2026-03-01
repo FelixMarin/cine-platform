@@ -141,6 +141,7 @@ function handleUpload(e) {
     // Usar XMLHttpRequest directamente para mejor control
     const xhr = new XMLHttpRequest();
     currentUpload = xhr;
+    currentUpload.timeout = 3600000;
 
     // Variable para controlar si ya se manejó la respuesta
     let handled = false;
