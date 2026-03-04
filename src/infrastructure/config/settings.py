@@ -14,6 +14,7 @@ class Settings:
     # 📁 Rutas de archivos
     # ============================
     MOVIES_FOLDER: str = os.environ.get('MOVIES_FOLDER', '/mnt/DATA_2TB/audiovisual')
+    MOVIES_BASE_PATH: str = os.environ.get('MOVIES_BASE_PATH', '/mnt/DATA_2TB/audiovisual/mkv')
     SERIES_FOLDER: str = os.environ.get('SERIES_FOLDER', '/mnt/DATA_2TB/audiovisual/series')
     UPLOAD_FOLDER: str = os.environ.get('UPLOAD_FOLDER', '/tmp/cineplatform/uploads')
     OUTPUT_FOLDER: str = os.environ.get('OUTPUT_FOLDER', '/tmp/cineplatform/outputs')

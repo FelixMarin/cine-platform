@@ -14,6 +14,7 @@ Endpoints:
 - GET /api/optimize-status: Estado de optimizaciones activas
 """
 import logging
+import os
 from flask import Blueprint, jsonify, request, render_template, session, redirect, url_for
 from src.infrastructure.config.settings import settings
 from src.adapters.entry.web.middleware.auth_middleware import require_auth, require_role
@@ -207,15 +208,44 @@ def download_torrent():
             'error': 'URL debe ser magnet: o http(s)://'
         }), 400
     
+    # Validar categoría si se proporciona
+    if category:
+        import os
+        valid_categories = []
+        base_path = settings.MOVIES_BASE_PATH
+        
+        if os.path.exists(base_path):
+            try:
+                valid_categories = [d for d in os.listdir(base_path) 
+                                   if os.path.isdir(os.path.join(base_path, d))]
+            except PermissionError:
+                logger.warning(f"[API] Sin permisos para leer: {base_path}")
+        
+        if category not in valid_categories:
+            return jsonify({
+                'success': False,
+                'error': f'Categoría inválida: {category}. Categorías válidas: {valid_categories}'
+            }), 400
+    
     logger.info(f"[API] Iniciando descarga: {url[:50]}...")
     logger.info(f"[API] Categoría: {category}, Result ID: {result_id}")
     
     try:
+        # Determinar directorio de descarga
+        # Si hay categoría, usar la ruta de la categoría (ruta absoluta)
+        if category:
+            download_dir = os.path.join(settings.MOVIES_BASE_PATH, category)
+        else:
+            # Convertir ruta relativa a absoluta
+            download_dir = os.path.abspath(settings.UPLOAD_FOLDER)
+        
+        logger.info(f"[API] Directorio de descarga: {download_dir}")
+        
         # Añadir el torrent a Transmission
         result = _transmission_client.add_torrent(
             source=url,
             category=category if category else None,
-            download_dir=settings.UPLOAD_FOLDER
+            download_dir=download_dir
         )
         
         # Generar un ID único para seguimiento
@@ -298,49 +328,51 @@ def download_status():
     try:
         torrents = _transmission_client.get_torrents()
         
+        # Convertir objetos TorrentDownload a diccionarios
+        torrents_data = [t.to_dict() for t in torrents]
+        
         # Filtrar por estado
         if status_filter == 'active':
-            torrents = [t for t in torrents if t.get('status') in [4, 6]]  # Downloading o Checking
+            torrents_data = [t for t in torrents_data if t.get('status') in [4, 6]]  # Downloading o Checking
         elif status_filter == 'completed':
-            torrents = [t for t in torrents if t.get('status') in [0, 1, 2, 3, 5]]  # Completed states
+            torrents_data = [t for t in torrents_data if t.get('status') in [0, 1, 2, 3, 5]]  # Completed states
         
         # Filtrar por categoría
         if category_filter:
-            torrents = [t for t in torrents if t.get('category') == category_filter]
+            torrents_data = [t for t in torrents_data if t.get('category') == category_filter]
         
         # Formatear respuesta
         downloads = []
-        for t in torrents:
+        for t in torrents_data:
             download = {
                 'id': t.get('id'),
                 'title': t.get('name'),
-                'hash': t.get('hashString', '')[:16],
+                'hash': t.get('hash', '')[:16] if t.get('hash') else '',
                 'status': t.get('status'),
-                'status_display': _transmission_client._get_status_text(t.get('status')),
-                'progress': t.get('percentDone', 0) * 100,
-                'size_total': t.get('sizeWhenDone', 0),
-                'size_downloaded': t.get('sizeWhenDone', 0) - t.get('leftUntilDone', 0),
-                'size_formatted': _format_bytes(t.get('sizeWhenDone', 0)),
-                'download_speed': t.get('rateDownload', 0),
-                'download_speed_formatted': _format_bytes(t.get('rateDownload', 0)) + '/s',
-                'upload_speed': t.get('rateUpload', 0),
-                'upload_speed_formatted': _format_bytes(t.get('rateUpload', 0)) + '/s',
+                'status_display': t.get('status_display'),
+                'progress': t.get('progress', 0),
+                'size_total': t.get('size_total', 0),
+                'size_downloaded': t.get('size_downloaded', 0),
+                'size_formatted': t.get('size_formatted', '0 B'),
+                'download_speed': t.get('rate_download', 0),
+                'download_speed_formatted': t.get('size_formatted', '0 B') + '/s',  # Usar formato existente
+                'upload_speed': t.get('rate_upload', 0),
+                'upload_speed_formatted': t.get('size_formatted', '0 B') + '/s',  # Usar formato existente
                 'eta': t.get('eta', -1),
-                'eta_formatted': _format_eta(t.get('eta', -1)),
-                'category': t.get('labels', ['Peliculas'])[0] if t.get('labels') else 'Peliculas'
+                'eta_formatted': t.get('eta_formatted', '∞'),
+                'category': t.get('category', 'Peliculas') or 'Peliculas'
             }
             downloads.append(download)
         
         # Obtener estadísticas
-        all_torrents = _transmission_client.get_torrents()
-        active_count = len([t for t in all_torrents if t.get('status') in [4, 6]])
+        active_count = len([t for t in torrents_data if t.get('status') in [4, 6]])
         
         return jsonify({
             'success': True,
             'downloads': downloads,
             'stats': {
                 'active_count': active_count,
-                'total_count': len(all_torrents)
+                'total_count': len(torrents_data)
             }
         })
         
@@ -670,21 +702,67 @@ def optimize_status():
 # ENDPOINT: Obtener categorías disponibles
 # ============================================================================
 
-@download_api_bp.route('/categories', methods=['GET'])
-@require_role('admin')
+@download_api_bp.route('/download/categories', methods=['GET'])
+@require_auth
 def get_categories():
     """
-    Obtiene las categorías disponibles para descargas
+    Obtiene las categorías disponibles leyendo los subdirectorios de MOVIES_BASE_PATH
     
     Returns:
-        JSON con lista de categorías
+        JSON con lista de categorías formateadas
     """
-    from src.adapters.outgoing.services.transmission.client import VALID_CATEGORIES
+    import os
+    import logging
     
-    return jsonify({
-        'success': True,
-        'categories': VALID_CATEGORIES
-    })
+    logger = logging.getLogger(__name__)
+    
+    base_path = settings.MOVIES_BASE_PATH
+    
+    # Validar que la ruta base existe
+    if not os.path.exists(base_path):
+        logger.error(f"[API] MOVIES_BASE_PATH no existe: {base_path}")
+        return jsonify({
+            'success': False,
+            'error': f'La ruta base de películas no existe: {base_path}'
+        }), 500
+    
+    if not os.path.isdir(base_path):
+        logger.error(f"[API] MOVIES_BASE_PATH no es un directorio: {base_path}")
+        return jsonify({
+            'success': False,
+            'error': f'La ruta base de películas no es un directorio: {base_path}'
+        }), 500
+    
+    try:
+        # Leer subdirectorios
+        categories = []
+        for item in os.listdir(base_path):
+            item_path = os.path.join(base_path, item)
+            if os.path.isdir(item_path):
+                categories.append(item)
+        
+        # Ordenar alfabéticamente
+        categories.sort()
+        
+        logger.info(f"[API] Categorías encontradas: {categories}")
+        
+        return jsonify({
+            'success': True,
+            'categories': categories
+        })
+        
+    except PermissionError:
+        logger.error(f"[API] Sin permisos para leer: {base_path}")
+        return jsonify({
+            'success': False,
+            'error': f'Sin permisos para leer el directorio: {base_path}'
+        }), 500
+    except Exception as e:
+        logger.error(f"[API] Error leyendo categorías: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': f'Error al leer categorías: {str(e)}'
+        }), 500
 
 
 # ============================================================================

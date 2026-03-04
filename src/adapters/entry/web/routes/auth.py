@@ -301,7 +301,8 @@ def login_page():
 
     # POST - Procesar login
     try:
-        email = request.form.get('email')
+        # Aceptar tanto 'username' como 'email' para compatibilidad con el formulario
+        email = request.form.get('username') or request.form.get('email') or ''
         password = request.form.get('password')
         
         # Obtener parámetros OAuth2 del form (si existen)
@@ -365,6 +366,11 @@ def login_page():
             session['user_role'] = 'admin'
             session['user_roles'] = ['ROLE_ADMIN', 'ROLE_USER']
             logger.info(f"[LOGIN] Login exitoso para: {email} (modo desarrollo)")
+            
+            # Guardar sesión explícitamente
+            session.modified = True
+            
+            logger.info(f"[LOGIN] Sesión guardada: {dict(session)}")
             
             # Si hay code_challenge, completar el flujo OAuth2
             if code_challenge:

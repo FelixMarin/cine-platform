@@ -223,6 +223,15 @@
                     <p id="download-name" class="download-name"></p>
                     <p id="download-category" class="download-category"></p>
                 </div>
+                
+                <!-- Selector de categoría en el modal -->
+                <div class="category-selector" style="margin: 15px 0;">
+                    <label for="modal-category-select">Categoría:</label>
+                    <select id="modal-category-select" class="category-dropdown">
+                        <option value="">Seleccionar categoría...</option>
+                    </select>
+                </div>
+                
                 <div class="progress-container">
                     <div id="progress-bar" class="progress-bar"></div>
                 </div>
@@ -233,7 +242,7 @@
                 </div>
                 <div class="download-actions">
                     <button class="btn-secondary" onclick="closeDownloadModal()">Cerrar</button>
-                    <button class="btn-primary" onclick="viewDownloadsTab()">Ver descargas</button>
+                    <button class="btn-primary" id="modal-download-btn" onclick="downloadSelected()">⬇️ Iniciar Descarga</button>
                 </div>
             </div>
         </div>
@@ -242,6 +251,8 @@
     <!-- Notification container -->
     <div id="notifications" class="notifications"></div>
 
+    <!-- Cargar search.js primero para que sus funciones estén disponibles -->
+    <script src="{{ url_for('static', filename='js/search.js') }}"></script>
     <script src="{{ url_for('static', filename='js/downloads.js') }}"></script>
     <script>
         // Inicializar

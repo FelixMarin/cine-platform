@@ -274,10 +274,20 @@ function closeDownloadModal() {
  */
 async function downloadFromUrl() {
     const url = document.getElementById('torrent-url')?.value?.trim();
-    const category = document.getElementById('download-category')?.value || 'Peliculas';
+    const categorySelect = document.getElementById('category-select');
+    const category = categorySelect?.value;
 
+    // Validación: URL requerida
     if (!url) {
         showNotification('Error', 'Por favor ingresa una URL', 'error');
+        return;
+    }
+
+    // Validación: Categoría obligatoria
+    if (!category) {
+        showNotification('Error', 'Por favor selecciona una categoría', 'error');
+        // Enfocar el selector de categoría
+        categorySelect?.focus();
         return;
     }
 
@@ -323,16 +333,27 @@ async function downloadFromUrl() {
 async function downloadSelected() {
     const url = document.getElementById('torrent-url')?.value?.trim();
     const resultId = document.getElementById('download-result-id')?.value;
-    const category = document.getElementById('download-category')?.value || 'Peliculas';
+    const categorySelect = document.getElementById('modal-category-select');
+    const category = categorySelect?.value;
 
+    // Validación: URL requerida
     if (!url) {
         showNotification('Error', 'Por favor ingresa una URL', 'error');
         return;
     }
 
-    const btn = document.getElementById('download-url-btn');
-    btn.disabled = true;
-    btn.textContent = 'Iniciando...';
+    // Validación: Categoría obligatoria
+    if (!category) {
+        showNotification('Error', 'Por favor selecciona una categoría', 'error');
+        categorySelect?.focus();
+        return;
+    }
+
+    const btn = document.getElementById('modal-download-btn');
+    if (btn) {
+        btn.disabled = true;
+        btn.textContent = 'Iniciando...';
+    }
 
     try {
         const response = await fetch(CONFIG.endpoints.downloadTorrent, {
@@ -362,8 +383,10 @@ async function downloadSelected() {
         console.error('Error:', error);
         showNotification('Error', error.message, 'error');
     } finally {
-        btn.disabled = false;
-        btn.textContent = '⬇️ Iniciar Descarga';
+        if (btn) {
+            btn.disabled = false;
+            btn.textContent = '⬇️ Iniciar Descarga';
+        }
     }
 }
 
@@ -450,6 +473,7 @@ function renderDownloads() {
  * Obtiene la clase CSS según el estado
  */
 function getStatusClass(status) {
+    // Si es número, convertir a string usando status_display
     const statusMap = {
         'downloading': 'downloading',
         'seeding': 'completed',
@@ -458,9 +482,20 @@ function getStatusClass(status) {
         'stopped': 'failed',
         'failed': 'failed',
         'checking': 'running',
-        'queued': 'pending'
+        'queued': 'pending',
+        // Códigos numéricos de Transmission
+        '0': 'failed',   // stopped
+        '1': 'pending',  // check queued
+        '2': 'running',  // checking
+        '3': 'pending',  // download queued
+        '4': 'downloading',
+        '5': 'pending',  // seed queued
+        '6': 'completed' // seeding
     };
-    return statusMap[status?.toLowerCase()] || 'pending';
+
+    // Si es número, convertir a string
+    const statusStr = (typeof status === 'number') ? String(status) : status;
+    return statusMap[statusStr?.toLowerCase()] || 'pending';
 }
 
 /**
@@ -895,29 +930,74 @@ function initDownloadsPage() {
  * Carga las categorías disponibles
  */
 async function loadCategories() {
+    const select = document.getElementById('category-select');
+    const modalSelect = document.getElementById('modal-category-select');
+
+    // Función interna para formatear nombre de categoría
+    const formatCatName = (cat) => {
+        let formatted = cat.replace(/_/g, ' ');
+        return formatted.split(' ').map(word => {
+            return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+        }).join(' ');
+    };
+
+    // Función para cargar opciones en un select
+    const loadInSelect = (sel) => {
+        if (!sel) return;
+        sel.disabled = true;
+        const opt = sel.options[0];
+        if (opt) opt.textContent = 'Cargando categorías...';
+    };
+
+    loadInSelect(select);
+    loadInSelect(modalSelect);
+
     try {
-        const response = await fetch('/api/categories');
+        const response = await fetch('/api/download/categories');
         const data = await response.json();
 
-        const select = document.getElementById('category-select');
-        if (!select) return;
-
-        // Limpiar opciones existentes (excepto la primera)
-        while (select.options.length > 1) {
-            select.remove(1);
+        if (!data.success) {
+            throw new Error(data.error || 'Error al cargar categorías');
         }
 
-        // Añadir categorías
-        if (data.categories) {
-            data.categories.forEach(cat => {
-                const option = document.createElement('option');
-                option.value = cat;
-                option.textContent = cat;
-                select.appendChild(option);
-            });
+        // Actualizar selector principal
+        if (select) {
+            while (select.options.length > 1) select.remove(1);
+            if (data.categories && data.categories.length > 0) {
+                data.categories.forEach(cat => {
+                    const opt = document.createElement('option');
+                    opt.value = cat;
+                    opt.textContent = formatCatName(cat);
+                    select.appendChild(opt);
+                });
+                select.disabled = false;
+                if (select.options[0]) select.options[0].textContent = 'Seleccionar categoría...';
+            } else {
+                if (select.options[0]) select.options[0].textContent = 'No hay categorías';
+            }
+        }
+
+        // Actualizar selector del modal
+        if (modalSelect) {
+            while (modalSelect.options.length > 1) modalSelect.remove(1);
+            if (data.categories && data.categories.length > 0) {
+                data.categories.forEach(cat => {
+                    const opt = document.createElement('option');
+                    opt.value = cat;
+                    opt.textContent = formatCatName(cat);
+                    modalSelect.appendChild(opt);
+                });
+                modalSelect.disabled = false;
+                if (modalSelect.options[0]) modalSelect.options[0].textContent = 'Seleccionar categoría...';
+            } else {
+                if (modalSelect.options[0]) modalSelect.options[0].textContent = 'No hay categorías';
+            }
         }
     } catch (error) {
         console.error('Error cargando categorías:', error);
+        if (select?.options[0]) select.options[0].textContent = 'Error al cargar';
+        if (modalSelect?.options[0]) modalSelect.options[0].textContent = 'Error al cargar';
+        showNotification('Error', error.message, 'error');
     }
 }
 

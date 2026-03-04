@@ -35,6 +35,7 @@
     padding: 25px 30px;
     background: var(--search-card-bg);
     border-bottom: 1px solid var(--search-border);
+    margin-bottom: 20px;
 }
 
 /* Tabs de modo */

@@ -28,13 +28,33 @@ TORRENT_STATUS = {
     6: 'seeding'
 }
 
-# Categorías válidas para organizar descargas
-VALID_CATEGORIES = [
-    'Acción', 'Animación', 'Aventura', 'Ciencia Ficción', 
-    'Comedia', 'Documental', 'Drama', 'Familia', 
-    'Fantasía', 'Historia', 'Música', 'Misterio', 
-    'Romance', 'Suspense', 'Terror', 'Western'
-]
+# Categorías válidas para organizar descargas (se leen del sistema de archivos)
+VALID_CATEGORIES = None  # Se inicializa dinámicamente
+
+
+def get_valid_categories() -> List[str]:
+    """
+    Obtiene las categorías válidas del sistema de archivos
+    """
+    global VALID_CATEGORIES
+    
+    if VALID_CATEGORIES is not None:
+        return VALID_CATEGORIES
+    
+    try:
+        import os
+        base_path = settings.MOVIES_BASE_PATH
+        if os.path.exists(base_path):
+            VALID_CATEGORIES = [d for d in os.listdir(base_path) 
+                              if os.path.isdir(os.path.join(base_path, d))]
+            VALID_CATEGORIES.sort()
+        else:
+            VALID_CATEGORIES = []
+    except Exception as e:
+        logger.warning(f"[Transmission] Error leyendo categorías: {e}")
+        VALID_CATEGORIES = []
+    
+    return VALID_CATEGORIES
 
 
 @dataclass
@@ -261,10 +281,13 @@ class TransmissionClient:
         """
         logger.info(f"[Transmission] Añadiendo torrent: {source[:50]}...")
         
+        # Obtener categorías válidas del sistema de archivos
+        valid_cats = get_valid_categories()
+        
         # Validar categoría
-        if category and category not in VALID_CATEGORIES:
-            logger.warning(f"[Transmission] Categoría inválida: {category}, usando None")
-            category = None
+        if category and category not in valid_cats:
+            logger.warning(f"[Transmission] Categoría inválida: {category}, categorías válidas: {valid_cats}")
+            # No rechazamos, usamos la categoría como label
         
         # Determinar directorio de descarga
         target_dir = download_dir or self.download_folder
@@ -280,16 +303,23 @@ class TransmissionClient:
         
         # Detectar si es un magnet o un archivo torrent
         if source.startswith('magnet:'):
+            logger.info("[Transmission] Es un magnet link, enviando directamente a Transmission")
             arguments['filename'] = source
-        else:
+        elif source.startswith('http://') or source.startswith('https://'):
             # Es una URL de torrent, descargarlo primero
+            logger.info("[Transmission] Es una URL HTTP, descargando torrent...")
             try:
                 response = requests.get(source, timeout=30)
                 response.raise_for_status()
                 # Codificar en base64 como espera Transmission
                 arguments['metainfo'] = base64.b64encode(response.content).decode('utf-8')
             except Exception as e:
+                logger.error(f"[Transmission] Error descargando torrent desde URL: {str(e)}")
                 raise TransmissionError(f"Error al descargar torrent: {str(e)}")
+        else:
+            # Es可能是 un archivo .torrent codificado en base64 o path local
+            logger.info("[Transmission] Tratando como archivo torrent local o metainfo")
+            arguments['metainfo'] = source
         
         # Añadir categoría si se especifica
         if category:
