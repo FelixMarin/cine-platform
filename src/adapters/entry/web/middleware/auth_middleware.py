@@ -61,6 +61,7 @@ def get_current_user():
             'id': session.get('user_id'),
             'email': session.get('email'),
             'username': session.get('username'),
-            'role': session.get('user_role')
+            'role': session.get('user_role'),
+            'roles': session.get('user_roles', [])  # Lista completa de roles del token
         }
     return None

@@ -11,7 +11,7 @@ import hashlib
 
 from src.core.use_cases.auth import LoginUseCase, LogoutUseCase
 from src.adapters.entry.web.middleware.auth_middleware import require_auth
-from src.adapters.config.dependencies import get_oauth_service
+from src.adapters.config.dependencies import get_oauth_service, get_auth_service
 
 from src.infrastructure.logging import setup_logging
 logger = setup_logging(os.environ.get("LOG_FOLDER"))
@@ -98,9 +98,20 @@ def login():
             session['user_id'] = user_data.get('id')
             session['email'] = user_data.get('email')
             session['username'] = user_data.get('username')
-            session['user_role'] = user_data.get('role', 'admin')
             
-            logger.info(f"[API LOGIN] Login exitoso para: {email}")
+            # Extraer roles del token JWT si están disponibles
+            roles = user_data.get('roles', [])
+            if 'ROLE_ADMIN' in roles:
+                user_role = 'admin'
+            elif 'ROLE_USER' in roles:
+                user_role = 'user'
+            else:
+                user_role = user_data.get('role', 'user')  # Por defecto 'user', nunca 'admin'
+            
+            session['user_role'] = user_role
+            session['user_roles'] = roles  # Guardar lista completa de roles
+            
+            logger.info(f"[API LOGIN] Login exitoso para: {email}, rol: {user_role}")
             
             return jsonify({
                 'success': True,
@@ -313,9 +324,20 @@ def login_page():
                     session['user_id'] = 1
                     session['email'] = email
                     session['username'] = user_data.get('username', email)
-                    session['user_role'] = 'admin'
+                    
+                    # Extraer roles del token JWT si están disponibles
+                    roles = user_data.get('roles', [])
+                    if 'ROLE_ADMIN' in roles:
+                        user_role = 'admin'
+                    elif 'ROLE_USER' in roles:
+                        user_role = 'user'
+                    else:
+                        user_role = user_data.get('role', 'user')  # Por defecto 'user', nunca 'admin'
+                    
+                    session['user_role'] = user_role
+                    session['user_roles'] = roles  # Guardar lista completa de roles
                     session['oauth_token'] = oauth_service.token
-                    logger.info(f"[LOGIN] OAuth exitoso para: {email}")
+                    logger.info(f"[LOGIN] OAuth exitoso para: {email}, rol: {user_role}")
                     
                     # Si hay code_challenge, completar el flujo OAuth2
                     if code_challenge:
@@ -339,8 +361,10 @@ def login_page():
             session['user_id'] = 1
             session['email'] = email
             session['username'] = email
+            # En desarrollo local, por defecto es admin (solo para desarrollo)
             session['user_role'] = 'admin'
-            logger.info(f"[LOGIN] Login exitoso para: {email}")
+            session['user_roles'] = ['ROLE_ADMIN', 'ROLE_USER']
+            logger.info(f"[LOGIN] Login exitoso para: {email} (modo desarrollo)")
             
             # Si hay code_challenge, completar el flujo OAuth2
             if code_challenge:
@@ -455,12 +479,25 @@ def oauth_callback():
         session['user_id'] = user_info.get('sub', 1) if user_info else 1
         session['email'] = user_info.get('email', '') if user_info else ''
         session['username'] = user_info.get('preferred_username', user_info.get('name', 'user')) if user_info else 'user'
-        session['user_role'] = 'admin'
+        
+        # Extraer roles del token JWT - determinar rol del usuario
+        roles = user_info.get('roles', []) if user_info else []
+        
+        if 'ROLE_ADMIN' in roles:
+            user_role = 'admin'
+        elif 'ROLE_USER' in roles:
+            user_role = 'user'
+        else:
+            user_role = 'user'  # Por defecto 'user', nunca 'admin'
+        
+        session['user_role'] = user_role
+        session['user_roles'] = roles  # Guardar lista completa de roles
+        
         session['oauth_token'] = access_token
         session['oauth_refresh_token'] = token_data.get('refresh_token')
         session['oauth_expires_at'] = token_data.get('expires_at')
 
-        logger.info(f"[OAUTH_CALLBACK] Login OAuth2 exitoso para: {session.get('username')}")
+        logger.info(f"[OAUTH_CALLBACK] Login OAuth2 exitoso para: {session.get('username')}, rol: {user_role}")
 
         return jsonify({'success': True})
 
@@ -539,7 +576,20 @@ def oauth_callback_redirect():
         session['user_id'] = user_info.get('sub', 1) if user_info else 1
         session['email'] = user_info.get('email', '') if user_info else ''
         session['username'] = user_info.get('preferred_username', user_info.get('name', 'user')) if user_info else 'user'
-        session['user_role'] = 'admin'
+        
+        # Extraer roles del token JWT - determinar rol del usuario
+        roles = user_info.get('roles', []) if user_info else []
+        
+        if 'ROLE_ADMIN' in roles:
+            user_role = 'admin'
+        elif 'ROLE_USER' in roles:
+            user_role = 'user'
+        else:
+            user_role = 'user'  # Por defecto 'user', nunca 'admin'
+        
+        session['user_role'] = user_role
+        session['user_roles'] = roles  # Guardar lista completa de roles
+        
         session['oauth_token'] = access_token
         session['oauth_refresh_token'] = token_data.get('refresh_token')
         
@@ -547,7 +597,7 @@ def oauth_callback_redirect():
         session.pop('oauth_state', None)
         session.pop('oauth_code_verifier', None)
         
-        logger.info(f"[OAUTH_CALLBACK_REDIRECT] Login OAuth2 exitoso para: {session.get('username')}")
+        logger.info(f"[OAUTH_CALLBACK_REDIRECT] Login OAuth2 exitoso para: {session.get('username')}, rol: {user_role}")
         
         # Redirigir a la página principal
         return redirect(url_for('main_page.index'))
