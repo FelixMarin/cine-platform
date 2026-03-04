@@ -84,6 +84,20 @@ class Settings:
     FFMPEG_THREADS: int = int(os.environ.get('FFMPEG_THREADS', '4'))
     
     # ============================
+    # 📥 Prowlarr (Indexador de torrents)
+    # ============================
+    PROWLARR_URL: str = os.environ.get('PROWLARR_URL', 'http://localhost:9696')
+    PROWLARR_API_KEY: str = os.environ.get('PROWLARR_API_KEY', '')
+    
+    # ============================
+    # 📥 Transmission (Cliente BitTorrent)
+    # ============================
+    TRANSMISSION_URL: str = os.environ.get('TRANSMISSION_URL', 'http://localhost:9091')
+    TRANSMISSION_RPC_URL: str = os.environ.get('TRANSMISSION_RPC_URL', 'http://localhost:9091/transmission/rpc')
+    TRANSMISSION_USERNAME: str = os.environ.get('TRANSMISSION_USERNAME', '')
+    TRANSMISSION_PASSWORD: str = os.environ.get('TRANSMISSION_PASSWORD', '')
+    
+    # ============================
     # Traduccion automatica
     # ============================
     TRANSLATION_ENABLED: bool = os.environ.get('TRANSLATION_ENABLED', 'true').lower() == 'true'

@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.5">
+    <title>Buscar y Descargar - Cine Platform</title>
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
+    <!-- Estilos principales -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main/main.css') }}?v={{ range(1, 10000) | random }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/menu/menu.css') }}?v={{ range(1, 10000) | random }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/search/search.css') }}">
+</head>
+
+<body class="dark-mode">
+
+    <!-- Botón hamburguesa para móvil -->
+    <button class="menu-toggle" onclick="toggleMenu()" aria-label="Abrir menú">☰</button>
+    
+    <!-- Overlay para móvil -->
+    <div class="menu-overlay" onclick="toggleMenu()" aria-hidden="true"></div>
+
+    <!-- Menú lateral colapsable -->
+    <div class="side-menu" id="sideMenu" role="navigation" aria-label="Menú principal">
+        <div class="menu-collapse-btn" onclick="toggleCollapse()" title="Colapsar menú" role="button" aria-label="Colapsar menú">◀</div>
+        
+        <div class="menu-header">
+            <h2 class="menu-title-full">Cine<span>Platform</span></h2>
+        </div>
+        
+        <div class="menu-user">
+            <div class="menu-user-email">{{ session['user_email'] }}</div>
+            <div class="menu-user-role">{{ session['user_role'] }}</div>
+        </div>
+        
+        <div class="menu-items">
+            <div class="menu-section-title">PRINCIPAL</div>
+
+            <a href="/catalog" class="menu-item" data-tab="movies" role="tab" aria-selected="false">
+                <span aria-hidden="true">🎬</span> 
+                <span class="menu-item-text">Películas</span>
+            </a>
+
+            <a href="/catalog" class="menu-item" data-tab="series" role="tab" aria-selected="false">
+                <span aria-hidden="true">📺</span> 
+                <span class="menu-item-text">Series</span>
+            </a>
+            
+            <a href="/search" class="menu-item active" data-tab="search" role="tab" aria-selected="true">
+                <span aria-hidden="true">🔍</span> 
+                <span class="menu-item-text">Buscar</span>
+            </a>
+            
+            {% if session['user_role'] == 'admin' %}
+            <div class="menu-section-title">ADMINISTRACIÓN</div>
+
+            <a href="/admin/manage" class="menu-item">
+                <span aria-hidden="true">⚙️</span> 
+                <span class="menu-item-text">Panel Admin</span>
+            </a>
+
+            <a href="/optimizer" class="menu-item">
+                <span aria-hidden="true">🎥</span> 
+                <span class="menu-item-text">Optimizador</span>
+            </a>
+            {% endif %}
+        </div>
+        
+        <a href="/logout" class="menu-logout">
+            <span aria-hidden="true">🚪</span> 
+            <span class="menu-logout-text">Cerrar Sesión</span>
+        </a>
+    </div>
+
+    <!-- Contenido principal -->
+    <main class="main-content" id="mainContent" role="main">
+        
+        <!-- Header -->
+        <header class="search-header">
+            <h1>🔍 Buscar y Descargar</h1>
+        </header>
+
+        <!-- Panel de búsqueda -->
+        <section class="search-panel" aria-label="Panel de búsqueda">
+            
+            <!-- Tabs de modo -->
+            <div class="search-tabs" role="tablist">
+                <button class="search-tab active" data-mode="search" role="tab" aria-selected="true" onclick="setSearchMode('search')">
+                    🔎 Buscar película
+                </button>
+                <button class="search-tab" data-mode="url" role="tab" aria-selected="false" onclick="setSearchMode('url')">
+                    🔗 URL directa
+                </button>
+            </div>
+
+            <!-- Buscador -->
+            <div class="search-form">
+                <!-- Modo búsqueda -->
+                <div id="search-mode-input" class="search-input-group">
+                    <input 
+                        type="text" 
+                        id="search-query" 
+                        class="search-input" 
+                        placeholder="Buscar película (ej: The Matrix 1999)..."
+                        aria-label="Buscar película"
+                        onkeypress="handleSearchKeypress(event)"
+                    >
+                    <button class="search-button" onclick="performSearch()" aria-label="Buscar">
+                        <span>🔍</span> Buscar
+                    </button>
+                </div>
+
+                <!-- Modo URL -->
+                <div id="url-mode-input" class="search-input-group" style="display: none;">
+                    <input 
+                        type="text" 
+                        id="torrent-url" 
+                        class="search-input" 
+                        placeholder="Pegar URL magnet o torrent..."
+                        aria-label="URL del torrent"
+                    >
+                    <button class="search-button" onclick="startUrlDownload()" aria-label="Iniciar descarga">
+                        <span>⬇️</span> Descargar
+                    </button>
+                </div>
+
+                <!-- Selector de categoría -->
+                <div class="category-selector">
+                    <label for="category-select">Categoría:</label>
+                    <select id="category-select" class="category-dropdown" aria-label="Seleccionar categoría">
+                        <option value="">Seleccionar categoría...</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Estado de búsqueda -->
+            <div id="search-status" class="search-status" aria-live="polite"></div>
+
+        </section>
+
+        <!-- Resultados -->
+        <section class="results-section" aria-label="Resultados de búsqueda">
+            <div id="results-container" class="results-grid">
+                <!-- Los resultados se insertan aquí dinámicamente -->
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Modal de progreso de descarga -->
+    <div id="download-modal" class="modal" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modal-title">⬇️ Descarga en progreso</h2>
+                <button class="modal-close" onclick="closeDownloadModal()" aria-label="Cerrar">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="download-info">
+                    <p id="download-name" class="download-name"></p>
+                    <p id="download-category" class="download-category"></p>
+                </div>
+                <div class="progress-container">
+                    <div id="progress-bar" class="progress-bar"></div>
+                </div>
+                <p id="progress-text" class="progress-text">0%</p>
+                <div class="download-stats">
+                    <span id="download-speed">Velocidad: --</span>
+                    <span id="download-eta">Tiempo restante: --</span>
+                </div>
+                <div class="download-actions">
+                    <button class="btn-secondary" onclick="closeDownloadModal()">Cerrar</button>
+                    <button class="btn-primary" onclick="viewDownloads()">Ver descargas</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="{{ url_for('static', filename='js/search.js') }}"></script>
+    <script>
+        // Inicializar categorías al cargar la página
+        document.addEventListener('DOMContentLoaded', function() {
+            loadCategories();
+            checkConnection();
+        });
+
+        // Toggle menu
+        function toggleMenu() {
+            const menu = document.getElementById('sideMenu');
+            const overlay = document.querySelector('.menu-overlay');
+            menu.classList.toggle('open');
+            overlay.classList.toggle('open');
+        }
+
+        // Toggle collapse
+        function toggleCollapse() {
+            const menu = document.getElementById('sideMenu');
+            menu.classList.toggle('collapsed');
+        }
+    </script>
+</body>
+</html>

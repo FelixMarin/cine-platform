@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.5">
+    <title>Descargas y Optimización - Cine Platform</title>
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
+    <!-- Estilos principales -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main/main.css') }}?v={{ range(1, 10000) | random }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/menu/menu.css') }}?v={{ range(1, 10000) | random }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/search/search.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/downloads/downloads.css') }}">
+</head>
+
+<body class="dark-mode">
+
+    <!-- Botón hamburguesa para móvil -->
+    <button class="menu-toggle" onclick="toggleMenu()" aria-label="Abrir menú">☰</button>
+    
+    <!-- Overlay para móvil -->
+    <div class="menu-overlay" onclick="toggleMenu()" aria-hidden="true"></div>
+
+    <!-- Menú lateral -->
+    <div class="side-menu" id="sideMenu" role="navigation" aria-label="Menú principal">
+        <div class="menu-collapse-btn" onclick="toggleCollapse()" title="Colapsar menú">◀</div>
+        
+        <div class="menu-header">
+            <h2 class="menu-title-full">Cine<span>Platform</span></h2>
+        </div>
+        
+        <div class="menu-user">
+            <div class="menu-user-email">{{ session['user_email'] }}</div>
+            <div class="menu-user-role">{{ session['user_role'] }}</div>
+        </div>
+        
+        <div class="menu-items">
+            <div class="menu-section-title">PRINCIPAL</div>
+
+            <a href="/catalog" class="menu-item">
+                <span aria-hidden="true">🎬</span> 
+                <span class="menu-item-text">Películas</span>
+            </a>
+
+            <a href="/catalog" class="menu-item">
+                <span aria-hidden="true">📺</span> 
+                <span class="menu-item-text">Series</span>
+            </a>
+            
+            {% if session['user_role'] == 'admin' %}
+            <div class="menu-section-title">ADMINISTRACIÓN</div>
+
+            <a href="/admin/manage" class="menu-item">
+                <span aria-hidden="true">⚙️</span> 
+                <span class="menu-item-text">Panel Admin</span>
+            </a>
+
+            <a href="/optimizer" class="menu-item">
+                <span aria-hidden="true">🎥</span> 
+                <span class="menu-item-text">Optimizador</span>
+            </a>
+            
+            <a href="/downloads" class="menu-item active">
+                <span aria-hidden="true">📥</span> 
+                <span class="menu-item-text">Descargas</span>
+            </a>
+            {% endif %}
+        </div>
+        
+        <a href="/logout" class="menu-logout">
+            <span aria-hidden="true">🚪</span> 
+            <span class="menu-logout-text">Cerrar Sesión</span>
+        </a>
+    </div>
+
+    <!-- Contenido principal -->
+    <main class="main-content" id="mainContent" role="main">
+        
+        <!-- Header -->
+        <header class="downloads-header">
+            <h1>⬇️ Descargas y Optimización</h1>
+            <div class="header-stats">
+                <span id="active-downloads-count">0</span> descargas activas
+                <span class="divider">|</span>
+                <span id="active-optimizations-count">0</span> optimizaciones
+            </div>
+        </header>
+
+        <!-- Pestañas principales -->
+        <div class="downloads-tabs" role="tablist">
+            <button class="download-tab active" data-tab="search" role="tab" onclick="switchTab('search')">
+                🔍 Buscar
+            </button>
+            <button class="download-tab" data-tab="downloads" role="tab" onclick="switchTab('downloads')">
+                ⬇️ Descargas
+            </button>
+            <button class="download-tab" data-tab="optimizations" role="tab" onclick="switchTab('optimizations')">
+                ⚡ Optimizaciones
+            </button>
+            <button class="download-tab" data-tab="history" role="tab" onclick="switchTab('history')">
+                📋 Historial
+            </button>
+        </div>
+
+        <!-- ==================== -->
+        <!-- TAB: BUSCAR -->
+        <!-- ==================== -->
+        <section id="tab-search" class="download-tab-content active">
+            <div class="search-panel">
+                <!-- Tabs de modo -->
+                <div class="search-tabs" role="tablist">
+                    <button class="search-tab active" data-mode="search" onclick="setSearchMode('search')">
+                        🔎 Buscar película
+                    </button>
+                    <button class="search-tab" data-mode="url" onclick="setSearchMode('url')">
+                        🔗 URL directa
+                    </button>
+                </div>
+
+                <!-- Buscador -->
+                <div class="search-form">
+                    <div id="search-mode-input" class="search-input-group">
+                        <input type="text" id="search-query" class="search-input" 
+                            placeholder="Buscar película (ej: The Matrix 1999)..."
+                            onkeypress="handleSearchKeypress(event)">
+                        <button class="search-button" onclick="performSearch()">
+                            <span>🔍</span> Buscar
+                        </button>
+                    </div>
+
+                    <div id="url-mode-input" class="search-input-group" style="display: none;">
+                        <input type="text" id="torrent-url" class="search-input" 
+                            placeholder="Pegar URL magnet o torrent...">
+                        <button class="search-button" onclick="startUrlDownload()">
+                            <span>⬇️</span> Descargar
+                        </button>
+                    </div>
+
+                    <div class="category-selector">
+                        <label for="category-select">Categoría:</label>
+                        <select id="category-select" class="category-dropdown">
+                            <option value="">Seleccionar categoría...</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div id="search-status" class="search-status"></div>
+            </div>
+
+            <div id="results-container" class="results-grid"></div>
+        </section>
+
+        <!-- ==================== -->
+        <!-- TAB: DESCARGAS -->
+        <!-- ==================== -->
+        <section id="tab-downloads" class="download-tab-content">
+            <div class="section-header">
+                <h2>⬇️ Descargas Activas</h2>
+                <button class="btn-refresh" onclick="refreshDownloads()">🔄 Actualizar</button>
+            </div>
+            
+            <div id="downloads-list" class="process-list">
+                <!-- Lista de descargas -->
+            </div>
+            
+            <div id="no-downloads" class="empty-state" style="display: none;">
+                <div class="empty-icon">⬇️</div>
+                <h3>No hay descargas activas</h3>
+                <p>Busca una película para comenzar a descargar</p>
+            </div>
+        </section>
+
+        <!-- ==================== -->
+        <!-- TAB: OPTIMIZACIONES -->
+        <!-- ==================== -->
+        <section id="tab-optimizations" class="download-tab-content">
+            <div class="section-header">
+                <h2>⚡ Optimizaciones Activas</h2>
+                <button class="btn-refresh" onclick="refreshOptimizations()">🔄 Actualizar</button>
+            </div>
+            
+            <div id="optimizations-list" class="process-list">
+                <!-- Lista de optimizaciones -->
+            </div>
+            
+            <div id="no-optimizations" class="empty-state" style="display: none;">
+                <div class="empty-icon">⚡</div>
+                <h3>No hay optimizaciones activas</h3>
+                <p>Las optimizaciones Start automáticamente después de descargar</p>
+            </div>
+        </section>
+
+        <!-- ==================== -->
+        <!-- TAB: HISTORIAL -->
+        <!-- ==================== -->
+        <section id="tab-history" class="download-tab-content">
+            <div class="section-header">
+                <h2>📋 Historial</h2>
+                <button class="btn-refresh" onclick="refreshHistory()">🔄 Actualizar</button>
+            </div>
+            
+            <div id="history-list" class="history-list">
+                <!-- Historial -->
+            </div>
+            
+            <div id="no-history" class="empty-state" style="display: none;">
+                <div class="empty-icon">📋</div>
+                <h3>Sin historial</h3>
+                <p>Los procesos completados aparecerán aquí</p>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Modal de progreso de descarga -->
+    <div id="download-modal" class="modal" style="display: none;" role="dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modal-title">⬇️ Descarga en progreso</h2>
+                <button class="modal-close" onclick="closeDownloadModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="download-info">
+                    <p id="download-name" class="download-name"></p>
+                    <p id="download-category" class="download-category"></p>
+                </div>
+                <div class="progress-container">
+                    <div id="progress-bar" class="progress-bar"></div>
+                </div>
+                <p id="progress-text" class="progress-text">0%</p>
+                <div class="download-stats">
+                    <span id="download-speed">Velocidad: --</span>
+                    <span id="download-eta">Tiempo restante: --</span>
+                </div>
+                <div class="download-actions">
+                    <button class="btn-secondary" onclick="closeDownloadModal()">Cerrar</button>
+                    <button class="btn-primary" onclick="viewDownloadsTab()">Ver descargas</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification container -->
+    <div id="notifications" class="notifications"></div>
+
+    <script src="{{ url_for('static', filename='js/downloads.js') }}"></script>
+    <script>
+        // Inicializar
+        document.addEventListener('DOMContentLoaded', function() {
+            loadCategories();
+            checkConnection();
+            refreshDownloads();
+            refreshOptimizations();
+            
+            // Auto-refresh cada 3 segundos
+            setInterval(() => {
+                if (document.visibilityState === 'visible') {
+                    refreshDownloads();
+                    refreshOptimizations();
+                }
+            }, 3000);
+        });
+
+        function toggleMenu() {
+            const menu = document.getElementById('sideMenu');
+            const overlay = document.querySelector('.menu-overlay');
+            menu.classList.toggle('open');
+            overlay.classList.toggle('open');
+        }
+
+        function toggleCollapse() {
+            document.getElementById('sideMenu').classList.toggle('collapsed');
+        }
+    </script>
+</body>
+</html>

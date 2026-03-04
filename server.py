@@ -143,6 +143,7 @@ def create_app():
         auth_bp, main_page_bp, init_auth_routes,
         optimizer_bp, optimizer_page_bp, init_optimizer_routes,
         api_bp, init_api_routes,
+        download_api_bp, search_page_bp, init_download_routes,
         admin_bp, admin_page_bp, init_admin_routes,
         outputs_bp, init_outputs_routes,
         proxy_bp, init_proxy_routes,
@@ -163,6 +164,7 @@ def create_app():
     init_auth_routes(login_use_case=login_use_case, logout_use_case=logout_use_case)
     init_optimizer_routes(optimize_movie_use_case=optimize_movie_use_case, estimate_size_use_case=estimate_size_use_case)
     init_api_routes()
+    init_download_routes()
     init_admin_routes()
     init_outputs_routes()
     init_proxy_routes()
@@ -178,6 +180,8 @@ def create_app():
     app.register_blueprint(optimizer_bp)
     app.register_blueprint(optimizer_page_bp)  # Página del optimizador
     app.register_blueprint(api_bp)
+    app.register_blueprint(download_api_bp)
+    app.register_blueprint(search_page_bp)
     app.register_blueprint(admin_bp)
     app.register_blueprint(admin_page_bp)  # Página del admin
     app.register_blueprint(outputs_bp)

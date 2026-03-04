@@ -1,0 +1,925 @@
+/**
+ * Downloads Page - JavaScript para la página unificada de descargas y optimización
+ * Maneja búsqueda, descargas, optimizaciones y historial
+ */
+
+// ==========================================================================
+// CONFIGURACIÓN
+// ==========================================================================
+
+const CONFIG = {
+    pollInterval: 3000,          // Intervalo de polling en ms
+    maxHistoryItems: 50,         // Máximo elementos en historial
+    endpoints: {
+        search: '/api/search-movie',
+        downloadTorrent: '/api/download-torrent',
+        downloadUrl: '/api/download-url',
+        downloadsActive: '/api/downloads/active',
+        downloadStatus: (id) => `/api/downloads/${id}/status`,
+        downloadCancel: (id) => `/api/downloads/${id}/cancel`,
+        optimizeStart: '/api/optimize/start',
+        optimizeStatus: '/api/optimize/status',
+        optimizeCancel: (id) => `/api/optimize/cancel/${id}`,
+        optimizeProfiles: '/api/optimize/profiles'
+    }
+};
+
+// ==========================================================================
+// ESTADO GLOBAL
+// ==========================================================================
+
+const state = {
+    activeTab: 'search',
+    downloads: [],
+    optimizations: [],
+    history: [],
+    isPolling: false,
+    searchResults: []
+};
+
+// ==========================================================================
+// UTILIDADES
+// ==========================================================================
+
+/**
+ * Muestra una notificación
+ */
+function showNotification(title, message, type = 'info') {
+    const container = document.getElementById('notifications');
+    if (!container) return;
+
+    const notification = document.createElement('div');
+    notification.className = `notification ${type}`;
+    notification.innerHTML = `
+        <div class="notification-title">${title}</div>
+        <div class="notification-message">${message}</div>
+        <button class="notification-close" onclick="this.parentElement.remove()">&times;</button>
+    `;
+
+    container.appendChild(notification);
+
+    // Auto-remove después de 5 segundos
+    setTimeout(() => {
+        notification.remove();
+    }, 5000);
+}
+
+/**
+ * Formatea bytes a formato legible
+ */
+function formatBytes(bytes) {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+/**
+ * Formatea tiempo
+ */
+function formatTime(seconds) {
+    if (!seconds || seconds < 0) return '--';
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = Math.floor(seconds % 60);
+
+    if (h > 0) {
+        return `${h}h ${m}m`;
+    } else if (m > 0) {
+        return `${m}m ${s}s`;
+    }
+    return `${s}s`;
+}
+
+/**
+ * Formatea fecha
+ */
+function formatDate(timestamp) {
+    if (!timestamp) return '';
+    const date = new Date(timestamp * 1000);
+    return date.toLocaleDateString('es-ES', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+}
+
+// ==========================================================================
+// GESTIÓN DE PESTAÑAS
+// ==========================================================================
+
+/**
+ * Cambia la pestaña activa
+ */
+function switchTab(tabName) {
+    // Actualizar estado
+    state.activeTab = tabName;
+
+    // Actualizar clases de pestañas
+    document.querySelectorAll('.download-tab').forEach(tab => {
+        tab.classList.remove('active');
+    });
+    document.querySelector(`.download-tab[data-tab="${tabName}"]`)?.classList.add('active');
+
+    // Actualizar contenido
+    document.querySelectorAll('.download-tab-content').forEach(content => {
+        content.classList.remove('active');
+    });
+    document.getElementById(`tab-${tabName}`)?.classList.add('active');
+
+    // Ejecutar acciones específicas de cada pestaña
+    switch (tabName) {
+        case 'downloads':
+            refreshDownloads();
+            break;
+        case 'optimizations':
+            refreshOptimizations();
+            break;
+        case 'history':
+            loadHistory();
+            break;
+    }
+}
+
+// ==========================================================================
+// BÚSQUEDA
+// ==========================================================================
+
+/**
+ * Realiza búsqueda en Prowlarr
+ */
+async function searchMovies() {
+    const query = document.getElementById('search-query')?.value?.trim();
+    if (!query) {
+        showNotification('Error', 'Por favor ingresa un término de búsqueda', 'error');
+        return;
+    }
+
+    const btn = document.querySelector('.search-button');
+    const resultsContainer = document.getElementById('results-container');
+    const statusContainer = document.getElementById('search-status');
+
+    // Mostrar estado de carga
+    if (btn) {
+        btn.disabled = true;
+        btn.textContent = 'Buscando...';
+    }
+    if (resultsContainer) resultsContainer.innerHTML = '<div class="empty-state"><p>Buscando en índices...</p></div>';
+    if (statusContainer) statusContainer.textContent = 'Buscando...';
+
+    try {
+        const response = await fetch(CONFIG.endpoints.search, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ query })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.error || 'Error en la búsqueda');
+        }
+
+        state.searchResults = data.results || [];
+        renderSearchResults(state.searchResults);
+    } catch (error) {
+        console.error('Error en búsqueda:', error);
+        resultsContainer.innerHTML = `<div class="empty-state"><p>Error: ${error.message}</p></div>`;
+        showNotification('Error', error.message, 'error');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = '🔍 Buscar';
+    }
+}
+
+/**
+ * Renderiza resultados de búsqueda
+ */
+function renderSearchResults(results) {
+    const container = document.getElementById('results-container');
+
+    if (!results || results.length === 0) {
+        container.innerHTML = '<div class="empty-state"><div class="empty-icon">🔍</div><h3>Sin resultados</h3><p>No se encontraron películas para tu búsqueda</p></div>';
+        return;
+    }
+
+    container.innerHTML = results.map((movie, index) => `
+        <div class="process-card">
+            <div class="process-header">
+                <h3 class="process-title">${movie.title || 'Sin título'}</h3>
+                <span class="process-status downloading">${movie.seeders || 0} seeders</span>
+            </div>
+            <div class="process-meta">
+                <span class="process-meta-item">📅 ${movie.year || 'N/A'}</span>
+                <span class="process-meta-item">📊 ${movie.size || 'N/A'}</span>
+                <span class="process-meta-item">🔗 ${movie.indexer || 'N/A'}</span>
+            </div>
+            <div class="process-actions">
+                <button class="btn-process btn-view" onclick="selectResult(${index})">
+                    ⬇️ Descargar
+                </button>
+            </div>
+        </div>
+    `).join('');
+}
+
+/**
+ * Selecciona un resultado para descargar
+ */
+function selectResult(index) {
+    const movie = state.searchResults[index];
+    if (!movie) return;
+
+    // Mostrar modal de descarga
+    showDownloadModal(movie);
+}
+
+/**
+ * Muestra el modal de descarga
+ */
+function showDownloadModal(movie) {
+    const modal = document.getElementById('download-modal');
+    if (!modal) return;
+
+    // Llenar datos del modal
+    const titleEl = document.getElementById('download-name');
+    const infoEl = document.getElementById('download-category');
+    const urlInput = document.getElementById('torrent-url');
+
+    if (titleEl) titleEl.textContent = movie.title || 'Sin título';
+    if (infoEl) infoEl.textContent = `${movie.year || 'N/A'} • ${movie.size || 'N/A'}`;
+    if (urlInput) urlInput.value = movie.url || movie.downloadUrl || '';
+
+    // Mostrar modal
+    modal.style.display = 'flex';
+}
+
+/**
+ * Cierra el modal de descarga
+ */
+function closeDownloadModal() {
+    const modal = document.getElementById('download-modal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+}
+
+/**
+ * Descarga torrent desde URL
+ */
+async function downloadFromUrl() {
+    const url = document.getElementById('torrent-url')?.value?.trim();
+    const category = document.getElementById('download-category')?.value || 'Peliculas';
+
+    if (!url) {
+        showNotification('Error', 'Por favor ingresa una URL', 'error');
+        return;
+    }
+
+    const btn = document.getElementById('download-url-btn');
+    btn.disabled = true;
+    btn.textContent = 'Iniciando...';
+
+    try {
+        const response = await fetch(CONFIG.endpoints.downloadUrl || CONFIG.endpoints.downloadTorrent, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                url,
+                category
+            })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.error || 'Error al iniciar descarga');
+        }
+
+        showNotification('Descarga iniciada', `Descargando: ${data.title || 'Torrent'}`, 'success');
+        closeDownloadModal();
+
+        // Cambiar a pestaña de descargas
+        switchTab('downloads');
+    } catch (error) {
+        console.error('Error:', error);
+        showNotification('Error', error.message, 'error');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = '⬇️ Iniciar Descarga';
+    }
+}
+
+/**
+ * Descarga torrent seleccionado
+ */
+async function downloadSelected() {
+    const url = document.getElementById('torrent-url')?.value?.trim();
+    const resultId = document.getElementById('download-result-id')?.value;
+    const category = document.getElementById('download-category')?.value || 'Peliculas';
+
+    if (!url) {
+        showNotification('Error', 'Por favor ingresa una URL', 'error');
+        return;
+    }
+
+    const btn = document.getElementById('download-url-btn');
+    btn.disabled = true;
+    btn.textContent = 'Iniciando...';
+
+    try {
+        const response = await fetch(CONFIG.endpoints.downloadTorrent, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                url,
+                resultId,
+                category
+            })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.error || 'Error al iniciar descarga');
+        }
+
+        showNotification('Descarga iniciada', `Descargando: ${data.title || 'Torrent'}`, 'success');
+        closeDownloadModal();
+
+        // Cambiar a pestaña de descargas
+        switchTab('downloads');
+    } catch (error) {
+        console.error('Error:', error);
+        showNotification('Error', error.message, 'error');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = '⬇️ Iniciar Descarga';
+    }
+}
+
+// ==========================================================================
+// GESTIÓN DE DESCARGAS
+// ==========================================================================
+
+/**
+ * Obtiene descargas activas
+ */
+async function refreshDownloads() {
+    try {
+        const response = await fetch(CONFIG.endpoints.downloadsActive);
+        const data = await response.json();
+
+        if (response.ok) {
+            state.downloads = data.downloads || [];
+            renderDownloads();
+        }
+    } catch (error) {
+        console.error('Error al obtener descargas:', error);
+    }
+}
+
+/**
+ * Renderiza la lista de descargas activas
+ */
+function renderDownloads() {
+    const container = document.getElementById('downloads-list');
+
+    if (!state.downloads || state.downloads.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-icon">📥</div>
+                <h3>Sin descargas activas</h3>
+                <p>Inicia una descarga desde la pestaña de búsqueda</p>
+            </div>
+        `;
+        updateHeaderStats();
+        return;
+    }
+
+    container.innerHTML = state.downloads.map(download => {
+        const progress = download.progress || 0;
+        const statusClass = getStatusClass(download.status);
+
+        return `
+            <div class="process-card" data-id="${download.id}">
+                <div class="process-header">
+                    <h3 class="process-title">${download.title || 'Descarga'}</h3>
+                    <span class="process-status ${statusClass}">${download.status || 'Desconocido'}</span>
+                </div>
+                <div class="process-meta">
+                    <span class="process-meta-item">📊 ${progress.toFixed(1)}%</span>
+                    <span class="process-meta-item">⬇️ ${formatBytes(download.downloadSpeed || 0)}/s</span>
+                    <span class="process-meta-item">⬆️ ${formatBytes(download.uploadSpeed || 0)}/s</span>
+                    <span class="process-meta-item">📁 ${download.category || 'N/A'}</span>
+                </div>
+                <div class="process-progress">
+                    <div class="progress-container">
+                        <div class="progress-bar" style="width: ${progress}%"></div>
+                    </div>
+                </div>
+                <div class="process-actions">
+                    ${download.status !== 'completed' && download.status !== 'failed' ? `
+                        <button class="btn-process btn-cancel" onclick="cancelDownload('${download.id}')">
+                            ❌ Cancelar
+                        </button>
+                    ` : ''}
+                    ${download.status === 'completed' ? `
+                        <button class="btn-process btn-view" onclick="startOptimization('${download.id}', '${encodeURIComponent(download.title)}')">
+                            ⚡ Optimizar
+                        </button>
+                    ` : ''}
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    updateHeaderStats();
+}
+
+/**
+ * Obtiene la clase CSS según el estado
+ */
+function getStatusClass(status) {
+    const statusMap = {
+        'downloading': 'downloading',
+        'seeding': 'completed',
+        'completed': 'completed',
+        'paused': 'pending',
+        'stopped': 'failed',
+        'failed': 'failed',
+        'checking': 'running',
+        'queued': 'pending'
+    };
+    return statusMap[status?.toLowerCase()] || 'pending';
+}
+
+/**
+ * Cancela una descarga
+ */
+async function cancelDownload(id) {
+    if (!confirm('¿Estás seguro de que quieres cancelar esta descarga?')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(CONFIG.endpoints.downloadCancel(id), {
+            method: 'POST'
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.error || 'Error al cancelar');
+        }
+
+        showNotification('Descarga cancelada', 'La descarga ha sido eliminada', 'success');
+        refreshDownloads();
+    } catch (error) {
+        console.error('Error al cancelar:', error);
+        showNotification('Error', error.message, 'error');
+    }
+}
+
+// ==========================================================================
+// GESTIÓN DE OPTIMIZACIONES
+// ==========================================================================
+
+/**
+ * Obtiene optimizaciones activas
+ */
+async function refreshOptimizations() {
+    try {
+        const response = await fetch(CONFIG.endpoints.optimizeStatus);
+        const data = await response.json();
+
+        if (response.ok) {
+            state.optimizations = data.optimizations || [];
+            renderOptimizations();
+        }
+    } catch (error) {
+        console.error('Error al obtener optimizaciones:', error);
+    }
+}
+
+/**
+ * Renderiza la lista de optimizaciones activas
+ */
+function renderOptimizations() {
+    const container = document.getElementById('optimizations-list');
+
+    if (!state.optimizations || state.optimizations.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-icon">⚡</div>
+                <h3>Sin optimizaciones activas</h3>
+                <p>Los archivos descargados aparecerán aquí para optimizar</p>
+            </div>
+        `;
+        return;
+    }
+
+    container.innerHTML = state.optimizations.map(opt => {
+        const progress = opt.progress || 0;
+
+        return `
+            <div class="process-card" data-id="${opt.id}">
+                <div class="process-header">
+                    <h3 class="process-title">${opt.title || 'Optimización'}</h3>
+                    <span class="process-status ${opt.status === 'running' ? 'running' : 'pending'}">
+                        ${opt.status === 'running' ? '⚡ ' + progress.toFixed(1) + '%' : opt.status}
+                    </span>
+                </div>
+                <div class="process-meta">
+                    <span class="process-meta-item">📋 ${opt.profile || 'default'}</span>
+                    <span class="process-meta-item">⏱️ ${formatTime(opt.eta)}</span>
+                    <span class="process-meta-item">🔄 ${opt.speed || '1x'}</span>
+                </div>
+                <div class="metrics-grid">
+                    <div class="metric">
+                        <div class="metric-value">${opt.fps || '--'}</div>
+                        <div class="metric-label">FPS</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-value">${opt.bitrate || '--'}</div>
+                        <div class="metric-label">Bitrate</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-value">${opt.frame || '--'}</div>
+                        <div class="metric-label">Frame</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-value">${formatTime(opt.elapsed)}</div>
+                        <div class="metric-label">Elapsed</div>
+                    </div>
+                </div>
+                <div class="process-progress">
+                    <div class="progress-container">
+                        <div class="progress-bar" style="width: ${progress}%"></div>
+                    </div>
+                </div>
+                <div class="process-actions">
+                    <button class="btn-process btn-cancel" onclick="cancelOptimization('${opt.id}')">
+                        ❌ Cancelar
+                    </button>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+/**
+ * Inicia optimización de un archivo descargado
+ */
+async function startOptimization(downloadId, title) {
+    const titleDecoded = decodeURIComponent(title);
+
+    // Seleccionar perfil
+    const profile = document.getElementById('optimize-profile')?.value || 'default';
+
+    try {
+        const response = await fetch(CONFIG.endpoints.optimizeStart, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                downloadId,
+                title: titleDecoded,
+                profile
+            })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.error || 'Error al iniciar optimización');
+        }
+
+        showNotification('Optimización iniciada', `Procesando: ${titleDecoded}`, 'success');
+        switchTab('optimizations');
+    } catch (error) {
+        console.error('Error:', error);
+        showNotification('Error', error.message, 'error');
+    }
+}
+
+/**
+ * Cancela una optimización
+ */
+async function cancelOptimization(id) {
+    if (!confirm('¿Estás seguro de que quieres cancelar esta optimización?')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(CONFIG.endpoints.optimizeCancel(id), {
+            method: 'POST'
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.error || 'Error al cancelar');
+        }
+
+        showNotification('Optimización cancelada', 'La optimización ha sido detenida', 'success');
+        refreshOptimizations();
+    } catch (error) {
+        console.error('Error al cancelar:', error);
+        showNotification('Error', error.message, 'error');
+    }
+}
+
+// ==========================================================================
+// HISTORIAL
+// ==========================================================================
+
+/**
+ * Carga el historial desde localStorage
+ */
+function loadHistory() {
+    try {
+        const saved = localStorage.getItem('cine-platform-history');
+        if (saved) {
+            state.history = JSON.parse(saved);
+        }
+    } catch (e) {
+        state.history = [];
+    }
+    renderHistory();
+}
+
+/**
+ * Guarda el historial en localStorage
+ */
+function saveHistory() {
+    try {
+        // Limitar a maxHistoryItems
+        const toSave = state.history.slice(0, CONFIG.maxHistoryItems);
+        localStorage.setItem('cine-platform-history', JSON.stringify(toSave));
+    } catch (e) {
+        console.error('Error guardando historial:', e);
+    }
+}
+
+/**
+ * Renderiza el historial
+ */
+function renderHistory() {
+    const container = document.getElementById('history-list');
+
+    if (!state.history || state.history.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-icon">📜</div>
+                <h3>Sin historial</h3>
+                <p>Las descargas y optimizaciones completadas aparecerán aquí</p>
+            </div>
+        `;
+        return;
+    }
+
+    container.innerHTML = state.history.map(item => {
+        const statusClass = item.type === 'download' ?
+            (item.status === 'completed' ? 'completed' : 'failed') :
+            (item.status === 'completed' ? 'completed' : 'failed');
+
+        return `
+            <div class="history-item">
+                <div class="history-item-info">
+                    <div class="history-item-title">${item.title}</div>
+                    <div class="history-item-meta">
+                        ${item.type === 'download' ? '📥' : '⚡'} 
+                        ${item.type === 'download' ? 'Descarga' : 'Optimización'} • 
+                        ${formatDate(item.completedAt || item.startedAt)}
+                    </div>
+                </div>
+                <span class="history-item-status process-status ${statusClass}">
+                    ${item.status}
+                </span>
+            </div>
+        `;
+    }).join('');
+}
+
+/**
+ * Añade un elemento al historial
+ */
+function addToHistory(item) {
+    state.history.unshift({
+        ...item,
+        completedAt: Math.floor(Date.now() / 1000)
+    });
+    saveHistory();
+    if (state.activeTab === 'history') {
+        renderHistory();
+    }
+}
+
+// ==========================================================================
+// ESTADÍSTICAS
+// ==========================================================================
+
+/**
+ * Actualiza las estadísticas en el header
+ */
+function updateHeaderStats() {
+    const downloadsEl = document.getElementById('stats-downloads');
+    const optimizationsEl = document.getElementById('stats-optimizations');
+
+    if (downloadsEl) {
+        downloadsEl.textContent = state.downloads?.length || 0;
+    }
+    if (optimizationsEl) {
+        optimizationsEl.textContent = state.optimizations?.length || 0;
+    }
+}
+
+// ==========================================================================
+// POLLING
+// ==========================================================================
+
+/**
+ * Inicia el polling
+ */
+function startPolling() {
+    if (state.isPolling) return;
+    state.isPolling = true;
+
+    pollAll();
+
+    // Configurar intervalo
+    state.pollIntervalId = setInterval(pollAll, CONFIG.pollInterval);
+}
+
+/**
+ * Detiene el polling
+ */
+function stopPolling() {
+    state.isPolling = false;
+    if (state.pollIntervalId) {
+        clearInterval(state.pollIntervalId);
+        state.pollIntervalId = null;
+    }
+}
+
+/**
+ * Realiza polling de todos los datos
+ */
+async function pollAll() {
+    if (state.activeTab === 'downloads') {
+        await refreshDownloads();
+    }
+    if (state.activeTab === 'optimizations') {
+        await refreshOptimizations();
+    }
+}
+
+// ==========================================================================
+// INICIALIZACIÓN
+// ==========================================================================
+
+// Funciones wrapper para compatibilidad con HTML
+// (El HTML usa IDs diferentes a los del JavaScript)
+
+function performSearch() {
+    const query = document.getElementById('search-query')?.value?.trim();
+    if (!query) {
+        showNotification('Error', 'Por favor ingresa un término de búsqueda', 'error');
+        return;
+    }
+    searchMovies();
+}
+
+function startUrlDownload() {
+    const url = document.getElementById('torrent-url')?.value?.trim();
+    if (!url) {
+        showNotification('Error', 'Por favor ingresa una URL', 'error');
+        return;
+    }
+    downloadFromUrl();
+}
+
+function handleSearchKeypress(event) {
+    if (event.key === 'Enter') {
+        performSearch();
+    }
+}
+
+/**
+ * Inicializa la página
+ */
+function initDownloadsPage() {
+    console.log('Inicializando página de descargas...');
+
+    // Configurar event listeners para pestañas
+    document.querySelectorAll('.download-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+            const tabName = tab.dataset.tab;
+            if (tabName) switchTab(tabName);
+        });
+    });
+
+    // Event listener para búsqueda
+    const searchInput = document.getElementById('search-query');
+    if (searchInput) {
+        searchInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') performSearch();
+        });
+    }
+
+    const searchBtn = document.getElementById('search-button');
+    if (searchBtn) {
+        searchBtn.addEventListener('click', performSearch);
+    }
+
+    // Event listener para descarga por URL
+    const urlDownloadBtn = document.getElementById('url-download-btn');
+    if (urlDownloadBtn) {
+        urlDownloadBtn.addEventListener('click', downloadFromUrl);
+    }
+
+    // Event listeners del modal
+    const downloadModalBtn = document.getElementById('download-url-btn');
+    if (downloadModalBtn) {
+        downloadModalBtn.addEventListener('click', downloadSelected);
+    }
+
+    const closeModalBtn = document.getElementById('close-modal');
+    if (closeModalBtn) {
+        closeModalBtn.addEventListener('click', closeDownloadModal);
+    }
+
+    // Cerrar modal al hacer click fuera
+    const modal = document.getElementById('download-modal');
+    if (modal) {
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) closeDownloadModal();
+        });
+    }
+
+    // Event listeners para botones de refresh
+    const refreshDownloadsBtn = document.getElementById('refresh-downloads');
+    if (refreshDownloadsBtn) {
+        refreshDownloadsBtn.addEventListener('click', refreshDownloads);
+    }
+
+    const refreshOptimizationsBtn = document.getElementById('refresh-optimizations');
+    if (refreshOptimizationsBtn) {
+        refreshOptimizationsBtn.addEventListener('click', refreshOptimizations);
+    }
+
+    // Iniciar polling
+    startPolling();
+
+    // Cargar categorías
+    loadCategories();
+
+    // Cargar historial
+    loadHistory();
+
+    console.log('Página de descargas inicializada');
+}
+
+/**
+ * Carga las categorías disponibles
+ */
+async function loadCategories() {
+    try {
+        const response = await fetch('/api/categories');
+        const data = await response.json();
+
+        const select = document.getElementById('category-select');
+        if (!select) return;
+
+        // Limpiar opciones existentes (excepto la primera)
+        while (select.options.length > 1) {
+            select.remove(1);
+        }
+
+        // Añadir categorías
+        if (data.categories) {
+            data.categories.forEach(cat => {
+                const option = document.createElement('option');
+                option.value = cat;
+                option.textContent = cat;
+                select.appendChild(option);
+            });
+        }
+    } catch (error) {
+        console.error('Error cargando categorías:', error);
+    }
+}
+
+// Inicializar cuando el DOM esté listo
+document.addEventListener('DOMContentLoaded', initDownloadsPage);
