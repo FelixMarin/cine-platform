@@ -100,8 +100,8 @@ class Settings:
     # ============================
     # 📥 Transmission (Cliente BitTorrent)
     # ============================
-    TRANSMISSION_URL: str = os.environ.get('TRANSMISSION_URL', 'http://localhost:9091')
-    TRANSMISSION_RPC_URL: str = os.environ.get('TRANSMISSION_RPC_URL', 'http://localhost:9091/transmission/rpc')
+    TRANSMISSION_URL: str = os.environ.get('TRANSMISSION_URL', 'http://transmission:9091')
+    TRANSMISSION_RPC_URL: str = os.environ.get('TRANSMISSION_RPC_URL', 'http://transmission:9091/transmission/rpc')
     TRANSMISSION_USERNAME: str = os.environ.get('TRANSMISSION_USERNAME', '')
     TRANSMISSION_PASSWORD: str = os.environ.get('TRANSMISSION_PASSWORD', '')
     

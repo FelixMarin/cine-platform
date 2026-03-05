@@ -1027,7 +1027,7 @@ def downloads_page():
     user_role = session.get('user_role')
     if user_role != 'admin':
         logger.warning(f"[PAGE] Acceso denegado a /downloads para usuario con rol: {user_role}")
-        return redirect(url_for('catalog.catalog_page'))
+        return redirect(url_for('main_page.index'))
     
     logger.info("[PAGE] Renderizando página de descargas")
     return render_template('downloads.html')

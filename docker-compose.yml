@@ -26,12 +26,29 @@ services:
       # Credenciales (desde .env.dev)
       - OAUTH2_CLIENT_ID=${OAUTH2_CLIENT_ID}
       - OAUTH2_CLIENT_SECRET=${OAUTH2_CLIENT_SECRET}
+      - MOVIES_BASE_PATH=/mnt/DATA_2TB/audiovisual/mkv
       
+      # Indexers (usando nombres de servicio Docker)
+      - PROWLARR_URL=http://prowlarr:9696
+      - PROWLARR_API_KEY=${PROWLARR_API_KEY}
+      - JACKETT_URL=http://jackett:9117
+      - JACKETT_API_KEY=${JACKETT_API_KEY}
+      - TRANSMISSION_URL=http://transmission:9091
+      - TRANSMISSION_USERNAME=${TRANSMISSION_USERNAME}
+      - TRANSMISSION_PASSWORD=${TRANSMISSION_PASSWORD}
     volumes:
       - ./uploads:/app/uploads
       - ./temp:/app/temp
       - ./outputs:/app/outputs
       - ./logs:/app/logs
       - ${MOVIES_FOLDER}:/data/movies
+      - /mnt/DATA_2TB/audiovisual/mkv:/mnt/DATA_2TB/audiovisual/mkv
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    networks:
+      - cine-network
+
+networks:
+  cine-network:
+    external: true
+    name: cine-network

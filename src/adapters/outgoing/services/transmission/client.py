@@ -176,8 +176,8 @@ class TransmissionClient:
         self.password = password or settings.TRANSMISSION_PASSWORD
         self._session = requests.Session()
         self._session.headers.update({
-            'Content-Type': 'application/json',
-            'X-Transmission-Session-Id': ''
+            'Content-Type': 'application/json'
+            # No establecer X-Transmission-Session-Id aquí - se obtiene dinámicamente
         })
         
         # Configurar autenticación básica si está habilitada
@@ -203,23 +203,29 @@ class TransmissionClient:
             TransmissionError: Si no se puede obtener el session ID
         """
         try:
+            # Primera petición - Transmission siempre devuelve 409 si no hay session ID válida
             response = self._session.post(self.url, json={'method': 'session-get'})
             
-            # Transmission devuelve el session ID en el header
-            session_id = response.headers.get('X-Transmission-Session-Id')
-            
-            if not session_id:
-                # Intentar obtener del body
-                data = response.json()
-                if data.get('result') == 'success':
-                    session_id = 'default'  # Fallback
+            # Transmission devuelve 409 cuando no hay session ID válida
+            # El session ID está en los headers de la respuesta 409
+            if response.status_code == 409:
+                session_id = response.headers.get('X-Transmission-Session-Id')
+                if not session_id:
+                    raise TransmissionError("No se pudo obtener X-Transmission-Session-Id de la respuesta 409")
+            elif response.status_code == 200:
+                # Ya tiene sesión válida
+                session_id = response.headers.get('X-Transmission-Session-Id', 'valid_session')
+            else:
+                raise TransmissionError(f"Error obteniendo session ID: HTTP {response.status_code}")
             
             self._session_id = session_id
             self._session.headers['X-Transmission-Session-Id'] = session_id
             
-            logger.debug(f"[Transmission] Session ID obtained: {session_id[:20]}...")
+            logger.info(f"[Transmission] ✅ Session ID obtained: {session_id[:20]}...")
             return session_id
             
+        except TransmissionError:
+            raise
         except requests.exceptions.RequestException as e:
             raise TransmissionError(f"Error al obtener session ID: {str(e)}")
     
@@ -237,8 +243,11 @@ class TransmissionClient:
         Raises:
             TransmissionError: Si hay un error en la comunicación
         """
+        logger.info(f"[Transmission] 📤 Petition {method}...")
+        
         # Obtener session ID si no hay uno
         if not self._session_id:
+            logger.info("[Transmission] 🔑 No session ID, obtaining...")
             self._get_session_id()
         
         payload = {
@@ -248,12 +257,15 @@ class TransmissionClient:
         
         try:
             response = self._session.post(self.url, json=payload, timeout=self._timeout)
+            logger.info(f"[Transmission] 📥 Response status: {response.status_code}")
             
             # Si devuelve 409, necesitamos un nuevo session ID
             if response.status_code == 409:
+                logger.warning("[Transmission] ⚠️ Got 409, re-fetching session ID...")
                 self._get_session_id()
                 self._session.headers['X-Transmission-Session-Id'] = self._session_id
                 response = self._session.post(self.url, json=payload, timeout=self._timeout)
+                logger.info(f"[Transmission] 📥 Retry response status: {response.status_code}")
             
             response.raise_for_status()
             data = response.json()
@@ -261,6 +273,7 @@ class TransmissionClient:
             if data.get('result') != 'success':
                 raise TransmissionError(f"Error de Transmission: {data.get('result')}")
             
+            logger.info(f"[Transmission] ✅ {method} completed successfully")
             return data.get('arguments', {})
             
         except requests.exceptions.ConnectionError:
@@ -573,12 +586,25 @@ class TransmissionClient:
         Returns:
             True si la conexión es exitosa, False en caso contrario
         """
+        logger.info("[Transmission] 🔍 Verificando conexión...")
         try:
+            # Reiniciar session ID para forzar una verificación limpia
+            self._session_id = None
+            self._session.headers.pop('X-Transmission-Session-Id', None)
+            
+            # Obtener session ID (maneja el flujo 409)
+            self._get_session_id()
+            
+            # Hacer una petición de prueba
             self._make_request('session-get', {})
-            logger.info("[Transmission] Conexión exitosa")
+            
+            logger.info("[Transmission] ✅ Conexión exitosa")
             return True
         except TransmissionError as e:
-            logger.error(f"[Transmission] Error de conexión: {e.message}")
+            logger.error(f"[Transmission] ❌ Error de conexión: {e.message}")
+            return False
+        except Exception as e:
+            logger.error(f"[Transmission] ❌ Error inesperado: {str(e)}")
             return False
 
 
