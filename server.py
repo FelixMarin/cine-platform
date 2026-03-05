@@ -2,9 +2,10 @@
 Cine Platform - Servidor Principal
 Arquitectura Hexagonal
 """
-from flask import Flask, request
+from flask import Flask, request, session
 import os
 from dotenv import load_dotenv
+import logging
 
 # ============================
 #  IMPORTS - ARQUITECTURA HEXAGONAL
@@ -192,6 +193,15 @@ def create_app():
     
     logger.info("[ROUTER] Blueprints registrados correctamente")
 
+    # ============================
+    #  CONTEXT PROCESSOR - EXPONER SESIÓN A PLANTILLAS
+    # ============================
+    @app.context_processor
+    def inject_session():
+        """Inyecta la sesión en todas las plantillas"""
+        from flask import session
+        return dict(session=session)
+    
     return app
 
 

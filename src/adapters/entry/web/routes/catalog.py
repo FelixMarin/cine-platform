@@ -13,7 +13,7 @@ from src.infrastructure.logging import setup_logging
 logger = setup_logging(os.environ.get("LOG_FOLDER"))
 
 
-catalog_bp = Blueprint('catalog', __name__, url_prefix='/api')
+catalog_bp = Blueprint('catalog', __name__, url_prefix='')
 
 # Casos de uso inyectados
 _list_movies_use_case = None

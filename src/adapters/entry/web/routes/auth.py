@@ -99,19 +99,32 @@ def login():
             session['email'] = user_data.get('email')
             session['username'] = user_data.get('username')
             
-            # Extraer roles del token JWT si están disponibles
+            # Extraer rol del usuario - buscar tanto 'role' como 'roles'
+            user_role = user_data.get('role')
             roles = user_data.get('roles', [])
-            if 'ROLE_ADMIN' in roles:
+            
+            # Normalizar el rol - buscar tanto 'role' como 'roles'
+            if not user_role and roles:
+                if 'ROLE_ADMIN' in roles:
+                    user_role = 'admin'
+                elif 'ROLE_USER' in roles:
+                    user_role = 'user'
+                else:
+                    user_role = 'user'
+            
+            # Normalizar el rol si viene en formato diferente
+            if user_role and (user_role == 'admin' or user_role == 'ROLE_ADMIN'):
                 user_role = 'admin'
-            elif 'ROLE_USER' in roles:
-                user_role = 'user'
+                roles = ['ROLE_ADMIN', 'ROLE_USER']
             else:
-                user_role = user_data.get('role', 'user')  # Por defecto 'user', nunca 'admin'
+                user_role = 'user'
+                if not roles:
+                    roles = ['ROLE_USER']
             
             session['user_role'] = user_role
-            session['user_roles'] = roles  # Guardar lista completa de roles
+            session['user_roles'] = roles
             
-            logger.info(f"[API LOGIN] Login exitoso para: {email}, rol: {user_role}")
+            logger.info(f"[API LOGIN] Login exitoso para: {email}, rol: {user_role}, roles: {session['user_roles']}")
             
             return jsonify({
                 'success': True,
@@ -479,31 +492,88 @@ def oauth_callback():
         # Obtener información del usuario
         access_token = token_data.get('access_token')
         user_info = oauth_service.get_userinfo(access_token)
-
+        
+        # Decodificar el JWT para obtener los roles
+        roles = []
+        user_role = None
+        
+        # Intentar obtener roles desde user_info (aunque normalmente no tiene)
+        if user_info:
+            roles = user_info.get('roles', [])
+            user_role = user_info.get('role')
+        
+        # Si no hay roles en user_info, decodificar el JWT
+        if not roles and access_token:
+            try:
+                import jwt
+                jwt_payload = jwt.decode(access_token, options={"verify_signature": False})
+                logger.info(f"[OAUTH_CALLBACK] JWT payload: {jwt_payload}")
+                
+                # Extraer roles del JWT
+                jwt_roles = jwt_payload.get('roles', [])
+                jwt_realm_access = jwt_payload.get('realm_access', {})
+                jwt_roles_from_realm = jwt_realm_access.get('roles', [])
+                
+                # Combinar roles
+                roles = list(set(jwt_roles + jwt_roles_from_realm))
+                logger.info(f"[OAUTH_CALLBACK] Roles del JWT: {roles}")
+                
+                # También verificar el campo 'role' en el JWT
+                if not user_role:
+                    user_role = jwt_payload.get('role')
+            except Exception as e:
+                logger.warning(f"[OAUTH_CALLBACK] Error decodificando JWT: {e}")
+        
+        # Si todavía no hay roles, intentar token introspection
+        if not roles and access_token:
+            try:
+                introspection_data = oauth_service.introspect_token(access_token)
+                if introspection_data:
+                    logger.info(f"[OAUTH_CALLBACK] Token introspection: {introspection_data}")
+                    introspection_roles = introspection_data.get('roles', [])
+                    if not introspection_roles:
+                        introspection_roles = introspection_data.get('authorities', [])
+                    if not introspection_roles:
+                        scope = introspection_data.get('scope', '')
+                        if isinstance(scope, str):
+                            scope = scope.split()
+                        introspection_roles = [r for r in scope if r.startswith('ROLE_')]
+                    
+                    if introspection_roles:
+                        roles = introspection_roles
+                        logger.info(f"[OAUTH_CALLBACK] Roles de introspection: {roles}")
+            except Exception as e:
+                logger.warning(f"[OAUTH_CALLBACK] Error en introspection: {e}")
+        
+        # Normalizar el rol
+        if not user_role and roles:
+            if 'ROLE_ADMIN' in roles:
+                user_role = 'admin'
+            elif 'ROLE_USER' in roles:
+                user_role = 'user'
+        
+        # Normalizar el rol si viene en formato diferente
+        if user_role and (user_role == 'admin' or user_role == 'ROLE_ADMIN'):
+            user_role = 'admin'
+            roles = ['ROLE_ADMIN', 'ROLE_USER']
+        else:
+            user_role = 'user'
+            if not roles:
+                roles = ['ROLE_USER']
+        
         # Guardar en sesión
         session['logged_in'] = True
         session['user_id'] = user_info.get('sub', 1) if user_info else 1
         session['email'] = user_info.get('email', '') if user_info else ''
         session['username'] = user_info.get('preferred_username', user_info.get('name', 'user')) if user_info else 'user'
-        
-        # Extraer roles del token JWT - determinar rol del usuario
-        roles = user_info.get('roles', []) if user_info else []
-        
-        if 'ROLE_ADMIN' in roles:
-            user_role = 'admin'
-        elif 'ROLE_USER' in roles:
-            user_role = 'user'
-        else:
-            user_role = 'user'  # Por defecto 'user', nunca 'admin'
-        
         session['user_role'] = user_role
-        session['user_roles'] = roles  # Guardar lista completa de roles
+        session['user_roles'] = roles
         
         session['oauth_token'] = access_token
         session['oauth_refresh_token'] = token_data.get('refresh_token')
         session['oauth_expires_at'] = token_data.get('expires_at')
 
-        logger.info(f"[OAUTH_CALLBACK] Login OAuth2 exitoso para: {session.get('username')}, rol: {user_role}")
+        logger.info(f"[OAUTH_CALLBACK] Login OAuth2 exitoso para: {session.get('username')}, rol: {user_role}, roles: {roles}")
 
         return jsonify({'success': True})
 
@@ -577,24 +647,91 @@ def oauth_callback_redirect():
         access_token = token_data.get('access_token')
         user_info = oauth_service.get_userinfo(access_token)
         
+        # También decodificar el JWT para obtener los roles
+        roles = []
+        user_role = None
+        
+        # Intentar obtener roles desde user_info
+        if user_info:
+            roles = user_info.get('roles', [])
+            user_role = user_info.get('role')
+        
+        # Si no hay roles en user_info, intentar decodificar el JWT
+        if not roles and access_token:
+            try:
+                # Importar JWT
+                import jwt
+                # Decodificar sin verificar firma
+                jwt_payload = jwt.decode(access_token, options={"verify_signature": False})
+                logger.info(f"[OAUTH_CALLBACK_REDIRECT] JWT payload: {jwt_payload}")
+                
+                # Extraer roles del JWT
+                jwt_roles = jwt_payload.get('roles', [])
+                jwt_realm_access = jwt_payload.get('realm_access', {})
+                jwt_roles_from_realm = jwt_realm_access.get('roles', [])
+                
+                # Combinar roles
+                roles = list(set(jwt_roles + jwt_roles_from_realm))
+                logger.info(f"[OAUTH_CALLBACK_REDIRECT] Roles del JWT: {roles}")
+                
+                # También verificar el campo 'role' en el JWT
+                if not user_role:
+                    user_role = jwt_payload.get('role')
+            except Exception as e:
+                logger.warning(f"[OAUTH_CALLBACK_REDIRECT] Error decodificando JWT: {e}")
+        
+        # Si todavía no hay roles, intentar token introspection
+        if not roles and access_token:
+            try:
+                introspection_data = oauth_service.introspect_token(access_token)
+                if introspection_data:
+                    logger.info(f"[OAUTH_CALLBACK_REDIRECT] Token introspection: {introspection_data}")
+                    # Los roles pueden venir en diferentes formatos
+                    introspection_roles = introspection_data.get('roles', [])
+                    if not introspection_roles:
+                        # Intentar con 'authorities' (Spring Security usa esto)
+                        introspection_roles = introspection_data.get('authorities', [])
+                    if not introspection_roles:
+                        # Intentar con 'scope' que puede contener roles
+                        scope = introspection_data.get('scope', '')
+                        if isinstance(scope, str):
+                            scope = scope.split()
+                        introspection_roles = [r for r in scope if r.startswith('ROLE_')]
+                    
+                    if introspection_roles:
+                        roles = introspection_roles
+                        logger.info(f"[OAUTH_CALLBACK_REDIRECT] Roles de introspection: {roles}")
+            except Exception as e:
+                logger.warning(f"[OAUTH_CALLBACK_REDIRECT] Error en introspection: {e}")
+        
         # Guardar en sesión
         session['logged_in'] = True
         session['user_id'] = user_info.get('sub', 1) if user_info else 1
         session['email'] = user_info.get('email', '') if user_info else ''
         session['username'] = user_info.get('preferred_username', user_info.get('name', 'user')) if user_info else 'user'
         
-        # Extraer roles del token JWT - determinar rol del usuario
-        roles = user_info.get('roles', []) if user_info else []
+        # Normalizar el rol
+        if not user_role and roles:
+            if 'ROLE_ADMIN' in roles:
+                user_role = 'admin'
+            elif 'ROLE_USER' in roles:
+                user_role = 'user'
         
-        if 'ROLE_ADMIN' in roles:
+        # Normalizar el rol si viene en formato diferente
+        if user_role and (user_role == 'admin' or user_role == 'ROLE_ADMIN'):
             user_role = 'admin'
-        elif 'ROLE_USER' in roles:
-            user_role = 'user'
+            roles = ['ROLE_ADMIN', 'ROLE_USER']
         else:
-            user_role = 'user'  # Por defecto 'user', nunca 'admin'
+            user_role = 'user'
+            if not roles:
+                roles = ['ROLE_USER']
         
         session['user_role'] = user_role
-        session['user_roles'] = roles  # Guardar lista completa de roles
+        session['user_roles'] = roles
+        
+        # Log para debug - verificar qué devuelve OAuth
+        logger.info(f"[OAUTH_CALLBACK_REDIRECT] user_info completo: {user_info}")
+        logger.info(f"[OAUTH_CALLBACK_REDIRECT] roles: {roles}, user_role: {user_role}")
         
         session['oauth_token'] = access_token
         session['oauth_refresh_token'] = token_data.get('refresh_token')

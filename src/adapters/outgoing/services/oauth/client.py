@@ -33,6 +33,7 @@ class OAuth2Client:
         self.token_endpoint = os.environ.get("OAUTH2_TOKEN_ENDPOINT", "/oauth2/token")
         self.authorize_endpoint = os.environ.get("OAUTH2_AUTHORIZE_ENDPOINT", "/oauth2/authorize")
         self.userinfo_endpoint = os.environ.get("OAUTH2_USERINFO_ENDPOINT", "/userinfo")
+        self.introspection_endpoint = os.environ.get("OAUTH2_INTROSPECTION_ENDPOINT", "/oauth2/introspect")
         self.revoke_endpoint = os.environ.get("OAUTH2_REVOKE_ENDPOINT", "/oauth2/revoke")
         
         logger.info(f"[OAuth2Client] Token endpoint: {self.token_endpoint}")
@@ -284,6 +285,40 @@ class OAuth2Client:
                 return self.user_data
             return None
         except Exception:
+            return None
+    
+    def introspect_token(self, token: str = None) -> Optional[Dict]:
+        """
+        Introspecciona un token para obtener información detallada
+        incluyendo roles.
+        
+        Args:
+            token: Token a introspeccionar (si no se usa el actual)
+            
+        Returns:
+            Datos del token incluyendo roles, o None
+        """
+        tok = token or self.token
+        if not tok:
+            return None
+        
+        url = f"{self.base_url}{self.introspection_endpoint}"
+        
+        try:
+            response = requests.post(
+                url,
+                data={"token": tok},
+                headers=self._get_basic_auth_header(),
+                timeout=10
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                logger.info(f"[OAUTH_INTROSPECT] Token introspection response: {data}")
+                return data
+            return None
+        except Exception as e:
+            logger.warning(f"[OAUTH_INTROSPECT] Error introspeccionando token: {e}")
             return None
     
     # Métodos de compatibilidad con el código anterior
