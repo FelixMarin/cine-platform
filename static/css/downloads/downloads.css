@@ -213,6 +213,23 @@
     transition: width 0.5s ease;
 }
 
+.progress-size {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #fff;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+    z-index: 1;
+}
+
+.process-progress {
+    margin-bottom: 15px;
+    position: relative;
+}
+
 .process-actions {
     display: flex;
     gap: 10px;

@@ -477,7 +477,9 @@ def download_status():
     logger.info(f"[API] Obteniendo estado de descargas: {status_filter}")
     
     try:
+        logger.info("[API] 📡 Consultando Transmission...")
         torrents = _transmission_client.get_torrents()
+        logger.info(f"[API] ✅ Transmission respondió: {len(torrents)} torrents")
         
         # Convertir objetos TorrentDownload a diccionarios
         torrents_data = [t.to_dict() for t in torrents]
@@ -495,30 +497,69 @@ def download_status():
         # Formatear respuesta
         downloads = []
         for t in torrents_data:
+            # Log de depuración para cada torrent
+            logger.info(f"[API] Torrent {t.get('id')}: {t.get('name')[:30]}... - "
+                       f"Progress: {t.get('progress')}%, "
+                       f"Status: {t.get('status_display')}, "
+                       f"Download: {t.get('rate_download')} bytes/s")
+            
+            # Usar los nuevos campos formateados o los antiguos
+            download_speed = t.get('rate_download', 0)
+            upload_speed = t.get('rate_upload', 0)
+            download_speed_formatted = t.get('download_speed_formatted', '0 B/s')
+            upload_speed_formatted = t.get('upload_speed_formatted', '0 B/s')
+            status_display = t.get('status_display', 'unknown')
+            
+            # Calcular progress si es 0 pero tenemos size_downloaded y size_total
+            progress = t.get('progress', 0)
+            size_downloaded = t.get('size_downloaded', 0)
+            size_total = t.get('size_total', 0)
+            
+            # Si progress es 0 pero tenemos tamaños, calcularlo
+            if progress == 0 and size_total > 0:
+                progress = (size_downloaded / size_total) * 100
+                logger.info(f"[API] Calculado progress: {progress:.1f}% ({size_downloaded}/{size_total})")
+            
+            # Usar eta_formatted o calcularlo
+            eta = t.get('eta', -1)
+            eta_formatted = t.get('eta_formatted', '∞')
+            
             download = {
                 'id': t.get('id'),
                 'title': t.get('name'),
                 'hash': t.get('hash', '')[:16] if t.get('hash') else '',
                 'status': t.get('status'),
-                'status_display': t.get('status_display'),
-                'progress': t.get('progress', 0),
-                'size_total': t.get('size_total', 0),
-                'size_downloaded': t.get('size_downloaded', 0),
+                'status_display': status_display,
+                # Campos en snake_case
+                'progress': round(progress, 1),
+                'size_total': size_total,
+                'size_downloaded': size_downloaded,
                 'size_formatted': t.get('size_formatted', '0 B'),
-                'download_speed': t.get('rate_download', 0),
-                'download_speed_formatted': t.get('size_formatted', '0 B') + '/s',  # Usar formato existente
-                'upload_speed': t.get('rate_upload', 0),
-                'upload_speed_formatted': t.get('size_formatted', '0 B') + '/s',  # Usar formato existente
-                'eta': t.get('eta', -1),
-                'eta_formatted': t.get('eta_formatted', '∞'),
-                'category': t.get('category', 'Peliculas') or 'Peliculas'
+                'download_speed': download_speed,
+                'download_speed_formatted': download_speed_formatted,
+                'upload_speed': upload_speed,
+                'upload_speed_formatted': upload_speed_formatted,
+                'eta': eta,
+                'eta_formatted': eta_formatted,
+                'category': t.get('category', 'Peliculas') or 'Peliculas',
+                # Campos en camelCase (para compatibilidad con JS)
+                'statusDisplay': status_display,
+                'sizeTotal': size_total,
+                'sizeDownloaded': size_downloaded,
+                'sizeFormatted': t.get('size_formatted', '0 B'),
+                'downloadSpeed': download_speed,
+                'downloadSpeedFormatted': download_speed_formatted,
+                'uploadSpeed': upload_speed,
+                'uploadSpeedFormatted': upload_speed_formatted,
+                'etaFormatted': eta_formatted
             }
             downloads.append(download)
         
         # Obtener estadísticas
         active_count = len([t for t in torrents_data if t.get('status') in [4, 6]])
         
-        return jsonify({
+        # Añadir headers para evitar caché
+        response = jsonify({
             'success': True,
             'downloads': downloads,
             'stats': {
@@ -526,6 +567,10 @@ def download_status():
                 'total_count': len(torrents_data)
             }
         })
+        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '0'
+        return response
         
     except Exception as e:
         logger.error(f"[API] Error al obtener estado: {str(e)}")

@@ -399,12 +399,18 @@ async function downloadSelected() {
  */
 async function refreshDownloads() {
     try {
+        console.log('📥 Obteniendo descargas activas...');
         const response = await fetch(CONFIG.endpoints.downloadsActive);
         const data = await response.json();
 
+        console.log('📥 Datos recibidos:', data);
+
         if (response.ok) {
             state.downloads = data.downloads || [];
+            console.log('📥 Descargas en estado:', state.downloads);
             renderDownloads();
+        } else {
+            console.error('❌ Error en respuesta:', data);
         }
     } catch (error) {
         console.error('Error al obtener descargas:', error);
@@ -430,33 +436,60 @@ function renderDownloads() {
     }
 
     container.innerHTML = state.downloads.map(download => {
+        // Logs de depuración
+        console.log('📊 Renderizando torrent:', {
+            id: download.id,
+            title: download.title,
+            progress: download.progress,
+            status: download.status,
+            status_display: download.status_display
+        });
+
+        // Usar siempre status_display (string) si está disponible
+        const statusValue = download.status_display || download.status || 'unknown';
         const progress = download.progress || 0;
-        const statusClass = getStatusClass(download.status);
+        const statusClass = getStatusClass(statusValue);
+
+        // Usar campos snake_case del backend o camelCase como fallback
+        const downloadSpeed = download.download_speed || download.downloadSpeed || 0;
+        const uploadSpeed = download.upload_speed || download.uploadSpeed || 0;
+        const statusDisplay = download.status_display || download.statusDisplay || download.status;
+        const etaFormatted = download.eta_formatted || download.etaFormatted || '--';
+        const sizeFormatted = download.size_formatted || download.sizeFormatted || '0 B';
+
+        // Determinar si está completado o no basado en status
+        const isCompleted = statusValue === 'seeding' || statusValue === 6 || statusValue === 'completed';
+        const isFailed = statusValue === 'stopped' || statusValue === 0 || statusValue === 'failed';
+
+        // Log específico para la barra
+        console.log(`📊 Barra ${download.id}: progress=${progress} (tipo=${typeof progress}), width=${progress}%`);
 
         return `
             <div class="process-card" data-id="${download.id}">
                 <div class="process-header">
                     <h3 class="process-title">${download.title || 'Descarga'}</h3>
-                    <span class="process-status ${statusClass}">${download.status || 'Desconocido'}</span>
+                    <span class="process-status ${statusClass}">${statusDisplay}</span>
                 </div>
                 <div class="process-meta">
-                    <span class="process-meta-item">📊 ${progress.toFixed(1)}%</span>
-                    <span class="process-meta-item">⬇️ ${formatBytes(download.downloadSpeed || 0)}/s</span>
-                    <span class="process-meta-item">⬆️ ${formatBytes(download.uploadSpeed || 0)}/s</span>
+                    <span class="process-meta-item">📊 ${typeof progress === 'number' ? progress.toFixed(1) : 0}%</span>
+                    <span class="process-meta-item">⬇️ ${formatBytes(downloadSpeed)}/s</span>
+                    <span class="process-meta-item">⬆️ ${formatBytes(uploadSpeed)}/s</span>
+                    <span class="process-meta-item">⏱️ ${etaFormatted}</span>
                     <span class="process-meta-item">📁 ${download.category || 'N/A'}</span>
                 </div>
                 <div class="process-progress">
                     <div class="progress-container">
-                        <div class="progress-bar" style="width: ${progress}%"></div>
+                        <div class="progress-bar" style="width: ${typeof progress === 'number' ? progress : 0}%"></div>
+                        <span class="progress-size">${sizeFormatted}</span>
                     </div>
                 </div>
                 <div class="process-actions">
-                    ${download.status !== 'completed' && download.status !== 'failed' ? `
+                    ${!isCompleted && !isFailed ? `
                         <button class="btn-process btn-cancel" onclick="cancelDownload('${download.id}')">
                             ❌ Cancelar
                         </button>
                     ` : ''}
-                    ${download.status === 'completed' ? `
+                    ${isCompleted ? `
                         <button class="btn-process btn-view" onclick="startOptimization('${download.id}', '${encodeURIComponent(download.title)}')">
                             ⚡ Optimizar
                         </button>

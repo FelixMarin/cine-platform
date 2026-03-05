@@ -93,6 +93,8 @@ class TorrentDownload:
             'upload_ratio': round(self.upload_ratio, 2),
             'rate_upload': self.rate_upload,
             'rate_download': self.rate_download,
+            'download_speed_formatted': self._format_speed(self.rate_download),
+            'upload_speed_formatted': self._format_speed(self.rate_upload),
             'eta': self.eta,
             'eta_formatted': self._format_eta(self.eta),
             'added_date': self.added_date,
@@ -127,6 +129,18 @@ class TorrentDownload:
         if hours > 0:
             return f"{hours}h {minutes}m"
         return f"{minutes}m"
+    
+    @staticmethod
+    def _format_speed(bytes_per_sec: int) -> str:
+        """Formatea la velocidad en formato legible"""
+        if bytes_per_sec <= 0:
+            return "0 B/s"
+        
+        for unit in ['B/s', 'KB/s', 'MB/s', 'GB/s']:
+            if bytes_per_sec < 1024.0:
+                return f"{bytes_per_sec:.2f} {unit}"
+            bytes_per_sec /= 1024.0
+        return f"{bytes_per_sec:.2f} TB/s"
 
 
 class TransmissionError(Exception):
