@@ -2,19 +2,20 @@
 Rutas de Descarga - Endpoints para búsqueda y descarga de torrents
 
 Proporciona endpoints para:
-- Buscar películas en Prowlarr
+- Buscar películas en Prowlarr y Jackett (en paralelo)
 - Iniciar descargas de torrents
 - Consultar estado de descargas
 - Gestionar optimizaciones
 
 Endpoints:
-- GET /api/search-movie: Busca películas en Prowlarr
+- GET /api/search-movie: Busca películas en Prowlarr y Jackett
 - POST /api/download-torrent: Inicia una descarga
 - GET /api/download-status: Estado de descargas activas
 - GET /api/optimize-status: Estado de optimizaciones activas
 """
 import logging
 import os
+import asyncio
 from flask import Blueprint, jsonify, request, render_template, session, redirect, url_for
 from src.infrastructure.config.settings import settings
 from src.adapters.entry.web.middleware.auth_middleware import require_auth, require_role
@@ -33,17 +34,19 @@ search_page_bp = Blueprint('search_page', __name__, url_prefix='')
 # Instancias de clientes (se inicializan en init_download_routes)
 _prowlarr_client = None
 _transmission_client = None
+_jackett_client = None
 
 
-def init_download_routes(prowlarr_client=None, transmission_client=None):
+def init_download_routes(prowlarr_client=None, transmission_client=None, jackett_client=None):
     """
     Inicializa las rutas de descarga con los clientes necesarios
     
     Args:
         prowlarr_client: Instancia de ProwlarrClient
         transmission_client: Instancia de TransmissionClient
+        jackett_client: Instancia de JackettClient (opcional)
     """
-    global _prowlarr_client, _transmission_client
+    global _prowlarr_client, _transmission_client, _jackett_client
     
     if prowlarr_client:
         _prowlarr_client = prowlarr_client
@@ -56,6 +59,19 @@ def init_download_routes(prowlarr_client=None, transmission_client=None):
     else:
         from src.adapters.outgoing.services.transmission import TransmissionClient
         _transmission_client = TransmissionClient()
+    
+    # Inicializar Jackett si está configurado
+    if jackett_client:
+        _jackett_client = jackett_client
+    else:
+        from src.adapters.outgoing.services.jackett import JackettClient
+        # Verificar si Jackett tiene API key configurada
+        if settings.JACKETT_API_KEY:
+            _jackett_client = JackettClient()
+            logger.info("[Download Routes] Jackett inicializado")
+        else:
+            _jackett_client = None
+            logger.info("[Download Routes] Jackett no configurado (sin API key)")
     
     logger.info("[Download Routes] Rutas inicializadas")
 
@@ -70,24 +86,28 @@ def _init_optimization_queue():
 
 
 # ============================================================================
-# ENDPOINT: Buscar películas en Prowlarr
+# ENDPOINT: Buscar películas en Prowlarr y Jackett (búsqueda paralela)
 # ============================================================================
 
 @download_api_bp.route('/search-movie', methods=['POST'])
 @require_role('admin')
 def search_movie():
     """
-    Busca películas en Prowlarr
+    Busca películas en Prowlarr y Jackett de forma paralela
     
     Query Parameters:
         q (str): Término de búsqueda (requerido)
-        limit (int): Número máximo de resultados (opcional, por defecto 20)
+        limit (int): Número máximo de resultados por indexador (opcional, por defecto 20)
     
     Returns:
-        JSON con lista de resultados de búsqueda
+        JSON con lista de resultados combinados de ambos indexadores
         
     Example:
-        GET /api/search-movie?q=matrix&limit=10
+        POST /api/search-movie
+        {
+            "q": "matrix",
+            "limit": 10
+        }
         
         Response:
         {
@@ -97,17 +117,33 @@ def search_movie():
                     "guid": "prowlarr://...",
                     "title": "The Matrix 1999 1080p BluRay",
                     "indexer": "RarBG",
-                    "size": 2345678901,
-                    "size_formatted": "2.18 GB",
+                    "source": "prowlarr",
+                    "size": "2.18 GB",
                     "seeders": 100,
                     "leechers": 20,
                     "magnet_url": "magnet:?xt=...",
                     "torrent_url": "https://...",
-                    "publish_date": "2023-01-15",
-                    "categories": ["Movies", "HD"]
+                    "category": "Películas"
+                },
+                {
+                    "guid": "jackett://...",
+                    "title": "The Matrix 1999 1080p BluRay",
+                    "indexer": "MejorTorrent",
+                    "source": "jackett",
+                    "size": "2.18 GB",
+                    "seeders": 50,
+                    "leechers": 10,
+                    "magnet_url": "magnet:?xt=...",
+                    "torrent_url": "https://...",
+                    "category": "Películas"
                 }
             ],
-            "query": "matrix"
+            "query": "matrix",
+            "sources": {
+                "prowlarr": {"results": 5, "success": true},
+                "jackett": {"results": 3, "success": true}
+            },
+            "count": 8
         }
     """
     data = request.get_json() or {}
@@ -120,27 +156,142 @@ def search_movie():
             'error': 'Parámetro de búsqueda "q" es requerido'
         }), 400
     
-    logger.info(f"[API] Buscando película: '{query}'")
+    logger.info(f"[API] Buscando película: '{query}' (límite: {limit} por indexador)")
+    
+    # Obtener el loop de eventos de asyncio
+    try:
+        loop = asyncio.get_event_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
     
     try:
-        results = _prowlarr_client.search_movies(query, limit=limit)
+        # Ejecutar búsqueda paralela
+        results, source_info = loop.run_until_complete(
+            _parallel_search(query, limit)
+        )
         
-        # Formatear resultados para el frontend
-        formatted_results = _prowlarr_client.format_results_for_frontend(results)
+        # Ordenar resultados por seeders (mayor a menor)
+        results = sorted(results, key=lambda x: x.get('seeders', 0) if isinstance(x.get('seeders'), int) else 0, reverse=True)
         
         return jsonify({
             'success': True,
-            'results': formatted_results,
+            'results': results,
             'query': query,
-            'count': len(formatted_results)
+            'sources': source_info,
+            'count': len(results)
         })
         
     except Exception as e:
-        logger.error(f"[API] Error en búsqueda: {str(e)}")
+        logger.error(f"[API] Error en búsqueda paralela: {str(e)}")
         return jsonify({
             'success': False,
             'error': f'Error al buscar: {str(e)}'
         }), 500
+
+
+async def _parallel_search(query: str, limit: int) -> tuple:
+    """
+    Realiza búsqueda en paralelo en Prowlarr y Jackett
+    
+    Args:
+        query: Término de búsqueda
+        limit: Límite de resultados por indexador
+        
+    Returns:
+        Tupla (resultados_combined, info_fuentes)
+    """
+    logger.info(f"[Parallel Search] 🚀 Iniciando búsqueda paralela para: '{query}'")
+    all_results = []
+    source_info = {}
+    
+    # Tareas para búsqueda paralela
+    prowlarr_task = None
+    jackett_task = None
+    
+    # Buscar en Prowlarr
+    if _prowlarr_client:
+        prowlarr_task = asyncio.create_task(
+            _search_prowlarr_safe(query, limit)
+        )
+    
+    # Buscar en Jackett
+    if _jackett_client:
+        jackett_task = asyncio.create_task(
+            _search_jackett_safe(query, limit)
+        )
+    
+    # Ejecutar ambas búsquedas en paralelo y esperar resultados
+    if prowlarr_task:
+        prowlarr_results, prowlarr_success = await prowlarr_task
+        all_results.extend(prowlarr_results)
+        source_info['prowlarr'] = {
+            'results': len(prowlarr_results),
+            'success': prowlarr_success
+        }
+    
+    if jackett_task:
+        jackett_results, jackett_success = await jackett_task
+        all_results.extend(jackett_results)
+        source_info['jackett'] = {
+            'results': len(jackett_results),
+            'success': jackett_success
+        }
+    
+    # Si ningún indexador está disponible
+    if not source_info:
+        logger.warning("[Parallel Search] ⚠️ No hay indexadores disponibles")
+        source_info['error'] = 'No hay indexadores configurados'
+    
+    logger.info(f"[Parallel Search] ✅ Búsqueda completada: {len(all_results)} resultados de {list(source_info.keys())}")
+    
+    return all_results, source_info
+
+
+async def _search_prowlarr_safe(query: str, limit: int) -> tuple:
+    """
+    Busca en Prowlarr de forma segura (con manejo de errores)
+    
+    Returns:
+        Tupla (resultados, success)
+    """
+    logger.info("[Prowlarr] ▶️ Iniciando búsqueda en Prowlarr...")
+    try:
+        results = _prowlarr_client.search_movies(query, limit=limit)
+        formatted = _prowlarr_client.format_results_for_frontend(results)
+        
+        # Añadir source a cada resultado
+        for r in formatted:
+            r['source'] = 'prowlarr'
+        
+        logger.info(f"[Prowlarr] ✅ Búsqueda completada: {len(formatted)} resultados")
+        return formatted, True
+    except Exception as e:
+        logger.error(f"[Prowlarr] ❌ Error en búsqueda: {str(e)}")
+        return [], False
+
+
+async def _search_jackett_safe(query: str, limit: int) -> tuple:
+    """
+    Busca en Jackett de forma segura (con manejo de errores)
+    
+    Returns:
+        Tupla (resultados, success)
+    """
+    logger.info("[Jackett] ▶️ Iniciando búsqueda en Jackett...")
+    try:
+        results = await _jackett_client.search_movies(query, limit=limit)
+        formatted = _jackett_client.format_results_for_frontend(results)
+        
+        # Añadir source a cada resultado
+        for r in formatted:
+            r['source'] = 'jackett'
+        
+        logger.info(f"[Jackett] ✅ Búsqueda completada: {len(formatted)} resultados")
+        return formatted, True
+    except Exception as e:
+        logger.error(f"[Jackett] ❌ Error en búsqueda: {str(e)}")
+        return [], False
 
 
 # ============================================================================

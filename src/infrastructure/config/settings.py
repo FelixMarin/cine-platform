@@ -91,6 +91,13 @@ class Settings:
     PROWLARR_API_KEY: str = os.environ.get('PROWLARR_API_KEY', '')
     
     # ============================
+    # 📥 Jackett (Indexador de torrents)
+    # ============================
+    JACKETT_URL: str = os.environ.get('JACKETT_URL', 'http://localhost:9117')
+    JACKETT_API_KEY: str = os.environ.get('JACKETT_API_KEY', '')
+    JACKETT_TIMEOUT: int = int(os.environ.get('JACKETT_TIMEOUT', '20'))
+    
+    # ============================
     # 📥 Transmission (Cliente BitTorrent)
     # ============================
     TRANSMISSION_URL: str = os.environ.get('TRANSMISSION_URL', 'http://localhost:9091')
