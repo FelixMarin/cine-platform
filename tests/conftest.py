@@ -39,4 +39,13 @@ def setup_environment(monkeypatch):
     os.environ.setdefault('SESSION_COOKIE_PATH', '/')
     os.environ.setdefault('APP_ENV', 'development')
     
+    # Transmission variables
+    os.environ.setdefault('TRANSMISSION_RPC_URL', 'http://localhost:9091/transmission/rpc')
+    os.environ.setdefault('TRANSMISSION_USERNAME', 'transmission')
+    os.environ.setdefault('TRANSMISSION_PASSWORD', 'transmission')
+    
+    # Jackett variables
+    os.environ.setdefault('JACKETT_API_KEY', '')
+    os.environ.setdefault('JACKETT_URL', 'http://localhost:9117')
+    
     return

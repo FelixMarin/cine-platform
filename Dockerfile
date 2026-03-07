@@ -19,6 +19,9 @@ RUN pip install --upgrade pip && \
 # Copiar el código de la aplicación
 COPY . .
 
+RUN find /app -name "*.pyc" -delete && \
+    find /app -name "__pycache__" -type d -exec rm -rf {} + 2>/dev/null
+    
 # Crear directorios para operación
 RUN mkdir -p uploads temp outputs logs
 

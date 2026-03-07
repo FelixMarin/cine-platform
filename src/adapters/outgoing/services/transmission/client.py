@@ -301,23 +301,12 @@ class TransmissionClient:
                     paused: bool = False) -> Dict[str, Any]:
         """
         Añade un torrent o magnet a la cola de descargas
-        
-        Args:
-            source: URL del torrent (.torrent) o magnet
-            category: Categoría para organizar la descarga
-            download_dir: Directorio de descarga (por defecto: UPLOAD_FOLDER)
-            paused: Si True, la descarga empieza pausada
-            
-        Returns:
-            Información del torrent añadido
-            
-        Raises:
-            TransmissionError: Si hay un error al añadir el torrent
         """
-        logger.info(f"[Transmission] Añadiendo torrent: {source[:50]}...")
-        logger.info(f"[Transmission] URL length: {len(source)} chars")
-        logger.info(f"[Transmission] Full source type: {type(source)}")
-        logger.info(f"[Transmission] Source starts with: '{source[:20]}...'")
+        # Limpiar la fuente de cualquier caracter invisible
+        source = source.strip()
+        
+        # Debug con logger (no print para que funcione en producción)
+        logger.info(f"[Transmission] ===== ADD TORRENT =====")
         
         # Obtener categorías válidas del sistema de archivos
         valid_cats = get_valid_categories()
@@ -340,31 +329,79 @@ class TransmissionClient:
         }
         
         # Detectar si es un magnet o un archivo torrent
-        if source.startswith('magnet:'):
-            logger.info("[Transmission] Es un magnet link, enviando directamente a Transmission")
-            arguments['filename'] = source
-        elif source.startswith('http://') or source.startswith('https://'):
-            # Es una URL de torrent, descargarlo primero
-            logger.info("[Transmission] Es una URL HTTP, descargando torrent...")
+        # Limpiar caracteres invisibles comunes (BOM, zero-width space, etc.) al principio y final
+        invisible_chars = '\ufeff\u200b\u200c\u200d\ufeff'  # BOM, zero-width space, etc.
+        source_stripped = source
+        for char in invisible_chars:
+            source_stripped = source_stripped.replace(char, '')
+        source_stripped = source_stripped.strip()
+        
+        
+        if source_stripped.startswith('magnet:'):
+            logger.info("[Transmission] Añadiendo magnet")
+            arguments['filename'] = source_stripped
+        elif source_stripped.startswith('http://') or source_stripped.startswith('https://'):
+            # Es una URL HTTP (puede ser de Prowlarr, Jackett, o directamente un .torrent)
+            # IMPORTANTE: No usamos allow_redirects=True directamente porque si la URL
+            # redirige a un magnet, requests fallará con "No connection adapters"
+            # En su lugar, primero obtenemos la respuesta sin seguir redirects para ver la Location
+            logger.info("[Transmission] Procesando URL HTTP")
             try:
-                response = requests.get(source, timeout=30)
-                response.raise_for_status()
-                # Codificar en base64 como espera Transmission
-                arguments['metainfo'] = base64.b64encode(response.content).decode('utf-8')
+                # Primero hacer request sin seguir redirects para obtener la Location
+                response = requests.get(source_stripped, timeout=30, allow_redirects=False)
+                
+                # Verificar si hay redirect (301, 302, 307, 308)
+                if response.status_code in (301, 302, 307, 308):
+                    # Obtener la URL de redirect
+                    final_url = response.headers.get('Location')
+                    if final_url:
+                        logger.info("[Transmission] Redirect detectado")
+                        # Verificar si la URL final es un magnet
+                        if final_url.startswith('magnet:'):
+                            logger.info("[Transmission] Magnet del redirect")
+                            arguments['filename'] = final_url
+                        else:
+                            # Es un redirect HTTP, hacer otro request al destino
+                            logger.info("[Transmission] Redirect HTTP")
+                            response2 = requests.get(final_url, timeout=30)
+                            response2.raise_for_status()
+                            arguments['metainfo'] = base64.b64encode(response2.content).decode('utf-8')
+                    else:
+                        # No hay Location header, intentar obtener contenido
+                        logger.warning("[Transmission] Redirect sin Location header, continuando...")
+                        response = requests.get(source_stripped, timeout=30)
+                        response.raise_for_status()
+                        arguments['metainfo'] = base64.b64encode(response.content).decode('utf-8')
+                elif response.status_code == 200:
+                    # No hay redirect, es contenido directo
+                    # Verificar si la URL es un magnet (por si acaso)
+                    if response.url.startswith('magnet:'):
+                        logger.info("[Transmission] Magnet directo")
+                        arguments['filename'] = response.url
+                    else:
+                        # Es contenido de torrent directo
+                        logger.info("[Transmission] Torrent directo")
+                        arguments['metainfo'] = base64.b64encode(response.content).decode('utf-8')
+                else:
+                    # Otro código de estado
+                    logger.warning(f"[Transmission] Código de estado inesperado: {response.status_code}")
+                    response.raise_for_status()
+                    arguments['metainfo'] = base64.b64encode(response.content).decode('utf-8')
+                    
+            except TransmissionError:
+                raise
             except Exception as e:
                 logger.error(f"[Transmission] Error descargando torrent desde URL: {str(e)}")
                 raise TransmissionError(f"Error al descargar torrent: {str(e)}")
         else:
-            # Es可能是 un archivo .torrent codificado en base64 o path local
-            logger.info("[Transmission] Tratando como archivo torrent local o metainfo")
-            arguments['metainfo'] = source
+            # Este un archivo .torrent codificado en base64 o path local
+            logger.info("[Transmission] Metainfo local")
+            arguments['metainfo'] = source_stripped
         
         # Añadir categoría si se especifica
         if category:
             arguments['labels'] = [category]
         
-        logger.info(f"[Transmission] Arguments keys: {list(arguments.keys())}")
-        logger.info(f"[Transmission] 'filename' in arguments: {'filename' in arguments}")
         
         # Realizar la petición
         result = self._make_request('torrent-add', arguments)

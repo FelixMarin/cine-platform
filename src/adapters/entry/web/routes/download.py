@@ -305,38 +305,6 @@ async def _search_jackett_safe(query: str, limit: int) -> tuple:
 @download_api_bp.route('/download-torrent', methods=['POST'])
 @require_role('admin')
 def download_torrent():
-    """
-    Inicia una descarga de torrent
-    
-    Request Body (JSON):
-        url (str): URL del torrent (magnet o .torrent) - requerido
-        result_id (str): ID del resultado seleccionado (opcional)
-        category (str): Categoría (Acción, Drama, etc.) - opcional
-    
-    Returns:
-        JSON con información de la descarga iniciada
-        
-    Example:
-        POST /api/download-torrent
-        {
-            "url": "magnet:?xt=urn:btih:...",
-            "result_id": "prowlarr://123",
-            "category": "Acción"
-        }
-        
-        Response:
-        {
-            "success": true,
-            "download": {
-                "id": "uuid-unico",
-                "torrent_id": 123,
-                "name": "The Matrix 1999 1080p BluRay",
-                "category": "Acción",
-                "status": "downloading",
-                "download_dir": "/tmp/cineplatform/uploads"
-            }
-        }
-    """
     data = request.get_json()
     
     if not data:
@@ -348,12 +316,6 @@ def download_torrent():
     url = data.get('url', '').strip()
     result_id = data.get('result_id', '')
     category = data.get('category', '')
-    
-    # Log de depuración
-    logger.info(f"[API] Received URL length: {len(url)} chars")
-    if url:
-        logger.info(f"[API] URL starts with: {url[:50]}...")
-        logger.info(f"[API] Full URL for debugging: {url}")
     
     # Validar URL
     if not url:
@@ -389,7 +351,6 @@ def download_torrent():
             }), 400
     
     logger.info(f"[API] Iniciando descarga: {url[:50]}...")
-    logger.info(f"[API] Categoría: {category}, Result ID: {result_id}")
     
     try:
         # Determinar directorio de descarga
@@ -400,11 +361,9 @@ def download_torrent():
             # Convertir ruta relativa a absoluta
             download_dir = os.path.abspath(settings.UPLOAD_FOLDER)
         
-        logger.info(f"[API] Directorio de descarga: {download_dir}")
-        
-        # Añadir el torrent a Transmission
+        # TransmissionClient ya maneja correctamente magnets vs http
         result = _transmission_client.add_torrent(
-            source=url,
+            source=url,  # Pasamos la URL directamente
             category=category if category else None,
             download_dir=download_dir
         )
