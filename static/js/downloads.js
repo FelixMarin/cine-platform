@@ -490,8 +490,8 @@ function renderDownloads() {
                         </button>
                     ` : ''}
                     ${isCompleted ? `
-                        <button class="btn-process btn-view" onclick="startOptimization('${download.id}', '${encodeURIComponent(download.title)}')">
-                            ⚡ Optimizar
+                        <button class="btn-process btn-optimize" onclick="TorrentOptimize.showOptimizeModal({id: '${download.id}', name: '${encodeURIComponent(download.title)}', size: ${download.size || 0}})">
+                            🚀 GPU Optimize
                         </button>
                     ` : ''}
                 </div>

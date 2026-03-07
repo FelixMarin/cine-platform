@@ -9,6 +9,8 @@ const OAuthClient = {
         serverUrl: null,
         clientId: null,
         clientSecret: null,
+        authorizeEndpoint: '/oauth2/authorize',
+        tokenEndpoint: '/oauth2/token',
         refreshEndpoint: '/oauth2/token',
         revokeEndpoint: '/oauth2/revoke',
         userinfoEndpoint: '/userinfo'
@@ -34,7 +36,33 @@ const OAuthClient = {
         return !!this.getAccessToken();
     },
 
-    // Refresh del token
+    // Intercambiar código por token (POST desde el backend)
+    async exchangeCodeForToken(code, codeVerifier, redirectUri) {
+        const response = await fetch('/api/auth/exchange-token', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                code: code,
+                code_verifier: codeVerifier,
+                redirect_uri: redirectUri
+            })
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            localStorage.setItem('access_token', data.access_token);
+            if (data.refresh_token) {
+                localStorage.setItem('refresh_token', data.refresh_token);
+            }
+            return data;
+        } else {
+            throw new Error('Error exchanging code for token');
+        }
+    },
+
+    // Refresh del token (también por backend)
     async refreshAccessToken() {
         const refreshToken = this.getRefreshToken();
 
@@ -42,14 +70,13 @@ const OAuthClient = {
             throw new Error('No refresh token available');
         }
 
-        const response = await fetch(this.config.serverUrl + this.config.refreshEndpoint, {
+        // El refresh se hace a través de nuestro backend
+        const response = await fetch('/api/auth/refresh-token', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-                'Authorization': 'Basic ' + btoa(this.config.clientId + ':' + this.config.clientSecret)
+                'Content-Type': 'application/json'
             },
-            body: new URLSearchParams({
-                grant_type: 'refresh_token',
+            body: JSON.stringify({
                 refresh_token: refreshToken
             })
         });
@@ -68,7 +95,7 @@ const OAuthClient = {
         }
     },
 
-    // Revocar token
+    // Revocar token (opcional)
     async revokeToken() {
         const token = this.getAccessToken();
 
@@ -77,11 +104,13 @@ const OAuthClient = {
         }
 
         try {
-            await fetch(this.config.serverUrl + this.config.revokeEndpoint, {
+            // Se puede hacer también por backend
+            await fetch('/api/auth/revoke-token', {
                 method: 'POST',
                 headers: {
-                    'Authorization': 'Bearer ' + token
-                }
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ token })
             });
         } catch (e) {
             console.warn('Error revocando token:', e);
@@ -97,27 +126,16 @@ const OAuthClient = {
         sessionStorage.removeItem('oauth_state');
     },
 
-    // Obtener info del usuario
+    // Obtener info del usuario (también por backend)
     async getUserInfo() {
-        const token = this.getAccessToken();
-
-        if (!token) {
-            return null;
-        }
-
-        const response = await fetch(this.config.serverUrl + this.config.userinfoEndpoint, {
-            headers: {
-                'Authorization': 'Bearer ' + token
-            }
-        });
-
+        const response = await fetch('/api/auth/userinfo');
         if (response.ok) {
             return response.json();
         }
         return null;
     },
 
-    // Fetch con auto-refresh
+    // Fetch con auto-refresh (para llamadas API)
     async fetch(url, options = {}) {
         let token = this.getAccessToken();
 

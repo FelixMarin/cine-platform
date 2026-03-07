@@ -289,6 +289,10 @@ async def _search_jackett_safe(query: str, limit: int) -> tuple:
         
         logger.info(f"[Jackett] ✅ Búsqueda completada: {len(formatted)} resultados")
         return formatted, True
+    except RuntimeError as e:
+        # Error específico de asyncio (como timeout context manager)
+        logger.error(f"[Jackett] ❌ Error de asyncio: {str(e)}")
+        return [], False
     except Exception as e:
         logger.error(f"[Jackett] ❌ Error en búsqueda: {str(e)}")
         return [], False
@@ -344,6 +348,12 @@ def download_torrent():
     url = data.get('url', '').strip()
     result_id = data.get('result_id', '')
     category = data.get('category', '')
+    
+    # Log de depuración
+    logger.info(f"[API] Received URL length: {len(url)} chars")
+    if url:
+        logger.info(f"[API] URL starts with: {url[:50]}...")
+        logger.info(f"[API] Full URL for debugging: {url}")
     
     # Validar URL
     if not url:

@@ -17,29 +17,47 @@
         {% if error %}
             <p class="error-msg">{{ error }}</p>
         {% endif %}
-                
-        <!-- Botón de OAuth2 -->
+        
+        <!-- Botón único de OAuth2 -->
         <button type="button" id="oauth-login-btn" class="oauth-btn">
-            Iniciar sesión
+            Iniciar sesión con OAuth2
         </button>
+        
+        <!-- Información adicional (opcional) -->
+        <p class="info-text">
+            Usa tu cuenta de OAuth2 para acceder a Cine Platform
+        </p>
     </div>
 
     <script src="{{ url_for('static', filename='js/oauth-client.js') }}"></script>
     <script>
-        // Inicializar cliente OAuth2
-        OAuthClient.init({
-            serverUrl: '{{ oauth2_url }}',
+        // Configuración desde el servidor
+        const APP_CONFIG = {
             clientId: '{{ client_id }}',
-            clientSecret: '{{ client_secret }}'
-        });
-        // Configuración OAuth2
-        const OAUTH2_CONFIG = {
-            serverUrl: '{{ oauth2_url }}',
-            clientId: '{{ client_id }}',
-            clientSecret: '{{ client_secret }}',
+            oauth2Url: '{{ oauth2_url }}',
             redirectUri: '{{ redirect_uri }}',
             scopes: 'openid profile read write'
         };
+        
+        console.log('🔧 App config:', APP_CONFIG);
+        
+        // Inicializar cliente OAuth2
+        OAuthClient.init({
+            serverUrl: APP_CONFIG.oauth2Url,
+            clientId: APP_CONFIG.clientId,
+            clientSecret: '{{ client_secret }}'
+        });
+        
+        // Configuración OAuth2
+        const OAUTH2_CONFIG = {
+            serverUrl: APP_CONFIG.oauth2Url,
+            clientId: APP_CONFIG.clientId,
+            clientSecret: '{{ client_secret }}',
+            redirectUri: APP_CONFIG.redirectUri,
+            scopes: APP_CONFIG.scopes
+        };
+        
+        // ========== FUNCIONES AUXILIARES ==========
         
         // Generar code_verifier (43-128 caracteres)
         function generateCodeVerifier() {
@@ -48,127 +66,97 @@
             return btoa(String.fromCharCode.apply(null, array))
                 .replace(/\+/g, '-')
                 .replace(/\//g, '_')
-                .replace(/=/g, '');
+                .replace(/=/g, '')
+                .substring(0, 43);
         }
         
-        // Generar code_challenge desde code_verifier
+        // Generar code_challenge
         async function generateCodeChallenge(verifier) {
             const encoder = new TextEncoder();
             const data = encoder.encode(verifier);
             const digest = await crypto.subtle.digest('SHA-256', data);
-            return btoa(String.fromCharCode.apply(null, new Uint8Array(digest)))
+            
+            const hashArray = new Uint8Array(digest);
+            let hashString = '';
+            for (let i = 0; i < hashArray.length; i++) {
+                hashString += String.fromCharCode(hashArray[i]);
+            }
+            
+            return btoa(hashString)
                 .replace(/\+/g, '-')
                 .replace(/\//g, '_')
                 .replace(/=/g, '');
-        }
-        
-        // Iniciar flujo OAuth2
-        async function startOAuth2Flow() {
-            const btn = document.getElementById('oauth-login-btn');
-            btn.disabled = true;
-            btn.textContent = 'Redirigiendo...';
-            
-            try {
-                // Generar code_verifier y code_challenge
-                const codeVerifier = generateCodeVerifier();
-                const codeChallenge = await generateCodeChallenge(codeVerifier);
-                
-                // Generar state aleatorio para CSRF
-                const actualState = Math.random().toString(36).substring(2) + Date.now().toString(36);
-                
-                // Crear objeto con state y verifier (nombres cortos para节省 espacio)
-                const stateData = {
-                    s: actualState,
-                    v: codeVerifier
-                };
-                
-                // Codificar en base64url (sin caracteres problemáticos + / =)
-                const encodedState = btoa(JSON.stringify(stateData))
-                    .replace(/\+/g, '-')
-                    .replace(/\//g, '_')
-                    .replace(/=/g, '');
-                
-                // Guardar en sessionStorage (el state real para verificación CSRF)
-                sessionStorage.setItem('oauth_code_verifier', codeVerifier);
-                sessionStorage.setItem('oauth_state', actualState);
-                
-                // Construir URL de autorización
-                const authUrl = new URL(OAUTH2_CONFIG.serverUrl + '/oauth2/authorize');
-                authUrl.searchParams.set('response_type', 'code');
-                authUrl.searchParams.set('client_id', OAUTH2_CONFIG.clientId);
-                authUrl.searchParams.set('redirect_uri', OAUTH2_CONFIG.redirectUri);
-                authUrl.searchParams.set('scope', OAUTH2_CONFIG.scopes);
-                authUrl.searchParams.set('code_challenge', codeChallenge);
-                authUrl.searchParams.set('code_challenge_method', 'S256');
-                // Enviar code_verifier codificado en el state para el callback del servidor
-                authUrl.searchParams.set('state', encodedState);
-                
-                console.log('Redirecting to:', authUrl.toString());
-                window.location.href = authUrl.toString();
-                
-            } catch (error) {
-                console.error('Error:', error);
-                btn.disabled = false;
-                btn.textContent = 'Iniciar sesión con OAuth2';
-                showError('Error al iniciar OAuth2: ' + error.message);
-            }
-        }
-        
-        // Canjear código por token (DIRECTO a OAuth2Server)
-        async function exchangeCodeForToken(code, codeVerifier) {
-            // Usar OAuthClient para el canje
-            const tokenResponse = await fetch(OAUTH2_CONFIG.serverUrl + '/oauth/token', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                    'Authorization': 'Basic ' + btoa(OAUTH2_CONFIG.clientId + ':' + OAUTH2_CONFIG.clientSecret)
-                },
-                body: new URLSearchParams({
-                    grant_type: 'authorization_code',
-                    code: code,
-                    redirect_uri: OAUTH2_CONFIG.redirectUri,
-                    code_verifier: codeVerifier
-                })
-            });
-            
-            if (!tokenResponse.ok) {
-                const errorText = await tokenResponse.text();
-                throw new Error('Error canjeando código: ' + errorText);
-            }
-            
-            return tokenResponse.json();
-        }
-        
-        // Obtener información del usuario
-        async function getUserInfo(accessToken) {
-            // Usar OAuthClient
-            const response = await fetch(OAUTH2_CONFIG.serverUrl + '/user/me', {
-                headers: {
-                    'Authorization': 'Bearer ' + accessToken
-                }
-            });
-            
-            if (response.ok) {
-                return response.json();
-            }
-            return null;
         }
         
         // Mostrar error
         function showError(message) {
             const container = document.getElementById('login-container');
             container.innerHTML = 
-                '<h2>Error</h2>' +
+                '<h2 class="menu-title-full">Cine<span>Platform</span></h2>' +
                 '<p class="error-msg">' + message + '</p>' +
-                '<a href="/login" class="oauth-btn">Volver a intentar</a>';
+                '<button type="button" onclick="window.location.href=\'/login?client_id=' + APP_CONFIG.clientId + '\'" class="oauth-btn">Volver a intentar</button>';
         }
         
-        // Manejar callback - ejecutar cuando carga la página
+        // ========== FUNCIÓN PRINCIPAL ==========
+        
+        // Iniciar flujo OAuth2
+        async function startOAuth2Flow() {
+            const btn = document.getElementById('oauth-login-btn');
+            btn.disabled = true;
+            btn.textContent = 'Redirigiendo a OAuth2...';
+            
+            try {
+                // Generar code_verifier y code_challenge
+                const codeVerifier = generateCodeVerifier();
+                console.log('✅ Code verifier generado:', codeVerifier.substring(0, 20) + '...');
+                
+                const codeChallenge = await generateCodeChallenge(codeVerifier);
+                console.log('✅ Code challenge generado:', codeChallenge.substring(0, 20) + '...');
+                
+                // Generar state aleatorio para CSRF
+                const actualState = Math.random().toString(36).substring(2) + Date.now().toString(36);
+                
+                // Guardar en sessionStorage
+                sessionStorage.setItem('oauth_code_verifier', codeVerifier);
+                sessionStorage.setItem('oauth_state', actualState);
+                
+                console.log('📦 Code verifier guardado en sessionStorage');
+                console.log('📦 State guardado:', actualState);
+                
+                // 🔴 CONSTRUIR URL CORRECTA PARA OAUTH2 AUTHORIZE
+                const authUrl = new URL(APP_CONFIG.oauth2Url + '/oauth2/authorize');
+                authUrl.searchParams.set('response_type', 'code');
+                authUrl.searchParams.set('client_id', APP_CONFIG.clientId);
+                authUrl.searchParams.set('redirect_uri', APP_CONFIG.redirectUri);
+                authUrl.searchParams.set('scope', APP_CONFIG.scopes);
+                authUrl.searchParams.set('code_challenge', codeChallenge);
+                authUrl.searchParams.set('code_challenge_method', 'S256');
+                authUrl.searchParams.set('state', actualState);
+                
+                console.log('➡️ Redirigiendo a:', authUrl.toString());
+                
+                // Redirigir al servidor OAuth2
+                window.location.href = authUrl.toString();
+                
+            } catch (error) {
+                console.error('❌ Error:', error);
+                btn.disabled = false;
+                btn.textContent = 'Iniciar sesión con OAuth2';
+                
+                const errorMsg = document.createElement('p');
+                errorMsg.className = 'error-msg';
+                errorMsg.textContent = 'Error: ' + error.message;
+                document.getElementById('login-container').appendChild(errorMsg);
+            }
+        }
+        
+        // ========== MANEJAR CALLBACK ==========
+        
+        // Ejecutar cuando carga la página
         (function() {
             const params = new URLSearchParams(window.location.search);
             const code = params.get('code');
             const error = params.get('error');
-            const state = params.get('state');
             const errorDescription = params.get('error_description');
             
             if (error) {
@@ -177,83 +165,74 @@
             }
             
             if (code) {
-                // Extraer code_verifier del state codificado en base64url
-                let codeVerifier = null;
-                let originalState = null;
-                
-                if (state) {
-                    try {
-                        // Convertir base64url a base64 estándar
-                        let paddedState = state.replace(/-/g, '+').replace(/_/g, '/');
-                        // Añadir padding si es necesario
-                        const padding = 4 - paddedState.length % 4;
-                        if (padding !== 4) {
-                            paddedState += '='.repeat(padding);
-                        }
-                        
-                        // Decodificar el state
-                        const stateData = JSON.parse(atob(paddedState));
-                        originalState = stateData.s;
-                        codeVerifier = stateData.v;
-                    } catch (e) {
-                        // Fallback: intentar usar el state directamente
-                        console.log('State decoding failed, using as-is:', e);
-                        originalState = state;
-                        codeVerifier = sessionStorage.getItem('oauth_code_verifier');
-                    }
-                }
-                
-                // Verificar state para prevenir CSRF
-                const savedState = sessionStorage.getItem('oauth_state');
-                if (originalState && savedState && originalState !== savedState) {
-                    showError('State mismatch - posible ataque CSRF');
-                    return;
-                }
-                
-                if (!codeVerifier) {
-                    codeVerifier = sessionStorage.getItem('oauth_code_verifier');
-                }
+                // Recuperar code_verifier de sessionStorage
+                const codeVerifier = sessionStorage.getItem('oauth_code_verifier');
                 
                 if (!codeVerifier) {
                     showError('Code verifier no encontrado. Intenta de nuevo.');
                     return;
                 }
                 
+                console.log('📦 Code verifier recuperado de sessionStorage');
+                
                 // Mostrar estado de carga
                 const container = document.getElementById('login-container');
-                container.innerHTML = '<h2>Completando autenticación...</h2><p>Por favor espera</p>';
+                container.innerHTML = '<h2 class="menu-title-full">Cine<span>Platform</span></h2><p>Completando autenticación...</p>';
                 
-                // Canjear código DIRECTAMENTE con OAuth2Server (no con backend)
-                exchangeCodeForToken(code, codeVerifier)
-                    .then(async (tokens) => {
-                        console.log('Tokens received:', tokens);
-                        
-                        // Guardar tokens en localStorage
-                        localStorage.setItem('access_token', tokens.access_token);
-                        if (tokens.refresh_token) {
-                            localStorage.setItem('refresh_token', tokens.refresh_token);
-                        }
-                        
-                        // Obtener info del usuario
-                        const userInfo = await getUserInfo(tokens.access_token);
-                        console.log('User info:', userInfo);
-                        
-                        // Limpiar sessionStorage
-                        sessionStorage.removeItem('oauth_code_verifier');
-                        sessionStorage.removeItem('oauth_state');
-                        
-                        // Redirigir a página principal
-                        window.location.href = '/';
+                // Enviar al backend para canjear el código
+                fetch('/api/auth/exchange-token', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        code: code,
+                        code_verifier: codeVerifier,
+                        redirect_uri: APP_CONFIG.redirectUri
                     })
-                    .catch((err) => {
-                        console.error('Error:', err);
-                        showError('Error al completar autenticación: ' + err.message);
-                    });
+                })
+                .then(async (response) => {
+                    if (!response.ok) {
+                        const error = await response.json();
+                        throw new Error(error.error || 'Error al canjear código');
+                    }
+                    return response.json();
+                })
+                .then((tokens) => {
+                    console.log('✅ Tokens recibidos:', tokens);
+                    
+                    // Guardar tokens en localStorage
+                    localStorage.setItem('access_token', tokens.access_token);
+                    if (tokens.refresh_token) {
+                        localStorage.setItem('refresh_token', tokens.refresh_token);
+                    }
+                    
+                    // Limpiar sessionStorage
+                    sessionStorage.removeItem('oauth_code_verifier');
+                    sessionStorage.removeItem('oauth_state');
+                    
+                    // Redirigir a página principal
+                    window.location.href = '/';
+                })
+                .catch((err) => {
+                    console.error('❌ Error:', err);
+                    showError('Error al completar autenticación: ' + err.message);
+                });
             }
         })();
         
-        // Event listener para el botón
-        document.getElementById('oauth-login-btn').addEventListener('click', startOAuth2Flow);
+        // ========== EVENT LISTENER ==========
+        
+        // Event listener para el botón OAuth (asegurar que el DOM está cargado)
+        document.addEventListener('DOMContentLoaded', function() {
+            const btn = document.getElementById('oauth-login-btn');
+            if (btn) {
+                btn.addEventListener('click', startOAuth2Flow);
+                console.log('✅ Event listener añadido al botón OAuth');
+            } else {
+                console.error('❌ Botón OAuth no encontrado');
+            }
+        });
     </script>
 </body>
 </html>

@@ -1,6 +1,6 @@
-FROM python:3.10-bullseye
+FROM python:3.11-slim-bullseye
 
-# Actualizar repositorios e instalar dependencias del sistema
+# Instalar dependencias del sistema (versión slim ya tiene repos correctos)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     g++ \
@@ -13,7 +13,8 @@ WORKDIR /app
 # Copiar y instalar dependencias de Python
 COPY requirements.txt .
 RUN pip install --upgrade pip && \
-    pip install -r requirements.txt
+    pip install -r requirements.txt && \
+    pip install debugpy
 
 # Copiar el código de la aplicación
 COPY . .

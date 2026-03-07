@@ -276,13 +276,21 @@ class TransmissionClient:
             logger.info(f"[Transmission] ✅ {method} completed successfully")
             return data.get('arguments', {})
             
-        except requests.exceptions.ConnectionError:
+        except requests.exceptions.ConnectionError as e:
+            logger.error(f"[Transmission] Error de conexión: {str(e)}")
             raise TransmissionError(f"No se pudo conectar a Transmission en {self.url}")
         except requests.exceptions.Timeout:
             raise TransmissionError("Tiempo de espera agotado al conectar con Transmission")
         except requests.exceptions.HTTPError as e:
             status_code = e.response.status_code
             raise TransmissionError(f"Error HTTP {status_code} de Transmission", status_code)
+        except requests.exceptions.RequestException as e:
+            # Capturar errores específicos de requests como "No connection adapters"
+            error_msg = str(e)
+            if 'connection adapters' in error_msg.lower() or 'magnet' in error_msg.lower():
+                logger.error(f"[Transmission] Error con la URL del torrent: {error_msg}")
+                raise TransmissionError(f"Error al procesar el torrent: {error_msg}")
+            raise TransmissionError(f"Error de request: {error_msg}")
         except TransmissionError:
             raise
         except Exception as e:
@@ -307,6 +315,9 @@ class TransmissionClient:
             TransmissionError: Si hay un error al añadir el torrent
         """
         logger.info(f"[Transmission] Añadiendo torrent: {source[:50]}...")
+        logger.info(f"[Transmission] URL length: {len(source)} chars")
+        logger.info(f"[Transmission] Full source type: {type(source)}")
+        logger.info(f"[Transmission] Source starts with: '{source[:20]}...'")
         
         # Obtener categorías válidas del sistema de archivos
         valid_cats = get_valid_categories()
@@ -351,6 +362,9 @@ class TransmissionClient:
         # Añadir categoría si se especifica
         if category:
             arguments['labels'] = [category]
+        
+        logger.info(f"[Transmission] Arguments keys: {list(arguments.keys())}")
+        logger.info(f"[Transmission] 'filename' in arguments: {'filename' in arguments}")
         
         # Realizar la petición
         result = self._make_request('torrent-add', arguments)

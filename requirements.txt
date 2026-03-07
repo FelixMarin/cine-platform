@@ -33,6 +33,9 @@ pytest==9.0.2
 coverage==7.10.6
 pytest-cov==7.0.0
 
+# debugging
+debugpy==1.6.7
+
 # Dependencia necesaria para pytest
 exceptiongroup==1.3.1
 

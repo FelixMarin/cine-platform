@@ -134,10 +134,25 @@ class JackettClient:
     
     async def _get_session(self) -> aiohttp.ClientSession:
         """Obtiene o crea la sesión de aiohttp"""
-        if self._session is None or self._session.closed:
+        try:
+            # Cerrar sesión anterior si existe y está cerrada
+            if self._session and not self._session.closed:
+                return self._session
+            
+            # Crear nueva sesión con timeout y connector
             timeout = aiohttp.ClientTimeout(total=self.timeout)
-            self._session = aiohttp.ClientSession(timeout=timeout)
-        return self._session
+            connector = aiohttp.TCPConnector(limit=10, limit_per_host=5)
+            self._session = aiohttp.ClientSession(timeout=timeout, connector=connector)
+            return self._session
+            
+        except RuntimeError as e:
+            # Si hay error de sesión (event loop issue), crear nueva
+            logger.warning(f"[Jackett] Error obteniendo sesión: {e}. Creando nueva...")
+            self._session = None
+            timeout = aiohttp.ClientTimeout(total=self.timeout)
+            connector = aiohttp.TCPConnector(limit=10, limit_per_host=5)
+            self._session = aiohttp.ClientSession(timeout=timeout, connector=connector)
+            return self._session
     
     async def close(self):
         """Cierra la sesión de aiohttp"""
@@ -166,40 +181,43 @@ class JackettClient:
         """
         self._check_config()
         
-        session = await self._get_session()
-        
-        # Construir URL completa
-        url = f"{self.url}{endpoint}"
-        
-        # Agregar API key como parámetro
-        params = kwargs.get('params', {})
-        params['apikey'] = self.api_key
-        kwargs['params'] = params
-        
-        # Headers
-        kwargs.setdefault('headers', {})
-        kwargs['headers']['Content-Type'] = 'application/json'
+        # Crear sesión nueva para cada petición (más robusto)
+        timeout = aiohttp.ClientTimeout(total=self.timeout)
+        connector = aiohttp.TCPConnector(limit=10, limit_per_host=5)
         
         try:
-            async with session.request(method, url, **kwargs) as response:
-                if response.status == 401:
-                    raise JackettError("API key de Jackett inválida", 401)
-                elif response.status == 403:
-                    raise JackettError("Acceso denegado a Jackett", 403)
-                elif response.status == 404:
-                    raise JackettError("Endpoint no encontrado en Jackett", 404)
-                elif response.status >= 400:
-                    raise JackettError(f"Error HTTP {response.status} de Jackett", response.status)
+            async with aiohttp.ClientSession(timeout=timeout, connector=connector) as session:
+                # Construir URL completa
+                url = f"{self.url}{endpoint}"
                 
-                # Intentar parsear como JSON
-                try:
-                    return await response.json()
-                except aiohttp.ContentTypeError:
-                    # Si no es JSON, intentar texto
-                    text = await response.text()
-                    logger.warning(f"[Jackett] Respuesta no JSON: {text[:200]}")
-                    return {'raw': text}
+                # Agregar API key como parámetro
+                params = kwargs.get('params', {})
+                params['apikey'] = self.api_key
+                kwargs['params'] = params
+                
+                # Headers
+                kwargs.setdefault('headers', {})
+                kwargs['headers']['Content-Type'] = 'application/json'
+                
+                async with session.request(method, url, **kwargs) as response:
+                    if response.status == 401:
+                        raise JackettError("API key de Jackett inválida", 401)
+                    elif response.status == 403:
+                        raise JackettError("Acceso denegado a Jackett", 403)
+                    elif response.status == 404:
+                        raise JackettError("Endpoint no encontrado en Jackett", 404)
+                    elif response.status >= 400:
+                        raise JackettError(f"Error HTTP {response.status} de Jackett", response.status)
                     
+                    # Intentar parsear como JSON
+                    try:
+                        return await response.json()
+                    except aiohttp.ContentTypeError:
+                        # Si no es JSON, intentar texto
+                        text = await response.text()
+                        logger.warning(f"[Jackett] Respuesta no JSON: {text[:200]}")
+                        return {'raw': text}
+                        
         except aiohttp.ClientConnectorError:
             raise JackettError(f"No se pudo conectar a Jackett en {self.url}")
         except TimeoutError:

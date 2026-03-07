@@ -25,6 +25,10 @@ def require_auth(f):
         logger.info(f"[AUTH_MIDDLEWARE] user_id: {session.get('user_id', 'NOT_SET')}")
         # ===========================
         
+        #例外: La ruta /login no requiere autenticación
+        if request.path == '/login':
+            return f(*args, **kwargs)
+        
         if not session.get('logged_in', False):
             # Si es una solicitud AJAX/API, devolver 401
             if request.is_json or request.path.startswith('/api/'):
@@ -32,7 +36,7 @@ def require_auth(f):
                 return jsonify({'error': 'Autenticación requerida', 'code': 'AUTH_REQUIRED'}), 401
             # Si es una página web, redirigir al login
             logger.warning(f"[AUTH_MIDDLEWARE] Redirecting to login - Path: {request.path}")
-            return redirect(url_for('auth.login_page'))
+            return redirect('/login')
         
         logger.info(f"[AUTH_MIDDLEWARE] Access granted - Path: {request.path}, Role: {session.get('user_role')}")
         return f(*args, **kwargs)
@@ -61,7 +65,7 @@ def require_role(*roles):
                 if request.is_json or request.path.startswith('/api/'):
                     logger.warning(f"[AUTH_MIDDLEWARE] AUTH_REQUIRED (require_role) - Path: {request.path}")
                     return jsonify({'error': 'Autenticación requerida', 'code': 'AUTH_REQUIRED'}), 401
-                return redirect(url_for('auth.login_page'))
+                return redirect('/login')
             
             user_role = session.get('user_role', '')
             logger.info(f"[AUTH_MIDDLEWARE] Checking role - user_role: '{user_role}', required: {roles}")
@@ -70,7 +74,7 @@ def require_role(*roles):
                 logger.warning(f"[AUTH_MIDDLEWARE] FORBIDDEN - user_role '{user_role}' not in {roles}")
                 if request.is_json or request.path.startswith('/api/'):
                     return jsonify({'error': 'Permisos insuficientes', 'code': 'FORBIDDEN'}), 403
-                return redirect(url_for('auth.login_page'))
+                return redirect('/login')
             
             logger.info(f"[AUTH_MIDDLEWARE] Role OK - Access granted to {request.path}")
             return f(*args, **kwargs)

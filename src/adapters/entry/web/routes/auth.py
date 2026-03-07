@@ -3,11 +3,14 @@ Adaptador de entrada - Rutas de autenticación
 Blueprint para /api/auth y login
 """
 from flask import Blueprint, jsonify, request, session, render_template, redirect, url_for
+from src.core.services.role_service import RoleService
 import os
 import base64
 import json
 import secrets
 import hashlib
+import requests
+from urllib.parse import urlencode
 
 from src.core.use_cases.auth import LoginUseCase, LogoutUseCase
 from src.adapters.entry.web.middleware.auth_middleware import require_auth
@@ -48,6 +51,120 @@ _login_use_case = None
 _logout_use_case = None
 
 
+@auth_bp.route('/login', methods=['GET'])
+def login_page():
+    """Página de login - GET"""
+    # Obtener client_id de la URL (viene de la aplicación que redirige)
+    client_id = request.args.get('client_id')
+    
+    if not client_id:
+        # Si no viene, intentar de la sesión
+        client_id = session.get('client_id')
+    
+    if not client_id:
+        # Fallback a variable de entorno
+        client_id = os.environ.get('OAUTH2_CLIENT_ID', 'cine-platform')
+    
+    # Guardar en sesión para usarlo después
+    session['client_id'] = client_id
+    
+    logger.info(f"[LOGIN_PAGE] Mostrando login para aplicación: {client_id}")
+    
+    # Verificar si hay parámetros OAuth2
+    code_challenge = request.args.get('code_challenge')
+    oauth_state = request.args.get('state')
+    
+    if code_challenge:
+        # Si venimos de OAuth, guardar code_verifier
+        code_verifier = _generate_code_verifier()
+        session['oauth_code_verifier'] = code_verifier
+        session['oauth_state'] = oauth_state
+        logger.info(f"[LOGIN_PAGE] Code verifier guardado para OAuth")
+    
+    return render_template('login.html',
+                         client_id=client_id,
+                         oauth2_url=os.environ.get('PUBLIC_OAUTH2_URL', 'http://localhost:8080'),
+                         redirect_uri=os.environ.get('PUBLIC_REDIRECT_URI', 'http://localhost:5000/oauth/callback'),
+                         code_challenge=code_challenge,
+                         state=oauth_state)
+
+@auth_bp.route('/login', methods=['POST'])
+def login_post():
+    """Procesar formulario de login - POST"""
+    username = request.form.get('username')
+    password = request.form.get('password')
+    
+    # Obtener client_id del formulario (campo hidden)
+    client_id = request.form.get('client_id')
+    
+    # Obtener parámetros OAuth2 si existen
+    code_challenge = request.form.get('code_challenge')
+    oauth_state = request.form.get('state')
+    
+    # Validaciones
+    if not username or not password:
+        return render_template('login.html', 
+                             error='Usuario y contraseña requeridos',
+                             client_id=client_id or session.get('client_id'))
+    
+    if not client_id:
+        client_id = session.get('client_id')
+        if not client_id:
+            logger.error("[LOGIN] No se pudo determinar el client_id")
+            return render_template('login.html', error='Error: Aplicación no identificada')
+    
+    logger.info(f"[LOGIN] Intento de login para usuario: {username} en aplicación: {client_id}")
+    
+    # Hacer petición al servidor OAuth2
+    oauth2_url = os.environ.get('OAUTH2_URL', 'http://oauth2-server:8080')
+    
+    try:
+        # Enviar credenciales al servidor OAuth2
+        response = requests.post(
+            f"{oauth2_url}/login",
+            data={
+                'username': username,
+                'password': password,
+                'client_id': client_id  # ← Esto es CRÍTICO para multi-tenancy
+            },
+            allow_redirects=False,
+            timeout=10
+        )
+        
+        if response.status_code == 302:
+            # Login exitoso en OAuth2 server
+            logger.info(f"[LOGIN] Login exitoso en OAuth2 server para {username} en {client_id}")
+            
+            # Establecer sesión local
+            session['logged_in'] = True
+            session['username'] = username
+            session['client_id'] = client_id
+            
+            # Si hay code_challenge, redirigir al flujo OAuth2
+            if code_challenge:
+                return _complete_oauth_flow(code_challenge, oauth_state)
+            
+            # Redirigir a página principal
+            return redirect(url_for('main_page.index'))
+            
+        else:
+            # Login falló
+            logger.warning(f"[LOGIN] Credenciales incorrectas para {username} en {client_id}")
+            return render_template('login.html', 
+                                 error='Credenciales incorrectas para esta aplicación',
+                                 client_id=client_id)
+                                 
+    except requests.exceptions.ConnectionError:
+        logger.error(f"[LOGIN] Error de conexión con servidor OAuth2 en {oauth2_url}")
+        return render_template('login.html', 
+                             error='Error de conexión con servidor de autenticación',
+                             client_id=client_id)
+    except Exception as e:
+        logger.error(f"[LOGIN] Error inesperado: {e}")
+        return render_template('login.html', 
+                             error='Error interno del servidor',
+                             client_id=client_id)
+        
 def init_auth_routes(
     login_use_case: LoginUseCase = None,
     logout_use_case: LogoutUseCase = None
@@ -70,7 +187,7 @@ def is_logged_in():
 
 @auth_bp.route('/api/auth/login', methods=['POST'])
 def login():
-    """Endpoint de login"""
+    """Endpoint de login - Versión con RoleService"""
     global _login_use_case
     
     logger.info(f"[API LOGIN] Intento de login - LoginUseCase: {_login_use_case}")
@@ -93,38 +210,24 @@ def login():
         success, user_data = _login_use_case.execute(email, password)
         
         if success:
+            # 🔴 CONVERTIR user_data A FORMATO user_info
+            user_info = {
+                'sub': str(user_data.get('id')),
+                'email': user_data.get('email'),
+                'preferred_username': user_data.get('username'),
+                'name': user_data.get('username'),
+                'roles': user_data.get('roles', []),
+                'role': user_data.get('role')
+            }
+            
+            # 🔴 USAR ROLE SERVICE PARA PROCESAR ROLES
+            user_session = RoleService.process_user_data(user_info)
+            
             # Guardar en sesión
             session['logged_in'] = True
-            session['user_id'] = user_data.get('id')
-            session['email'] = user_data.get('email')
-            session['username'] = user_data.get('username')
+            session.update(user_session)
             
-            # Extraer rol del usuario - buscar tanto 'role' como 'roles'
-            user_role = user_data.get('role')
-            roles = user_data.get('roles', [])
-            
-            # Normalizar el rol - buscar tanto 'role' como 'roles'
-            if not user_role and roles:
-                if 'ROLE_ADMIN' in roles:
-                    user_role = 'admin'
-                elif 'ROLE_USER' in roles:
-                    user_role = 'user'
-                else:
-                    user_role = 'user'
-            
-            # Normalizar el rol si viene en formato diferente
-            if user_role and (user_role == 'admin' or user_role == 'ROLE_ADMIN'):
-                user_role = 'admin'
-                roles = ['ROLE_ADMIN', 'ROLE_USER']
-            else:
-                user_role = 'user'
-                if not roles:
-                    roles = ['ROLE_USER']
-            
-            session['user_role'] = user_role
-            session['user_roles'] = roles
-            
-            logger.info(f"[API LOGIN] Login exitoso para: {email}, rol: {user_role}, roles: {session['user_roles']}")
+            logger.info(f"[API LOGIN] Login exitoso para: {email}, rol: {session['user_role']}")
             
             return jsonify({
                 'success': True,
@@ -171,7 +274,9 @@ def check_auth():
             'logged_in': True,
             'user_id': session.get('user_id'),
             'email': session.get('email'),
-            'username': session.get('username')
+            'username': session.get('username'),
+            'user_role': session.get('user_role'),
+            'client_id': session.get('client_id')
         })
     else:
         return jsonify({'logged_in': False})
@@ -207,7 +312,209 @@ def verify_token():
 
 
 # ============================
-#  RUTAS DE PÁGINAS HTML
+#  ENDPOINTS PARA OAuth2 (BACKEND)
+# ============================
+@auth_bp.route('/api/auth/exchange-token', methods=['POST'])
+def exchange_token():
+    """Intercambia código por token - Versión con RoleService"""
+    try:
+        data = request.get_json()
+        code = data.get('code')
+        code_verifier = data.get('code_verifier')
+        redirect_uri = data.get('redirect_uri')
+        
+        if not code or not code_verifier:
+            return jsonify({'error': 'Código y verifier requeridos'}), 400
+        
+        oauth2_url = os.environ.get('OAUTH2_URL', 'http://oauth2-server:8080').rstrip('/')
+        client_id = os.environ.get('OAUTH2_CLIENT_ID', 'cine-platform')
+        client_secret = os.environ.get('OAUTH2_CLIENT_SECRET', 'cine-platform')
+        
+        # Basic Auth
+        auth = requests.auth.HTTPBasicAuth(client_id, client_secret)
+        
+        token_response = requests.post(
+            f"{oauth2_url}/oauth2/token",
+            data={
+                'grant_type': 'authorization_code',
+                'code': code,
+                'redirect_uri': redirect_uri,
+                'code_verifier': code_verifier
+            },
+            headers={'Content-Type': 'application/x-www-form-urlencoded'},
+            auth=auth
+        )
+        
+        if token_response.status_code != 200:
+            logger.error(f"[EXCHANGE_TOKEN] Error: {token_response.text}")
+            return jsonify({'error': 'Error intercambiando código'}), token_response.status_code
+        
+        token_data = token_response.json()
+        access_token = token_data.get('access_token')
+        
+        # Obtener userinfo para roles
+        user_info = None
+        try:
+            userinfo_response = requests.get(
+                f"{oauth2_url}/userinfo",
+                headers={'Authorization': f'Bearer {access_token}'}
+            )
+            if userinfo_response.status_code == 200:
+                user_info = userinfo_response.json()
+                logger.info(f"[EXCHANGE_TOKEN] Userinfo obtenido")
+        except Exception as e:
+            logger.warning(f"[EXCHANGE_TOKEN] Error obteniendo userinfo: {e}")
+        
+        # 🔴 USAR ROLE SERVICE PARA PROCESAR ROLES
+        user_session = RoleService.process_user_data(user_info, access_token)
+        
+        # Guardar en sesión
+        session['logged_in'] = True
+        session.update(user_session)
+        session['client_id'] = client_id
+        session['oauth_token'] = access_token
+        session['oauth_refresh_token'] = token_data.get('refresh_token')
+        
+        logger.info(f"[EXCHANGE_TOKEN] Login OAuth2 exitoso para: {session['username']}, rol: {session['user_role']}")
+        
+        return jsonify(token_data)
+        
+    except Exception as e:
+        logger.error(f"[EXCHANGE_TOKEN] Error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@auth_bp.route('/api/auth/refresh-token', methods=['POST'])
+def refresh_token():
+    """
+    Refresca el token de acceso
+    """
+    try:
+        data = request.get_json()
+        refresh_token = data.get('refresh_token')
+        
+        if not refresh_token:
+            return jsonify({'error': 'Refresh token requerido'}), 400
+        
+        # Obtener configuración
+        oauth2_url = os.environ.get('OAUTH2_URL', 'http://oauth2-server:8080').rstrip('/')
+        client_id = os.environ.get('OAUTH2_CLIENT_ID', 'cine-platform')
+        client_secret = os.environ.get('OAUTH2_CLIENT_SECRET', 'cine-platform')
+        
+        # Hacer petición de refresh
+        refresh_response = requests.post(
+            f"{oauth2_url}/oauth2/token",
+            data={
+                'grant_type': 'refresh_token',
+                'refresh_token': refresh_token,
+                'client_id': client_id,
+                'client_secret': client_secret
+            },
+            headers={
+                'Content-Type': 'application/x-www-form-urlencoded'
+            }
+        )
+        
+        if refresh_response.status_code != 200:
+            logger.error(f"[REFRESH_TOKEN] Error: {refresh_response.text}")
+            return jsonify({'error': 'Error refrescando token'}), refresh_response.status_code
+        
+        token_data = refresh_response.json()
+        
+        # Actualizar sesión
+        session['oauth_token'] = token_data.get('access_token')
+        if token_data.get('refresh_token'):
+            session['oauth_refresh_token'] = token_data.get('refresh_token')
+        
+        return jsonify(token_data)
+        
+    except Exception as e:
+        logger.error(f"[REFRESH_TOKEN] Error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@auth_bp.route('/api/auth/userinfo', methods=['GET'])
+def userinfo():
+    """
+    Obtiene información del usuario desde el OAuth2 server
+    """
+    try:
+        token = session.get('oauth_token')
+        
+        if not token:
+            return jsonify({'error': 'No autenticado'}), 401
+        
+        oauth2_url = os.environ.get('OAUTH2_URL', 'http://oauth2-server:8080').rstrip('/')
+        
+        # Hacer petición a userinfo
+        userinfo_response = requests.get(
+            f"{oauth2_url}/userinfo",
+            headers={
+                'Authorization': f'Bearer {token}'
+            }
+        )
+        
+        if userinfo_response.status_code != 200:
+            return jsonify({'error': 'Error obteniendo información'}), userinfo_response.status_code
+        
+        userinfo_data = userinfo_response.json()
+        
+        # Intentar obtener roles del token almacenado usando RoleService
+        roles = []
+        if token:
+            try:
+                import jwt
+                jwt_payload = jwt.decode(token, options={"verify_signature": False})
+                roles = jwt_payload.get('roles', [])
+            except:
+                pass
+        
+        # Añadir roles a la respuesta si los tenemos
+        if roles:
+            userinfo_data['roles'] = roles
+        
+        return jsonify(userinfo_data)
+        
+    except Exception as e:
+        logger.error(f"[USERINFO] Error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@auth_bp.route('/api/auth/revoke-token', methods=['POST'])
+def revoke_token():
+    """
+    Revoca un token en el OAuth2 server
+    """
+    try:
+        data = request.get_json()
+        token = data.get('token')
+        
+        if not token:
+            return jsonify({'error': 'Token requerido'}), 400
+        
+        oauth2_url = os.environ.get('OAUTH2_URL', 'http://oauth2-server:8080').rstrip('/')
+        
+        # Hacer petición de revocación
+        revoke_response = requests.post(
+            f"{oauth2_url}/oauth2/revoke",
+            data={
+                'token': token
+            }
+        )
+        
+        # Limpiar sesión independientemente del resultado
+        session.pop('oauth_token', None)
+        session.pop('oauth_refresh_token', None)
+        
+        return jsonify({'success': True})
+        
+    except Exception as e:
+        logger.error(f"[REVOKE_TOKEN] Error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+# ============================
+#  RUTAS DE PÁGINAS HTML (sin cambios)
 # ============================
 
 @auth_bp.route('/api/auth/oauth2/start', methods=['POST'])
@@ -250,10 +557,6 @@ def start_oauth2_flow():
         redirect_uri = os.environ.get('PUBLIC_REDIRECT_URI', 'http://localhost:5000/oauth/callback').rstrip('/')
         
         # Construir URL de autorización
-        # NOTA: prompt=login fuerza al servidor OAuth2 a mostrar la pantalla de login
-        # Esto asegura que el usuario tenga que introducir credenciales incluso si tiene
-        # una sesión activa en el servidor OAuth2
-        from urllib.parse import urlencode
         params = {
             'response_type': 'code',
             'client_id': client_id,
@@ -262,7 +565,7 @@ def start_oauth2_flow():
             'code_challenge': code_challenge,
             'code_challenge_method': 'S256',
             'state': state,
-            'prompt': 'login',  # Forzar login screen en OAuth2 server
+            'prompt': 'login',
         }
         
         auth_url = f"{oauth2_url}/oauth2/authorize?{urlencode(params)}"
@@ -278,125 +581,45 @@ def start_oauth2_flow():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
-@auth_bp.route('/login', methods=['GET', 'POST'])
-def login_page():
-    """Página de login"""
-    # Verificar si hay parámetros OAuth2 en la query string (el usuario vino del flujo OAuth2)
-    code_challenge = request.args.get('code_challenge')
-    oauth_state = request.args.get('state')
-    
-    if request.method == 'GET':
-        logger.info(f"[LOGIN_PAGE] GET request, is_logged_in: {is_logged_in()}, session keys: {list(session.keys())}")
-        
-        if is_logged_in():
-            # Si ya está logueado y hay parámetros OAuth2, completar el flujo
-            if code_challenge:
-                # Regenerar verifier desde la sesión o generar nuevo
-                return _complete_oauth_flow(code_challenge, oauth_state)
-            logger.info("[LOGIN_PAGE] User is logged in, redirecting to main page")
-            return redirect(url_for('main_page.index'))
-
-        # Usar variables directamente, sin base64
-        oauth2_url = os.environ.get('PUBLIC_OAUTH2_URL', 'http://localhost:8080').rstrip('/')
-        client_id = os.environ.get('OAUTH2_CLIENT_ID', 'default-user')
-        client_secret = os.environ.get('OAUTH2_CLIENT_SECRET', 'default-user-secret')
-        redirect_uri = os.environ.get('PUBLIC_REDIRECT_URI', 'http://localhost:5000/oauth/callback').rstrip('/')
-
-        logger.info(f"PUBLIC_OAUTH2_URL: {oauth2_url}")
-        logger.info(f"OAUTH2_CLIENT_ID: {client_id}")
-        logger.info(f"PUBLIC_REDIRECT_URI: {redirect_uri}")
-
-        return render_template('login.html',
-                              oauth2_url=oauth2_url,
-                              client_id=client_id,
-                              client_secret=client_secret,
-                              redirect_uri=redirect_uri)
-
-    # POST - Procesar login
+def _complete_oauth_flow(code_challenge: str, state: str = None):
+    """
+    Completa el flujo OAuth2 después del login.
+    Genera el code_verifier, lo guarda en sesión y redirige al servidor OAuth2.
+    """
     try:
-        # Aceptar tanto 'username' como 'email' para compatibilidad con el formulario
-        email = request.form.get('username') or request.form.get('email') or ''
-        password = request.form.get('password')
+        logger.info(f"[OAUTH_FLOW] Iniciando flujo OAuth2 con code_challenge: {code_challenge[:30]}...")
         
-        # Obtener parámetros OAuth2 del form (si existen)
-        code_challenge = request.form.get('code_challenge')
-        oauth_state = request.form.get('state')
-
-        if not email or not password:
-            return render_template('login.html', error='Email y contraseña requeridos')
-
-        logger.info(f"[LOGIN] Intento de login para usuario: {email}")
-
-        # Intentar OAuth2 primero
-        oauth_service = get_oauth_service()
-
-        if oauth_service:
-            try:
-                success, user_data = oauth_service.login(email, password)
-                if success:
-                    session['logged_in'] = True
-                    session['user_id'] = 1
-                    session['email'] = email
-                    session['username'] = user_data.get('username', email)
-                    
-                    # Extraer roles del token JWT si están disponibles
-                    roles = user_data.get('roles', [])
-                    if 'ROLE_ADMIN' in roles:
-                        user_role = 'admin'
-                    elif 'ROLE_USER' in roles:
-                        user_role = 'user'
-                    else:
-                        user_role = user_data.get('role', 'user')  # Por defecto 'user', nunca 'admin'
-                    
-                    session['user_role'] = user_role
-                    session['user_roles'] = roles  # Guardar lista completa de roles
-                    session['oauth_token'] = oauth_service.token
-                    logger.info(f"[LOGIN] OAuth exitoso para: {email}, rol: {user_role}")
-                    
-                    # Si hay code_challenge, completar el flujo OAuth2
-                    if code_challenge:
-                        return _complete_oauth_flow(code_challenge, oauth_state)
-                    
-                    return redirect(url_for('main_page.index'))
-                # OAuth2 falló, intentar fallback
-            except Exception as oauth_error:
-                logger.warning(f"[LOGIN] OAuth falló: {oauth_error}")
-                # OAuth2 no disponible, usar fallback
-                pass
-
-        # Fallback a credenciales locales (útil para desarrollo)
-        valid_user = os.environ.get('APP_USER', 'default-user')
-        valid_pass = os.environ.get('APP_PASSWORD', 'default-user-password')
-
-        logger.info(f"[LOGIN] Verificando credenciales locales: {email} == {valid_user}")
+        code_verifier = session.get('oauth_code_verifier')
+        if not code_verifier:
+            code_verifier = _generate_code_verifier()
+            session['oauth_code_verifier'] = code_verifier
+            logger.info(f"[OAUTH_FLOW] Code verifier generado: {code_verifier[:30]}...")
         
-        if email == valid_user and password == valid_pass:
-            session['logged_in'] = True
-            session['user_id'] = 1
-            session['email'] = email
-            session['username'] = email
-            # En desarrollo local, por defecto es admin (solo para desarrollo)
-            session['user_role'] = 'admin'
-            session['user_roles'] = ['ROLE_ADMIN', 'ROLE_USER']
-            logger.info(f"[LOGIN] Login exitoso para: {email} (modo desarrollo)")
-            
-            # Guardar sesión explícitamente
-            session.modified = True
-            
-            logger.info(f"[LOGIN] Sesión guardada: {dict(session)}")
-            
-            # Si hay code_challenge, completar el flujo OAuth2
-            if code_challenge:
-                return _complete_oauth_flow(code_challenge, oauth_state)
-            
-            return redirect(url_for('main_page.index'))
-        else:
-            logger.warning(f"[LOGIN] Credenciales incorrectas para: {email}")
-            return render_template('login.html', error='Credenciales incorrectas')
-            
+        oauth2_url = os.environ.get('PUBLIC_OAUTH2_URL', 'http://localhost:8080').rstrip('/')
+        # 🔴 USAR CLIENT_ID DE SESIÓN
+        client_id = session.get('client_id') or os.environ.get('OAUTH2_CLIENT_ID', 'cine-platform')
+        redirect_uri = os.environ.get('PUBLIC_REDIRECT_URI', 'http://localhost:5000/oauth/callback').rstrip('/')
+        
+        params = {
+            'response_type': 'code',
+            'client_id': client_id,
+            'redirect_uri': redirect_uri,
+            'scope': 'openid profile read write',
+            'code_challenge': code_challenge,
+            'code_challenge_method': 'S256',
+            'prompt': 'login',
+        }
+        if state:
+            params['state'] = state
+        
+        auth_url = f"{oauth2_url}/oauth2/authorize?{urlencode(params)}"
+        logger.info(f"[OAUTH_FLOW] Redirigiendo a: {auth_url}")
+        
+        return redirect(auth_url)
+        
     except Exception as e:
-        logger.error(f"[LOGIN] Error: {e}")
-        return render_template('login.html', error=f'Error: {str(e)}')
+        logger.error(f"[OAUTH_FLOW] Error: {e}")
+        return render_template('login.html', error=f'Error al completar OAuth: {str(e)}')
 
 
 def _generate_code_verifier() -> str:
@@ -413,56 +636,10 @@ def _generate_code_challenge(verifier: str) -> str:
     return challenge
 
 
-def _complete_oauth_flow(code_challenge: str, state: str = None):
-    """
-    Completa el flujo OAuth2 después del login.
-    Genera el code_verifier, lo guarda en sesión y redirige al servidor OAuth2.
-    """
-    try:
-        logger.info(f"[OAUTH_FLOW] Iniciando flujo OAuth2 con code_challenge: {code_challenge[:30]}...")
-        
-        # Generar code_verifier
-        code_verifier = _generate_code_verifier()
-        logger.info(f"[OAUTH_FLOW] Code verifier generado: {code_verifier[:30]}...")
-        
-        # Guardar en sesión para usarlo después en el callback
-        session['oauth_code_verifier'] = code_verifier
-        logger.info(f"[OAUTH_FLOW] Code verifier guardado en sesión")
-        
-        # Obtener configuración
-        oauth2_url = os.environ.get('PUBLIC_OAUTH2_URL', 'http://localhost:8080').rstrip('/')
-        client_id = os.environ.get('OAUTH2_CLIENT_ID', 'cine-platform')
-        redirect_uri = os.environ.get('PUBLIC_REDIRECT_URI', 'http://localhost:5000/oauth/callback').rstrip('/')
-        
-        # Construir URL de autorización
-        # prompt=login fuerza al servidor OAuth2 a mostrar la pantalla de login
-        from urllib.parse import urlencode
-        params = {
-            'response_type': 'code',
-            'client_id': client_id,
-            'redirect_uri': redirect_uri,
-            'scope': 'openid profile read write',
-            'code_challenge': code_challenge,
-            'code_challenge_method': 'S256',
-            'prompt': 'login',  # Forzar login screen
-        }
-        if state:
-            params['state'] = state
-        
-        auth_url = f"{oauth2_url}/oauth2/authorize?{urlencode(params)}"
-        logger.info(f"[OAUTH_FLOW] Redirigiendo a: {auth_url}")
-        
-        return redirect(auth_url)
-        
-    except Exception as e:
-        logger.error(f"[OAUTH_FLOW] Error: {e}")
-        return render_template('login.html', error=f'Error al completar OAuth: {str(e)}')
-
-
 @auth_bp.route('/auth/callback', methods=['POST'])
 def oauth_callback():
     """
-    Callback de OAuth2 - Intercambia código por token
+    Callback de OAuth2 - Intercambia código por token - Versión con RoleService
     """
     try:
         data = request.get_json()
@@ -475,105 +652,32 @@ def oauth_callback():
 
         logger.info("[OAUTH_CALLBACK] Intercambiando código por token")
 
-        # Obtener servicio OAuth
         oauth_service = get_oauth_service()
 
         if not oauth_service:
             logger.error("[OAUTH_CALLBACK] Servicio OAuth no disponible")
             return jsonify({'success': False, 'error': 'Servicio OAuth no disponible'}), 500
 
-        # Intercambiar código por token
         success, token_data = oauth_service.exchange_code_for_token(code, code_verifier)
 
         if not success:
             logger.error(f"[OAUTH_CALLBACK] Error intercambiando código: {token_data}")
             return jsonify({'success': False, 'error': token_data.get('error', 'Error desconocido')}), 400
 
-        # Obtener información del usuario
         access_token = token_data.get('access_token')
         user_info = oauth_service.get_userinfo(access_token)
         
-        # Decodificar el JWT para obtener los roles
-        roles = []
-        user_role = None
-        
-        # Intentar obtener roles desde user_info (aunque normalmente no tiene)
-        if user_info:
-            roles = user_info.get('roles', [])
-            user_role = user_info.get('role')
-        
-        # Si no hay roles en user_info, decodificar el JWT
-        if not roles and access_token:
-            try:
-                import jwt
-                jwt_payload = jwt.decode(access_token, options={"verify_signature": False})
-                logger.info(f"[OAUTH_CALLBACK] JWT payload: {jwt_payload}")
-                
-                # Extraer roles del JWT
-                jwt_roles = jwt_payload.get('roles', [])
-                jwt_realm_access = jwt_payload.get('realm_access', {})
-                jwt_roles_from_realm = jwt_realm_access.get('roles', [])
-                
-                # Combinar roles
-                roles = list(set(jwt_roles + jwt_roles_from_realm))
-                logger.info(f"[OAUTH_CALLBACK] Roles del JWT: {roles}")
-                
-                # También verificar el campo 'role' en el JWT
-                if not user_role:
-                    user_role = jwt_payload.get('role')
-            except Exception as e:
-                logger.warning(f"[OAUTH_CALLBACK] Error decodificando JWT: {e}")
-        
-        # Si todavía no hay roles, intentar token introspection
-        if not roles and access_token:
-            try:
-                introspection_data = oauth_service.introspect_token(access_token)
-                if introspection_data:
-                    logger.info(f"[OAUTH_CALLBACK] Token introspection: {introspection_data}")
-                    introspection_roles = introspection_data.get('roles', [])
-                    if not introspection_roles:
-                        introspection_roles = introspection_data.get('authorities', [])
-                    if not introspection_roles:
-                        scope = introspection_data.get('scope', '')
-                        if isinstance(scope, str):
-                            scope = scope.split()
-                        introspection_roles = [r for r in scope if r.startswith('ROLE_')]
-                    
-                    if introspection_roles:
-                        roles = introspection_roles
-                        logger.info(f"[OAUTH_CALLBACK] Roles de introspection: {roles}")
-            except Exception as e:
-                logger.warning(f"[OAUTH_CALLBACK] Error en introspection: {e}")
-        
-        # Normalizar el rol
-        if not user_role and roles:
-            if 'ROLE_ADMIN' in roles:
-                user_role = 'admin'
-            elif 'ROLE_USER' in roles:
-                user_role = 'user'
-        
-        # Normalizar el rol si viene en formato diferente
-        if user_role and (user_role == 'admin' or user_role == 'ROLE_ADMIN'):
-            user_role = 'admin'
-            roles = ['ROLE_ADMIN', 'ROLE_USER']
-        else:
-            user_role = 'user'
-            if not roles:
-                roles = ['ROLE_USER']
+        # 🔴 USAR ROLE SERVICE PARA PROCESAR ROLES
+        user_session = RoleService.process_user_data(user_info, access_token)
         
         # Guardar en sesión
         session['logged_in'] = True
-        session['user_id'] = user_info.get('sub', 1) if user_info else 1
-        session['email'] = user_info.get('email', '') if user_info else ''
-        session['username'] = user_info.get('preferred_username', user_info.get('name', 'user')) if user_info else 'user'
-        session['user_role'] = user_role
-        session['user_roles'] = roles
-        
+        session.update(user_session)
         session['oauth_token'] = access_token
         session['oauth_refresh_token'] = token_data.get('refresh_token')
         session['oauth_expires_at'] = token_data.get('expires_at')
 
-        logger.info(f"[OAUTH_CALLBACK] Login OAuth2 exitoso para: {session.get('username')}, rol: {user_role}, roles: {roles}")
+        logger.info(f"[OAUTH_CALLBACK] Login OAuth2 exitoso para: {session.get('username')}, rol: {session.get('user_role')}")
 
         return jsonify({'success': True})
 
@@ -584,170 +688,15 @@ def oauth_callback():
 
 @auth_bp.route('/oauth/callback', methods=['GET'])
 def oauth_callback_redirect():
-    """
-    Callback de OAuth2 - Recibe la redirección del servidor OAuth2 con el código
-    """
-    try:
-        code = request.args.get('code')
-        encoded_state = request.args.get('state')
-        
-        if not code:
-            logger.warning("[OAUTH_CALLBACK_REDIRECT] Código faltante")
-            return "Código faltante", 400
-        
-        # Decodificar el state desde base64url o obtener desde sesión
-        code_verifier = None
-        original_state = None
-        
-        # Primero intentar obtener desde la sesión (nuevo flujo)
-        code_verifier = session.get('oauth_code_verifier')
-        logger.info(f"[OAUTH_CALLBACK_REDIRECT] Sesión keys: {list(session.keys())}")
-        logger.info(f"[OAUTH_CALLBACK_REDIRECT] Code verifier en sesión: {bool(code_verifier)}")
-        if code_verifier:
-            logger.info(f"[OAUTH_CALLBACK_REDIRECT] Code verifier obtenido de la sesión: {code_verifier[:20]}...")
-        elif encoded_state:
-            # Fallback: intentar decodificar desde state (flujo antiguo)
-            logger.info(f"[OAUTH_CALLBACK_REDIRECT] Intentando decodificar state: {encoded_state}")
-            try:
-                # Convertir base64url a base64 estándar
-                padded_state = encoded_state.replace('-', '+').replace('_', '/')
-                padding = 4 - len(padded_state) % 4
-                if padding != 4:
-                    padded_state += '=' * padding
-                
-                # Decodificar
-                state_data = json.loads(base64.b64decode(padded_state).decode('utf-8'))
-                original_state = state_data.get('s')
-                code_verifier = state_data.get('v')
-                logger.info("[OAUTH_CALLBACK_REDIRECT] Code verifier extraído del state codificado")
-            except Exception as e:
-                logger.warning(f"[OAUTH_CALLBACK_REDIRECT] Error decodificando state: {e}")
-        
-        if not code_verifier:
-            logger.warning("[OAUTH_CALLBACK_REDIRECT] Code verifier faltante")
-            return "Code verifier faltante. Inicia sesión desde el formulario de login.", 400
-        
-        logger.info(f"[OAUTH_CALLBACK_REDIRECT] Intercambiando código por token con verifier: {code_verifier[:20]}...")
-        
-        # Obtener servicio OAuth
-        oauth_service = get_oauth_service()
-        
-        if not oauth_service:
-            logger.error("[OAUTH_CALLBACK_REDIRECT] Servicio OAuth no disponible")
-            return "Servicio OAuth no disponible", 500
-        
-        # Intercambiar código por token
-        success, token_data = oauth_service.exchange_code_for_token(code, code_verifier)
-        
-        if not success:
-            logger.error(f"[OAUTH_CALLBACK_REDIRECT] Error intercambiando código: {token_data}")
-            return f"Error intercambiando código: {token_data.get('error', 'Error desconocido')}", 400
-        
-        # Obtener información del usuario
-        access_token = token_data.get('access_token')
-        user_info = oauth_service.get_userinfo(access_token)
-        
-        # También decodificar el JWT para obtener los roles
-        roles = []
-        user_role = None
-        
-        # Intentar obtener roles desde user_info
-        if user_info:
-            roles = user_info.get('roles', [])
-            user_role = user_info.get('role')
-        
-        # Si no hay roles en user_info, intentar decodificar el JWT
-        if not roles and access_token:
-            try:
-                # Importar JWT
-                import jwt
-                # Decodificar sin verificar firma
-                jwt_payload = jwt.decode(access_token, options={"verify_signature": False})
-                logger.info(f"[OAUTH_CALLBACK_REDIRECT] JWT payload: {jwt_payload}")
-                
-                # Extraer roles del JWT
-                jwt_roles = jwt_payload.get('roles', [])
-                jwt_realm_access = jwt_payload.get('realm_access', {})
-                jwt_roles_from_realm = jwt_realm_access.get('roles', [])
-                
-                # Combinar roles
-                roles = list(set(jwt_roles + jwt_roles_from_realm))
-                logger.info(f"[OAUTH_CALLBACK_REDIRECT] Roles del JWT: {roles}")
-                
-                # También verificar el campo 'role' en el JWT
-                if not user_role:
-                    user_role = jwt_payload.get('role')
-            except Exception as e:
-                logger.warning(f"[OAUTH_CALLBACK_REDIRECT] Error decodificando JWT: {e}")
-        
-        # Si todavía no hay roles, intentar token introspection
-        if not roles and access_token:
-            try:
-                introspection_data = oauth_service.introspect_token(access_token)
-                if introspection_data:
-                    logger.info(f"[OAUTH_CALLBACK_REDIRECT] Token introspection: {introspection_data}")
-                    # Los roles pueden venir en diferentes formatos
-                    introspection_roles = introspection_data.get('roles', [])
-                    if not introspection_roles:
-                        # Intentar con 'authorities' (Spring Security usa esto)
-                        introspection_roles = introspection_data.get('authorities', [])
-                    if not introspection_roles:
-                        # Intentar con 'scope' que puede contener roles
-                        scope = introspection_data.get('scope', '')
-                        if isinstance(scope, str):
-                            scope = scope.split()
-                        introspection_roles = [r for r in scope if r.startswith('ROLE_')]
-                    
-                    if introspection_roles:
-                        roles = introspection_roles
-                        logger.info(f"[OAUTH_CALLBACK_REDIRECT] Roles de introspection: {roles}")
-            except Exception as e:
-                logger.warning(f"[OAUTH_CALLBACK_REDIRECT] Error en introspection: {e}")
-        
-        # Guardar en sesión
-        session['logged_in'] = True
-        session['user_id'] = user_info.get('sub', 1) if user_info else 1
-        session['email'] = user_info.get('email', '') if user_info else ''
-        session['username'] = user_info.get('preferred_username', user_info.get('name', 'user')) if user_info else 'user'
-        
-        # Normalizar el rol
-        if not user_role and roles:
-            if 'ROLE_ADMIN' in roles:
-                user_role = 'admin'
-            elif 'ROLE_USER' in roles:
-                user_role = 'user'
-        
-        # Normalizar el rol si viene en formato diferente
-        if user_role and (user_role == 'admin' or user_role == 'ROLE_ADMIN'):
-            user_role = 'admin'
-            roles = ['ROLE_ADMIN', 'ROLE_USER']
-        else:
-            user_role = 'user'
-            if not roles:
-                roles = ['ROLE_USER']
-        
-        session['user_role'] = user_role
-        session['user_roles'] = roles
-        
-        # Log para debug - verificar qué devuelve OAuth
-        logger.info(f"[OAUTH_CALLBACK_REDIRECT] user_info completo: {user_info}")
-        logger.info(f"[OAUTH_CALLBACK_REDIRECT] roles: {roles}, user_role: {user_role}")
-        
-        session['oauth_token'] = access_token
-        session['oauth_refresh_token'] = token_data.get('refresh_token')
-        
-        # Limpiar state y verifier de sesión
-        session.pop('oauth_state', None)
-        session.pop('oauth_code_verifier', None)
-        
-        logger.info(f"[OAUTH_CALLBACK_REDIRECT] Login OAuth2 exitoso para: {session.get('username')}, rol: {user_role}")
-        
-        # Redirigir a la página principal
-        return redirect(url_for('main_page.index'))
-        
-    except Exception as e:
-        logger.error(f"[OAUTH_CALLBACK_REDIRECT] Error: {str(e)}")
-        return f"Error: {str(e)}", 500
+    code = request.args.get('code')
+    state = request.args.get('state')
+    
+    if not code:
+        return "Código faltante", 400
+    
+    # Solo redirigir al frontend
+    frontend_url = os.environ.get('PUBLIC_URL', 'http://localhost:5000')
+    return redirect(f"{frontend_url}/login?code={code}&state={state}")
 
 
 @auth_bp.route('/logout', methods=['GET', 'POST'])
@@ -755,10 +704,8 @@ def logout_page():
     """Página de logout"""
     from flask import current_app, make_response
     
-    # Ver cookies recibidas
     logger.info(f"[LOGOUT] Cookies recibidas: {dict(request.cookies)}")
     
-    # Intentar revocar token en el servidor OAuth2
     try:
         oauth_token = session.get('oauth_token')
         if oauth_token:
@@ -771,37 +718,29 @@ def logout_page():
     
     logger.info("[LOGOUT] Usuario cerró sesión - limpiando datos")
     
-    # Limpiar TODOS los datos de sesión
     session_keys = list(session.keys())
     logger.info(f"[LOGOUT] Keys en sesión antes de limpiar: {session_keys}")
     session.clear()
     
-    # Forzar la modificación de la sesión para que se guarde
     session.modified = True
     
-    # Crear respuesta de redirección
-    response = make_response(redirect(url_for('auth.login_page')))
+    response = make_response(redirect('/login'))
     
-    # Opciones de cookie base
     base_options = {
         'httponly': True,
         'samesite': 'Lax',
     }
     
-    # Añadir secure si está configurado
     if current_app.config.get('SESSION_COOKIE_SECURE', False):
         base_options['secure'] = True
     
-    # 1. Sin dominio (cookie por defecto)
     response.set_cookie('session', '', max_age=0, path='/', **base_options)
     
-    # 2. Con el dominio configurado
     try:
         cookie_domain = current_app.config.get('SESSION_COOKIE_DOMAIN')
         cookie_path = current_app.config.get('SESSION_COOKIE_PATH', '/')
         logger.info(f"[LOGOUT] Cookie domain: {cookie_domain}, path: {cookie_path}")
         if cookie_domain:
-            # Usar solo el dominio, NO path de nuevo (evitar error "multiple values for keyword argument 'path'")
             response.set_cookie('session', '', max_age=0, domain=cookie_domain, **base_options)
     except Exception as e:
         logger.warning(f"[LOGOUT] Error eliminando cookie de dominio: {e}")
@@ -809,10 +748,6 @@ def logout_page():
     logger.info("[LOGOUT] Session cleared, all cookies set to expire, redirecting to login")
     return response
 
-
-# ============================
-# RUTAS DE LOGOUT
-# ============================
 
 @auth_bp.route('/logout-check', methods=['GET'])
 def logout_check():

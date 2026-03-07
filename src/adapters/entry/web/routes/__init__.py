@@ -7,6 +7,7 @@ from src.adapters.entry.web.routes.auth import auth_bp, main_page_bp, init_auth_
 from src.adapters.entry.web.routes.optimizer import optimizer_bp, optimizer_page_bp, init_optimizer_routes
 from src.adapters.entry.web.routes.api import api_bp, init_api_routes
 from src.adapters.entry.web.routes.download import download_api_bp, search_page_bp, init_download_routes
+from src.adapters.entry.web.routes.torrent_optimize import torrent_optimize_bp, init_torrent_optimize_routes
 from src.adapters.entry.web.routes.admin import admin_bp, admin_page_bp, init_admin_routes
 from src.adapters.entry.web.routes.outputs import outputs_bp, init_outputs_routes, download_bp as outputs_download_bp
 from src.adapters.entry.web.routes.proxy import proxy_bp, init_proxy_routes
@@ -37,6 +38,7 @@ def register_all_blueprints(app, auth_service=None, media_service=None, optimize
     app.register_blueprint(streaming_bp)
     app.register_blueprint(stream_page_bp)  # /stream/ para templates
     app.register_blueprint(thumbnails_bp)
+    app.register_blueprint(torrent_optimize_bp)
 
 __all__ = [
     'catalog_bp', 'init_catalog_routes',
@@ -50,4 +52,5 @@ __all__ = [
     'proxy_bp', 'init_proxy_routes',
     'streaming_bp', 'stream_page_bp', 'init_streaming_routes',
     'thumbnails_bp', 'init_thumbnails_routes',
+    'torrent_optimize_bp', 'init_torrent_optimize_routes',
 ]
