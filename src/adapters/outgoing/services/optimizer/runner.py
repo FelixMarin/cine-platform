@@ -1,5 +1,5 @@
 """
-Runner de optimización - Ejecuta FFmpeg y captura progreso en tiempo real
+Runner de optimización - Ejecuta FFmpeg en contenedor y captura progreso en tiempo real
 """
 import os
 import subprocess
@@ -84,7 +84,13 @@ class FFmpegOutputParser:
 
 
 class OptimizationRunner:
-    """Runner que ejecuta la optimización con FFmpeg"""
+    """Runner que ejecuta la optimización con FFmpeg en contenedor Docker"""
+    
+    # Configuración del contenedor FFmpeg
+    FFMPEG_CONTAINER = "ffmpeg-cuda"
+    SHARED_INPUT = "/shared/input"
+    SHARED_OUTPUT = "/shared/output"
+    SHARED_TEMP = "/shared/temp"
     
     def __init__(self, job: OptimizationJob, queue: OptimizationQueue):
         self.job = job
@@ -92,9 +98,71 @@ class OptimizationRunner:
         self.process: Optional[subprocess.Popen] = None
         self._total_duration = 0.0
     
+    def _map_to_container_path(self, local_path: str) -> str:
+        """
+        Convierte una ruta local a su equivalente en el contenedor
+        
+        Args:
+            local_path: Ruta en el host
+            
+        Returns:
+            Ruta equivalente en el contenedor
+        """
+        # Mapear rutas según los volúmenes definidos
+        if "/mnt/DATA_2TB/audiovisual/mkv" in local_path:
+            return local_path.replace("/mnt/DATA_2TB/audiovisual/mkv", self.SHARED_OUTPUT)
+        elif "/app/uploads" in local_path:
+            return local_path.replace("/app/uploads", self.SHARED_INPUT)
+        elif "/app/temp" in local_path:
+            return local_path.replace("/app/temp", self.SHARED_TEMP)
+        elif "/app/outputs" in local_path:
+            return local_path.replace("/app/outputs", self.SHARED_OUTPUT)
+        else:
+            # Si no está mapeado, asumir que está en temp
+            filename = os.path.basename(local_path)
+            return f"{self.SHARED_TEMP}/{filename}"
+    
+    def _run_in_container(self, cmd: list) -> subprocess.Popen:
+        """
+        Ejecuta un comando en el contenedor FFmpeg
+        
+        Args:
+            cmd: Comando a ejecutar (sin docker exec)
+            
+        Returns:
+            Proceso Popen
+        """
+        full_cmd = ["docker", "exec", self.FFMPEG_CONTAINER] + cmd
+        logger.debug(f"[Optimizer] Ejecutando en contenedor: {' '.join(full_cmd)}")
+        
+        return subprocess.Popen(
+            full_cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            universal_newlines=True,
+            bufsize=1
+        )
+    
+    def _check_container_available(self) -> bool:
+        """Verifica que el contenedor FFmpeg está corriendo"""
+        try:
+            result = subprocess.run(
+                ["docker", "ps", "--filter", f"name={self.FFMPEG_CONTAINER}", "--format", "{{.Names}}"],
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+            return self.FFMPEG_CONTAINER in result.stdout
+        except Exception:
+            return False
+    
     def run(self):
-        """Ejecuta la optimización"""
-        logger.info(f"[Optimizer] Starting job: {self.job.id}")
+        """Ejecuta la optimización en el contenedor"""
+        logger.info(f"[Optimizer] Starting job in container: {self.job.id}")
+        
+        # Verificar que el contenedor está disponible
+        if not self._check_container_available():
+            raise RuntimeError(f"Contenedor {self.FFMPEG_CONTAINER} no está corriendo")
         
         # Verificar que existe el archivo de entrada
         if not os.path.exists(self.job.input_path):
@@ -105,29 +173,28 @@ class OptimizationRunner:
         if output_dir:
             os.makedirs(output_dir, exist_ok=True)
         
-        # Obtener duración total del video
-        self._total_duration = self._get_duration(self.job.input_path)
+        # Convertir rutas para el contenedor
+        container_input = self._map_to_container_path(self.job.input_path)
+        container_output = self._map_to_container_path(self.job.output_path)
+        
+        # Obtener duración total del video (desde contenedor)
+        self._total_duration = self._get_duration_container(container_input)
         self.job.total_duration = self._total_duration
         
-        # Construir comando FFmpeg
-        cmd = self._build_ffmpeg_command()
+        # Construir comando FFmpeg para contenedor
+        cmd = self._build_ffmpeg_command(container_input, container_output)
         
-        logger.info(f"[Optimizer] FFmpeg command: {' '.join(cmd)}")
+        logger.info(f"[Optimizer] FFmpeg command: docker exec {self.FFMPEG_CONTAINER} {' '.join(cmd)}")
         
-        # Ejecutar FFmpeg
+        # Ejecutar FFmpeg en contenedor
         try:
-            self.process = subprocess.Popen(
-                cmd,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                universal_newlines=True,
-                bufsize=1
-            )
+            self.process = self._run_in_container(cmd)
             
             # Leer output línea a línea
             for line in self.process.stdout:
                 if self.job.status.value == 'cancelled':
-                    self.process.terminate()
+                    # Detener proceso en contenedor
+                    self._stop_container_process()
                     break
                 
                 # Parsear y actualizar progreso
@@ -141,7 +208,7 @@ class OptimizationRunner:
             # Validar resultado
             if self.job.status.value != 'cancelled':
                 if self.process.returncode == 0:
-                    self._validate_output()
+                    self._validate_output_container(container_output)
                     self._post_process()
                 else:
                     raise RuntimeError(f"FFmpeg exited with code {self.process.returncode}")
@@ -150,26 +217,36 @@ class OptimizationRunner:
             logger.error(f"[Optimizer] Error during optimization: {str(e)}")
             raise
     
-    def _get_duration(self, input_path: str) -> float:
-        """Obtiene la duración del video usando ffprobe"""
+    def _stop_container_process(self):
+        """Detiene el proceso FFmpeg en el contenedor"""
+        if self.process:
+            self.process.terminate()
+            try:
+                self.process.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                self.process.kill()
+    
+    def _get_duration_container(self, container_path: str) -> float:
+        """Obtiene la duración del video usando ffprobe en el contenedor"""
         try:
             cmd = [
-                'ffprobe',
-                '-v', 'error',
-                '-show_entries', 'format=duration',
-                '-of', 'default=noprint_wrappers=1:nokey=1',
-                input_path
+                "docker", "exec", self.FFMPEG_CONTAINER,
+                "ffprobe",
+                "-v", "error",
+                "-show_entries", "format=duration",
+                "-of", "default=noprint_wrappers=1:nokey=1",
+                container_path
             ]
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
             if result.returncode == 0 and result.stdout.strip():
                 return float(result.stdout.strip())
         except Exception as e:
-            logger.warning(f"[Optimizer] Could not get duration: {e}")
+            logger.warning(f"[Optimizer] Could not get duration from container: {e}")
         
         return 0.0
     
-    def _build_ffmpeg_command(self) -> list:
-        """Construye el comando FFmpeg basado en el perfil"""
+    def _build_ffmpeg_command(self, container_input: str, container_output: str) -> list:
+        """Construye el comando FFmpeg basado en el perfil para ejecutar en contenedor"""
         from src.adapters.outgoing.services.ffmpeg.encoder import FFmpegEncoderService
         
         # Obtener perfil
@@ -178,22 +255,23 @@ class OptimizationRunner:
         
         cmd = [
             'ffmpeg',
-            '-i', self.job.input_path,
+            '-hwaccel', 'cuda',  # Aceleración GPU
+            '-i', container_input,
             '-y',  # Sobrescribir salida
             '-progress', 'pipe:1',  # Output de progreso
         ]
         
-        # Video codec
-        if profile.get('preset'):
-            # Usar NVENC si está disponible
-            cmd.extend(['-c:v', 'h264_nvenc'])
-            cmd.extend(['-preset', profile['preset']])
-        else:
-            cmd.extend(['-c:v', 'libx264'])
+        # Video codec con NVENC
+        cmd.extend(['-c:v', 'h264_nvenc'])
         
-        # Video settings
+        if profile.get('preset'):
+            cmd.extend(['-preset', profile['preset']])
+        
         if profile.get('quality'):
-            cmd.extend(['-crf', str(profile['quality'])])
+            cmd.extend(['-cq', str(profile['quality'])])  # NVENC usa -cq en lugar de -crf
+        
+        if profile.get('rc'):
+            cmd.extend(['-rc', profile['rc']])
         
         if profile.get('video_bitrate'):
             cmd.extend(['-b:v', profile['video_bitrate']])
@@ -204,8 +282,14 @@ class OptimizationRunner:
         if profile.get('bufsize'):
             cmd.extend(['-bufsize', profile['bufsize']])
         
+        if profile.get('rc_lookahead'):
+            cmd.extend(['-rc-lookahead', profile['rc_lookahead']])
+        
         if profile.get('profile'):
             cmd.extend(['-profile:v', profile['profile']])
+        
+        if profile.get('level'):
+            cmd.extend(['-level', profile['level']])
         
         # Audio codec
         cmd.extend(['-c:a', 'aac'])
@@ -213,12 +297,15 @@ class OptimizationRunner:
         if profile.get('audio_bitrate'):
             cmd.extend(['-b:a', profile['audio_bitrate']])
         
-        # Scaling
+        # Scaling con filtro CUDA
         if profile.get('scale'):
-            cmd.extend(['-vf', f"scale={profile['scale']}"])
+            cmd.extend(['-vf', f"scale_cuda={profile['scale']}"])
+        
+        # Optimizaciones para streaming
+        cmd.extend(['-movflags', '+faststart'])
         
         # Output
-        cmd.append(self.job.output_path)
+        cmd.append(container_output)
         
         return cmd
     
@@ -252,15 +339,16 @@ class OptimizationRunner:
             return int(float(bitrate_str.replace('m/s', '').replace('m', '')) * 1000000)
         return 0
     
-    def _validate_output(self):
-        """Valida el archivo de salida"""
+    def _validate_output_container(self, container_path: str):
+        """Valida el archivo de salida en el contenedor"""
         logger.info(f"[Optimizer] Validating output: {self.job.output_path}")
         
+        # Verificar que el archivo existe localmente
         if not os.path.exists(self.job.output_path):
             raise FileNotFoundError(f"Output file not created: {self.job.output_path}")
         
-        # Verificar duración con ffprobe
-        output_duration = self._get_duration(self.job.output_path)
+        # Verificar duración con ffprobe en contenedor
+        output_duration = self._get_duration_container(container_path)
         
         if output_duration > 0 and self._total_duration > 0:
             diff = abs(output_duration - self._total_duration)

@@ -1,6 +1,6 @@
 """
 Adaptador de salida - Servicio de codificación FFmpeg con aceleración NVIDIA
-Implementación de IEncoderService usando FFmpeg con NVENC/CUDA
+Implementación de IEncoderService usando FFmpeg con NVENC/CUDA en contenedor
 """
 import os
 import subprocess
@@ -10,7 +10,11 @@ from src.core.ports.services.encoder_service import IEncoderService
 
 
 class FFmpegEncoderService(IEncoderService):
-    """Servicio de codificación usando FFmpeg con aceleración NVIDIA NVENC/CUDA"""
+    """Servicio de codificación usando FFmpeg con aceleración NVIDIA NVENC/CUDA en contenedor"""
+    
+    # Configuración del contenedor FFmpeg
+    FFMPEG_CONTAINER = "ffmpeg-cuda"
+    DOCKER_EXEC = ["docker", "exec", FFMPEG_CONTAINER]
     
     # Perfiles de optimización para streaming con NVENC
     PROFILES = {
@@ -89,31 +93,60 @@ class FFmpegEncoderService(IEncoderService):
     def __init__(self):
         """Inicializa el servicio"""
         self._current_profile = "balanced"
+        self._check_container_available()
         self._check_cuda_availability()
     
-    def _check_cuda_availability(self) -> bool:
-        """Verifica que CUDA/NVENC está disponible"""
+    def _check_container_available(self) -> bool:
+        """Verifica que el contenedor FFmpeg está corriendo"""
         try:
-            cmd = ["ffmpeg", "-hide_banner", "-encoders"]
+            result = subprocess.run(
+                ["docker", "ps", "--filter", f"name={self.FFMPEG_CONTAINER}", "--format", "{{.Names}}"],
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+            if self.FFMPEG_CONTAINER in result.stdout:
+                print(f"[FFmpeg] ✅ Contenedor {self.FFMPEG_CONTAINER} disponible")
+                return True
+            else:
+                print(f"[FFmpeg] ❌ Contenedor {self.FFMPEG_CONTAINER} no está corriendo")
+                return False
+        except Exception as e:
+            print(f"[FFmpeg] ❌ Error verificando contenedor: {e}")
+            return False
+    
+    def _check_cuda_availability(self) -> bool:
+        """Verifica que CUDA/NVENC está disponible en el contenedor"""
+        try:
+            cmd = self.DOCKER_EXEC + ["ffmpeg", "-hide_banner", "-encoders"]
             result = subprocess.run(
                 cmd,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True
             )
-            return "h264_nvenc" in result.stdout
-        except Exception:
+            available = "h264_nvenc" in result.stdout
+            if available:
+                print("[FFmpeg] ✅ GPU NVIDIA disponible en contenedor")
+            else:
+                print("[FFmpeg] ⚠️ GPU NVIDIA no disponible en contenedor")
+            return available
+        except Exception as e:
+            print(f"[FFmpeg] ❌ Error verificando GPU: {e}")
             return False
     
     def _run_command(self, cmd: list) -> bool:
-        """Ejecuta un comando de FFmpeg con logging"""
+        """Ejecuta un comando de FFmpeg en el contenedor con logging"""
         try:
+            # Prefijar con docker exec
+            full_cmd = self.DOCKER_EXEC + cmd
+            
             # Log del comando para debug
-            cmd_str = " ".join(cmd)
+            cmd_str = " ".join(full_cmd)
             print(f"[FFmpeg] Ejecutando: {cmd_str}")
             
             result = subprocess.run(
-                cmd,
+                full_cmd,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 timeout=7200  # 2 horas máximo
@@ -131,10 +164,29 @@ class FFmpegEncoderService(IEncoderService):
             print(f"[FFmpeg] Excepción: {e}")
             return False
     
+    def _run_probe_command(self, cmd: list) -> Optional[str]:
+        """Ejecuta un comando ffprobe en el contenedor"""
+        try:
+            full_cmd = self.DOCKER_EXEC + cmd
+            result = subprocess.run(
+                full_cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                timeout=30
+            )
+            if result.returncode == 0:
+                return result.stdout
+            return None
+        except Exception:
+            return None
+    
     def get_video_info(self, file_path: str) -> Dict:
         """Obtiene información de un archivo de video"""
         if not os.path.exists(file_path):
             return {}
+        
+        # Convertir ruta local a ruta en contenedor
+        container_path = self._map_to_container_path(file_path)
         
         cmd = [
             "ffprobe",
@@ -142,18 +194,13 @@ class FFmpegEncoderService(IEncoderService):
             "-print_format", "json",
             "-show_format",
             "-show_streams",
-            file_path
+            container_path
         ]
         
         try:
-            result = subprocess.run(
-                cmd,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE
-            )
-            
-            if result.returncode == 0:
-                data = json.loads(result.stdout)
+            output = self._run_probe_command(cmd)
+            if output:
+                data = json.loads(output)
                 
                 # Extraer información relevante
                 info = {
@@ -173,7 +220,15 @@ class FFmpegEncoderService(IEncoderService):
                         info['resolution'] = f"{stream.get('width', 0)}x{stream.get('height', 0)}"
                         info['pix_fmt'] = stream.get('pix_fmt')
                         info['is_10bit'] = stream.get('pix_fmt') in ['yuv420p10le', 'yuv444p10le']
-                        info['fps'] = eval(stream.get('r_frame_rate', '0/1'))
+                        
+                        # FPS
+                        r_frame_rate = stream.get('r_frame_rate', '0/1')
+                        try:
+                            num, den = r_frame_rate.split('/')
+                            info['fps'] = float(num) / float(den) if float(den) != 0 else None
+                        except Exception:
+                            info['fps'] = None
+                            
                     elif stream.get('codec_type') == 'audio':
                         info['acodec'] = stream.get('codec_name')
                         info['channels'] = stream.get('channels', 0)
@@ -186,6 +241,30 @@ class FFmpegEncoderService(IEncoderService):
         
         return {}
     
+    def _map_to_container_path(self, local_path: str) -> str:
+        """
+        Convierte una ruta local a su equivalente en el contenedor
+        
+        Args:
+            local_path: Ruta en el host
+            
+        Returns:
+            Ruta equivalente en el contenedor
+        """
+        # Mapear rutas según los volúmenes definidos en docker-compose
+        if "/mnt/DATA_2TB/audiovisual/mkv" in local_path:
+            return local_path.replace("/mnt/DATA_2TB/audiovisual/mkv", "/shared/output")
+        elif "/app/uploads" in local_path:
+            return local_path.replace("/app/uploads", "/shared/uploads")
+        elif "/app/temp" in local_path:
+            return local_path.replace("/app/temp", "/shared/temp")
+        elif "/app/outputs" in local_path:
+            return local_path.replace("/app/outputs", "/shared/outputs")
+        else:
+            # Si no está mapeado, usar directorio temp
+            filename = os.path.basename(local_path)
+            return f"/shared/temp/{filename}"
+    
     def get_duration(self, file_path: str) -> Optional[float]:
         """Obtiene la duración de un video en segundos"""
         info = self.get_video_info(file_path)
@@ -197,7 +276,7 @@ class FFmpegEncoderService(IEncoderService):
         output_path: str,
         profile: str = "balanced"
     ) -> bool:
-        """Optimiza un video usando GPU NVIDIA con perfil específico"""
+        """Optimiza un video usando GPU NVIDIA con perfil específico en contenedor"""
         if not os.path.exists(input_path):
             print(f"[FFmpeg] Error: Archivo de entrada no existe: {input_path}")
             return False
@@ -215,6 +294,10 @@ class FFmpegEncoderService(IEncoderService):
         # Crear directorio de salida si no existe
         os.makedirs(os.path.dirname(output_path), exist_ok=True)
         
+        # Convertir rutas para el contenedor
+        container_input = self._map_to_container_path(input_path)
+        container_output = self._map_to_container_path(output_path)
+        
         cmd = ["ffmpeg", "-y", "-hide_banner"]
         
         # Aceleración CUDA para decodificación
@@ -222,7 +305,7 @@ class FFmpegEncoderService(IEncoderService):
         cmd.extend(["-hwaccel_output_format", "cuda"])  # Mantener frames en GPU
         
         cmd.extend(["-threads", "4"])
-        cmd.extend(["-i", input_path])
+        cmd.extend(["-i", container_input])
         
         # Filtros de video (ejecutados en GPU)
         filters = []
@@ -272,7 +355,7 @@ class FFmpegEncoderService(IEncoderService):
         cmd.extend(["-c:s", "mov_text"])
         
         # Output
-        cmd.append(output_path)
+        cmd.append(container_output)
         
         return self._run_command(cmd)
     
@@ -282,23 +365,27 @@ class FFmpegEncoderService(IEncoderService):
         output_path: str,
         timestamp: str = "00:00:01"
     ) -> bool:
-        """Genera un thumbnail de un video usando GPU"""
+        """Genera un thumbnail de un video usando GPU en contenedor"""
         if not os.path.exists(video_path):
             return False
         
         # Crear directorio de salida
         os.makedirs(os.path.dirname(output_path), exist_ok=True)
         
+        # Convertir rutas para el contenedor
+        container_input = self._map_to_container_path(video_path)
+        container_output = self._map_to_container_path(output_path)
+        
         cmd = [
             "ffmpeg",
             "-y",
             "-hwaccel", "cuda",           # Usar GPU para decodificar
             "-ss", timestamp,
-            "-i", video_path,
+            "-i", container_input,
             "-vf", "scale_cuda=320:240",   # Escalar en GPU
             "-vframes", "1",
             "-q:v", "2",
-            output_path
+            container_output
         ]
         
         return self._run_command(cmd)
@@ -375,7 +462,7 @@ class FFmpegEncoderService(IEncoderService):
         output_dir: str,
         profiles: Optional[List[str]] = None
     ) -> Dict:
-        """Genera múltiples calidades para streaming adaptativo"""
+        """Genera múltiples calidades para streaming adaptativo en contenedor"""
         if profiles is None:
             profiles = ["ultra_fast", "fast", "balanced", "high_quality"]
         
@@ -434,17 +521,18 @@ class FFmpegEncoderService(IEncoderService):
             "resolution": info.get('resolution'),
         }
         
-        # Verificar faststart usando ffprobe
+        # Verificar faststart usando ffprobe en contenedor
         try:
+            container_path = self._map_to_container_path(file_path)
             cmd = [
                 "ffprobe",
                 "-v", "quiet",
                 "-show_entries", "format=format_name",
                 "-of", "default=noprint_wrappers=1:nokey=1",
-                file_path
+                container_path
             ]
-            result = subprocess.run(cmd, stdout=subprocess.PIPE, text=True)
-            checks["has_faststart"] = "mov,mp4,m4a,3gp,3g2,mj2" in result.stdout
+            output = self._run_probe_command(cmd)
+            checks["has_faststart"] = output and "mov,mp4,m4a,3gp,3g2,mj2" in output
         except:
             pass
         

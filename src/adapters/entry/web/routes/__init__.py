@@ -38,7 +38,10 @@ def register_all_blueprints(app, auth_service=None, media_service=None, optimize
     app.register_blueprint(streaming_bp)
     app.register_blueprint(stream_page_bp)  # /stream/ para templates
     app.register_blueprint(thumbnails_bp)
-    app.register_blueprint(torrent_optimize_bp)
+    app.register_blueprint(torrent_optimize_bp)  # 🔴 AÑADIDO - Endpoints de optimización de torrents
+
+    print("✅ Todos los blueprints registrados correctamente")
+
 
 __all__ = [
     'catalog_bp', 'init_catalog_routes',
@@ -47,10 +50,10 @@ __all__ = [
     'optimizer_bp', 'init_optimizer_routes',
     'api_bp', 'init_api_routes',
     'download_api_bp', 'search_page_bp', 'init_download_routes',
+    'torrent_optimize_bp', 'init_torrent_optimize_routes',
     'admin_bp', 'init_admin_routes',
     'outputs_bp', 'init_outputs_routes',
     'proxy_bp', 'init_proxy_routes',
     'streaming_bp', 'stream_page_bp', 'init_streaming_routes',
     'thumbnails_bp', 'init_thumbnails_routes',
-    'torrent_optimize_bp', 'init_torrent_optimize_routes',
 ]

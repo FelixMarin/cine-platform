@@ -13,6 +13,8 @@ Endpoints:
 """
 import logging
 import os
+import subprocess
+import logging
 from flask import Blueprint, jsonify, request
 from src.infrastructure.config.settings import settings
 from src.adapters.entry.web.middleware.auth_middleware import require_auth, require_role
@@ -249,24 +251,41 @@ def list_active_optimizations():
 # ============================================================================
 
 @torrent_optimize_bp.route('/optimize-torrent/gpu-status', methods=['GET'])
-@require_role('admin')
 def check_gpu_status():
-    """
-    Verifica si hay GPU NVIDIA disponible
-    
-    Returns:
-        JSON con estado de GPU
-    """
+    logger = logging.getLogger(__name__)
+
     try:
-        gpu_available = _torrent_optimizer.check_gpu_available()
-        
+        # Verificar GPU directamente con nvidia-smi
+        result = subprocess.run(
+            ['nvidia-smi', '--query-gpu=name', '--format=csv,noheader'],
+            capture_output=True, text=True, timeout=5
+        )
+
+        if result.returncode == 0 and result.stdout.strip():
+            gpu_name = result.stdout.strip().split('\n')[0]
+            logger.info(f"✅ GPU detectada: {gpu_name}")
+            return jsonify({
+                'success': True,
+                'gpu_available': True,
+                'gpu_name': gpu_name,
+                'gpu_info': gpu_name
+            })
+        else:
+            logger.warning("⚠️ No se detectó GPU NVIDIA")
+            return jsonify({
+                'success': True,
+                'gpu_available': False,
+                'gpu_info': 'No GPU detected'
+            })
+    except FileNotFoundError:
+        logger.error("❌ nvidia-smi no encontrado")
         return jsonify({
             'success': True,
-            'gpu_available': gpu_available
+            'gpu_available': False,
+            'gpu_info': 'nvidia-smi not found'
         })
-        
     except Exception as e:
-        logger.error(f"[API] Error verificando GPU: {str(e)}")
+        logger.error(f"❌ Error verificando GPU: {e}")
         return jsonify({
             'success': False,
             'error': str(e)

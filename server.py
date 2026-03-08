@@ -149,7 +149,8 @@ def create_app():
         outputs_bp, init_outputs_routes,
         proxy_bp, init_proxy_routes,
         streaming_bp, stream_page_bp, init_streaming_routes,
-        thumbnails_bp, init_thumbnails_routes
+        thumbnails_bp, init_thumbnails_routes,
+        torrent_optimize_bp, init_torrent_optimize_routes
     )
     
     # Inicializar rutas
@@ -171,7 +172,8 @@ def create_app():
     init_proxy_routes()
     init_streaming_routes()
     init_thumbnails_routes()
-    
+    init_torrent_optimize_routes(optimize_movie_use_case)
+
     # Registrar blueprints
     app.register_blueprint(main_page_bp)  # Página principal y favicon
     app.register_blueprint(catalog_bp)
@@ -190,7 +192,8 @@ def create_app():
     app.register_blueprint(streaming_bp)
     app.register_blueprint(stream_page_bp)  # /stream/ para templates
     app.register_blueprint(thumbnails_bp)
-    
+    app.register_blueprint(torrent_optimize_bp)
+
     logger.info("[ROUTER] Blueprints registrados correctamente")
 
     # ============================

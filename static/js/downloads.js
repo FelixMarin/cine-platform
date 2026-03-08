@@ -458,8 +458,12 @@ function renderDownloads() {
         const sizeFormatted = download.size_formatted || download.sizeFormatted || '0 B';
 
         // Determinar si está completado o no basado en status
-        const isCompleted = statusValue === 'seeding' || statusValue === 6 || statusValue === 'completed';
-        const isFailed = statusValue === 'stopped' || statusValue === 0 || statusValue === 'failed';
+        const isCompleted = progress >= 99.9 || statusValue === 'seeding' || statusValue === 6 || statusValue === 'completed';
+        const isFailed = (progress >= 0 && statusValue === 'failed') || statusValue === 0 || statusValue === 'failed';
+
+        if(progress > 100) {
+            progress = 100;
+        }
 
         // Log específico para la barra
         console.log(`📊 Barra ${download.id}: progress=${progress} (tipo=${typeof progress}), width=${progress}%`);
