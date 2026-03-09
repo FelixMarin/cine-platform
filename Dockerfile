@@ -3,6 +3,7 @@ FROM python:3.11-slim-bullseye
 ENV PYTHONUNBUFFERED=1
 ENV DEBIAN_FRONTEND=noninteractive
 ENV TZ=Europe/Madrid
+ENV PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 
 # Instalar dependencias del sistema (versión slim ya tiene repos correctos)
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -11,13 +12,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libmagic1 \
     curl \
     && rm -rf /var/lib/apt/lists/*
-
-    # Instalar Docker CLI
-RUN curl -fsSL https://get.docker.com -o get-docker.sh && \
-    sh get-docker.sh && \
-    rm get-docker.sh
-
-RUN ln -sf /usr/bin/docker /usr/local/bin/docker
 
 WORKDIR /app
 

@@ -42,6 +42,7 @@ from src.adapters.outgoing.services.omdb.client import OMDBMetadataService
 from src.adapters.outgoing.services.ffmpeg.encoder import FFmpegEncoderService
 from src.adapters.outgoing.services.oauth.client import OAuth2Client
 from src.adapters.outgoing.services.auth.auth_service import AuthService
+from src.adapters.outgoing.services.optimizer.queue import OptimizationQueue, get_optimization_queue
 
 # === IMPORTS DE CASOS DE USO DEL CORE ===
 
@@ -202,8 +203,9 @@ def init_use_cases():
     )
     
     # Optimizer
-    # TODO: Inicializar queue_service cuando esté implementado
-    _optimize_movie_use_case = None  # OptimizeMovieUseCase(queue_service, _encoder_service)
+    # Inicializar cola de optimización
+    _queue_service = get_optimization_queue()
+    _optimize_movie_use_case = OptimizeMovieUseCase(_queue_service, _encoder_service)
     _estimate_size_use_case = EstimateSizeUseCase(_encoder_service)
     
     # Auth

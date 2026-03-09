@@ -24,7 +24,7 @@ FFPROBE_CMD = ["docker", "exec", FFMPEG_CONTAINER, "ffprobe"]
 
 # Directorios compartidos (deben coincidir con el docker-compose)
 SHARED_INPUT = "/shared/input"
-SHARED_OUTPUT = "/shared/output"
+SHARED_OUTPUT = "/shared/outputs"
 SHARED_TEMP = "/shared/temp"
 
 class FFmpegInfo:
@@ -39,7 +39,7 @@ class FFmpegInfo:
     def _map_to_shared_path(self, local_path: str) -> str:
         """Convierte una ruta local a su equivalente en el contenedor"""
         if "/mnt/DATA_2TB/audiovisual/mkv" in local_path:
-            return local_path.replace("/mnt/DATA_2TB/audiovisual/mkv", "/shared/output")
+            return local_path.replace("/mnt/DATA_2TB/audiovisual/mkv", "/shared/outputs")
         elif "/app/uploads" in local_path:
             return local_path.replace("/app/uploads", "/shared/uploads")
         elif "/app/temp" in local_path:
@@ -374,7 +374,7 @@ class FFmpegRunner:
     def _map_to_shared_path(self, local_path: str) -> str:
         """Convierte ruta local a ruta en contenedor"""
         if "/mnt/DATA_2TB/audiovisual/mkv" in local_path:
-            return local_path.replace("/mnt/DATA_2TB/audiovisual/mkv", "/shared/output")
+            return local_path.replace("/mnt/DATA_2TB/audiovisual/mkv", "/shared/outputs")
         elif "/app/uploads" in local_path:
             return local_path.replace("/app/uploads", "/shared/uploads")
         elif "/app/temp" in local_path:

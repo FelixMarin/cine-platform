@@ -17,10 +17,10 @@ const CONFIG = {
         downloadsActive: '/api/downloads/active',
         downloadStatus: (id) => `/api/downloads/${id}/status`,
         downloadCancel: (id) => `/api/downloads/${id}/cancel`,
-        optimizeStart: '/api/optimize/start',
-        optimizeStatus: '/api/optimize/status',
-        optimizeCancel: (id) => `/api/optimize/cancel/${id}`,
-        optimizeProfiles: '/api/optimize/profiles'
+        optimizeStart: '/api/optimizer/optimize',
+        optimizeStatus: '/api/optimizer/status',
+        optimizeCancel: '/api/optimizer/cancel',
+        optimizeProfiles: '/api/optimizer/profiles'
     }
 };
 
@@ -494,7 +494,7 @@ function renderDownloads() {
                         </button>
                     ` : ''}
                     ${isCompleted ? `
-                        <button class="btn-process btn-optimize" onclick="TorrentOptimize.showOptimizeModal({id: '${download.id}', name: '${encodeURIComponent(download.title)}', size: ${download.size || 0}})">
+                        <button class="btn-process btn-optimize" onclick="TorrentOptimize.showOptimizeModal({id: '${download.id}', name: '${encodeURIComponent(download.title)}', size: ${download.size_total || download.sizeTotal || 0}})">
                             🚀 GPU Optimize
                         </button>
                     ` : ''}
@@ -575,7 +575,8 @@ async function refreshOptimizations() {
         const data = await response.json();
 
         if (response.ok) {
-            state.optimizations = data.optimizations || [];
+            // El backend devuelve active_jobs, convertir al formato que espera el frontend
+            state.optimizations = data.active_jobs || [];
             renderOptimizations();
         }
     } catch (error) {
@@ -602,36 +603,37 @@ function renderOptimizations() {
 
     container.innerHTML = state.optimizations.map(opt => {
         const progress = opt.progress || 0;
+        const inputFilename = opt.input_path ? opt.input_path.split('/').pop().split('\\').pop() : 'Optimización';
+        const metrics = opt.metrics || {};
 
         return `
             <div class="process-card" data-id="${opt.id}">
                 <div class="process-header">
-                    <h3 class="process-title">${opt.title || 'Optimización'}</h3>
+                    <h3 class="process-title">${inputFilename}</h3>
                     <span class="process-status ${opt.status === 'running' ? 'running' : 'pending'}">
                         ${opt.status === 'running' ? '⚡ ' + progress.toFixed(1) + '%' : opt.status}
                     </span>
                 </div>
                 <div class="process-meta">
-                    <span class="process-meta-item">📋 ${opt.profile || 'default'}</span>
-                    <span class="process-meta-item">⏱️ ${formatTime(opt.eta)}</span>
-                    <span class="process-meta-item">🔄 ${opt.speed || '1x'}</span>
+                    <span class="process-meta-item">📋 ${opt.profile || 'balanced'}</span>
+                    <span class="process-meta-item">📁 ${opt.category || 'default'}</span>
                 </div>
                 <div class="metrics-grid">
                     <div class="metric">
-                        <div class="metric-value">${opt.fps || '--'}</div>
+                        <div class="metric-value">${metrics.fps || '--'}</div>
                         <div class="metric-label">FPS</div>
                     </div>
                     <div class="metric">
-                        <div class="metric-value">${opt.bitrate || '--'}</div>
+                        <div class="metric-value">${metrics.bitrate || '--'}</div>
                         <div class="metric-label">Bitrate</div>
                     </div>
                     <div class="metric">
-                        <div class="metric-value">${opt.frame || '--'}</div>
-                        <div class="metric-label">Frame</div>
+                        <div class="metric-value">${metrics.current_size ? metrics.size_formatted : '--'}</div>
+                        <div class="metric-label">Size</div>
                     </div>
                     <div class="metric">
-                        <div class="metric-value">${formatTime(opt.elapsed)}</div>
-                        <div class="metric-label">Elapsed</div>
+                        <div class="metric-value">${metrics.current_time ? metrics.current_time.toFixed(0) + 's' : '--'}</div>
+                        <div class="metric-label">Time</div>
                     </div>
                 </div>
                 <div class="process-progress">
@@ -652,11 +654,11 @@ function renderOptimizations() {
 /**
  * Inicia optimización de un archivo descargado
  */
-async function startOptimization(downloadId, title) {
+async function startOptimization(downloadId, title, filePath) {
     const titleDecoded = decodeURIComponent(title);
 
     // Seleccionar perfil
-    const profile = document.getElementById('optimize-profile')?.value || 'default';
+    const profile = document.getElementById('optimize-profile')?.value || 'balanced';
 
     try {
         const response = await fetch(CONFIG.endpoints.optimizeStart, {
@@ -665,8 +667,7 @@ async function startOptimization(downloadId, title) {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                downloadId,
-                title: titleDecoded,
+                file_path: filePath,
                 profile
             })
         });
@@ -694,8 +695,14 @@ async function cancelOptimization(id) {
     }
 
     try {
-        const response = await fetch(CONFIG.endpoints.optimizeCancel(id), {
-            method: 'POST'
+        const response = await fetch(CONFIG.endpoints.optimizeCancel, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                process_id: id
+            })
         });
 
         const data = await response.json();

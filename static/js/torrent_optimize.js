@@ -130,8 +130,9 @@ const TorrentOptimize = (function () {
             document.body.appendChild(modal);
         }
 
+        const decodedName = decodeURIComponent(torrent.name);
         // Llenar información del torrent
-        document.getElementById('optimize-torrent-name').textContent = torrent.name || 'Sin nombre';
+        document.getElementById('optimize-torrent-name').textContent = decodedName || 'Sin nombre';
         document.getElementById('optimize-torrent-size').textContent = formatSize(torrent.size || 0);
         document.getElementById('optimize-torrent-id').value = torrent.id;
 
@@ -142,8 +143,13 @@ const TorrentOptimize = (function () {
         checkGpuStatus().then(result => {
             const gpuStatus = document.getElementById('optimize-gpu-status');
             if (result.success) {
-                gpuStatus.textContent = result.gpu_available ? '✅ GPU NVIDIA detectada' : '⚠️ Sin GPU (usando CPU)';
-                gpuStatus.className = result.gpu_available ? 'status-success' : 'status-warning';
+                if (result.gpu_available && result.gpu_name) {
+                    gpuStatus.textContent = `✅ ${result.gpu_name} detectada`;
+                    gpuStatus.className = 'status-success';
+                } else {
+                    gpuStatus.textContent = '⚠️ Sin GPU (usando CPU)';
+                    gpuStatus.className = 'status-warning';
+                }
             } else {
                 gpuStatus.textContent = '❌ Error verificando GPU';
                 gpuStatus.className = 'status-error';

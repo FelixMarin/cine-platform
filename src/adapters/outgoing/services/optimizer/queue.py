@@ -257,6 +257,128 @@ class OptimizationQueue:
                 for key, value in kwargs.items():
                     if hasattr(job, key):
                         setattr(job, key, value)
+    
+    def get_status(self) -> Dict:
+        """
+        Obtiene el estado actual de la cola de optimización
+        
+        Returns:
+            Diccionario con el estado de la cola y los trabajos activos
+        """
+        with self._lock:
+            active_jobs = [
+                j for j in self._jobs.values()
+                if j.status in [JobStatus.PENDING, JobStatus.RUNNING]
+            ]
+            
+            # Obtener trabajo actual si hay alguno ejecutándose
+            current_job = None
+            for job in active_jobs:
+                if job.status == JobStatus.RUNNING:
+                    current_job = job
+                    break
+            
+            return {
+                'status': 'running' if self._running_count > 0 else 'idle',
+                'current_job': current_job.to_dict() if current_job else None,
+                'active_jobs': [j.to_dict() for j in active_jobs],
+                'pending_count': sum(1 for j in self._jobs.values() if j.status == JobStatus.PENDING),
+                'running_count': self._running_count,
+                'total_jobs': len(self._jobs)
+            }
+    
+    # Métodos para implementar IQueueService
+    def add_task(self, task: Dict) -> bool:
+        """
+        Añade una tarea a la cola (interfaz IQueueService)
+        
+        Args:
+            task: Diccionario con los datos de la tarea
+            
+        Returns:
+            True si se añadió correctamente
+        """
+        try:
+            filename = task.get('filename', 'unknown')
+            filepath = task.get('filepath', '')
+            profile = task.get('profile', 'balanced')
+            
+            if not filepath:
+                return False
+            
+            # Generar output_path basado en el input_path
+            import os
+            base, ext = os.path.splitext(filepath)
+            output_path = f"{base}_optimized{ext}"
+            
+            # Obtener categoría del task o usar 'default'
+            category = task.get('category', 'default')
+            
+            self.add_job(filepath, output_path, category, profile)
+            return True
+        except Exception as e:
+            logger.error(f"[Queue] Error adding task: {e}")
+            return False
+    
+    def get_task(self) -> Optional[Dict]:
+        """
+        Obtiene la siguiente tarea de la cola (interfaz IQueueService)
+        """
+        with self._lock:
+            for job in self._jobs.values():
+                if job.status == JobStatus.PENDING:
+                    return job.to_dict()
+        return None
+    
+    def cancel_current_task(self) -> bool:
+        """
+        Cancela la tarea actual (interfaz IQueueService)
+        """
+        with self._lock:
+            for job in self._jobs.values():
+                if job.status == JobStatus.RUNNING:
+                    job.status = JobStatus.CANCELLED
+                    logger.info(f"[Queue] Task cancelled: {job.id}")
+                    return True
+        return False
+    
+    def clear_queue(self) -> bool:
+        """
+        Vacía la cola de procesamiento (interfaz IQueueService)
+        """
+        with self._lock:
+            self._jobs.clear()
+            logger.info("[Queue] Queue cleared")
+            return True
+    
+    def get_queue_size(self) -> int:
+        """
+        Obtiene el tamaño de la cola (interfaz IQueueService)
+        """
+        with self._lock:
+            return len(self._jobs)
+    
+    def start(self) -> bool:
+        """
+        Inicia el worker de procesamiento (interfaz IQueueService)
+        """
+        self._stop_event.clear()
+        logger.info("[Queue] Queue started")
+        return True
+    
+    def stop(self) -> bool:
+        """
+        Detiene el worker de procesamiento (interfaz IQueueService)
+        """
+        self._stop_event.set()
+        logger.info("[Queue] Queue stopped")
+        return True
+    
+    def is_running(self) -> bool:
+        """
+        Verifica si el worker está corriendo (interfaz IQueueService)
+        """
+        return self._running_count > 0
 
 
 # Instancia global de la cola

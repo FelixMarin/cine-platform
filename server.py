@@ -172,7 +172,19 @@ def create_app():
     init_proxy_routes()
     init_streaming_routes()
     init_thumbnails_routes()
-    init_torrent_optimize_routes(optimize_movie_use_case)
+    
+    # Inicializar TorrentOptimizer con parámetros necesarios
+    from src.adapters.outgoing.services.ffmpeg import TorrentOptimizer
+    from src.adapters.outgoing.services.transmission import TransmissionClient
+    _torrent_optimizer = TorrentOptimizer(
+        upload_folder=settings.UPLOAD_FOLDER,
+        output_folder=settings.MOVIES_BASE_PATH,
+    )
+    _transmission_client = TransmissionClient()
+    init_torrent_optimize_routes(
+        transmission_client=_transmission_client,
+        torrent_optimizer=_torrent_optimizer
+    )
 
     # Registrar blueprints
     app.register_blueprint(main_page_bp)  # Página principal y favicon
