@@ -1,3 +1,5 @@
+version: '3.8'
+
 services:
   # ==========================================================================
   # SERVICIOS EXTERNOS
@@ -117,13 +119,9 @@ services:
       - USER=${TRANSMISSION_USERNAME}
       - PASS=${TRANSMISSION_PASSWORD}
     volumes:
-      - transmission-config:/config
-      - /mnt/DATA_2TB/administracion-peliculas:/downloads
+      - /mnt/DATA_2TB/administracion-peliculas/transmission/config:/config
+      - /mnt/DATA_2TB/administracion-peliculas/downloads:/downloads
       - /mnt/DATA_2TB/audiovisual/mkv:/watch
-      - ./temp:/shared/temp
-      - ./uploads:/shared/uploads
-      - ./outputs:/shared/outputs
-      - ./temp:/shared/input
     networks:
       - cine-network
 
@@ -145,10 +143,9 @@ services:
     ports:
       - "8082:8080"
     volumes:
-      - ./temp:/shared/temp
-      - ./uploads:/shared/uploads
-      - ./outputs:/shared/outputs
-      - ./temp:/shared/input
+      - /mnt/DATA_2TB/administracion-peliculas/ffmpeg/temp:/shared/temp
+      - /mnt/DATA_2TB/administracion-peliculas/ffmpeg/uploads:/shared/uploads
+      - /mnt/DATA_2TB/administracion-peliculas/ffmpeg/outputs:/shared/outputs
     networks:
       - cine-network
     healthcheck:
@@ -157,6 +154,56 @@ services:
       timeout: 10s
       retries: 3
       start_period: 10s
+
+  # ==========================================================================
+  # POSTGRES PARA CINE APP DB
+  # ==========================================================================
+  cine-postgres:
+    image: postgres:15-alpine
+    container_name: cine-postgres-dev
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: cine_app_db
+      POSTGRES_USER: cine_app_user
+      POSTGRES_PASSWORD: ${CINE_DB_PASSWORD:-cine_app_dev_password}
+    ports:
+      - "5433:5432"
+    volumes:
+      - cine_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cine_app_user -d cine_app_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    networks:
+      - cine-network
+
+  # ==========================================================================
+  # FLYWAY MIGRATIONS
+  # ==========================================================================
+  flyway:
+    image: flyway/flyway:latest
+    container_name: cine-flyway
+    command: migrate
+    env_file:
+      - .env.dev
+    environment:
+      - FLYWAY_URL=jdbc:postgresql://cine-postgres:5432/${CINE_DB_NAME}
+      - FLYWAY_USER=${CINE_DB_USER}
+      - FLYWAY_PASSWORD=${CINE_DB_PASSWORD}
+      - FLYWAY_SCHEMAS=public
+      - FLYWAY_BASELINE_ON_MIGRATE=true
+      - FLYWAY_CONNECT_RETRIES=30
+    volumes:
+      - ./migrations:/flyway/sql
+    depends_on:
+      cine-postgres:
+        condition: service_healthy
+    networks:
+      - cine-network
+    profiles:
+      - migrate
 
   # ==========================================================================
   # APLICACIÓN PRINCIPAL
@@ -203,24 +250,21 @@ services:
       PROWLARR_API_KEY: ${PROWLARR_API_KEY}
       JACKETT_URL: http://jackett:9117
       JACKETT_API_KEY: ${JACKETT_API_KEY}
-      TRANSMISSION_URL: http://transmission:9091
+      TRANSMISSION_URL: http://transmission:9091/transmission/rpc
       TRANSMISSION_USERNAME: ${TRANSMISSION_USERNAME}
       TRANSMISSION_PASSWORD: ${TRANSMISSION_PASSWORD}
+      TRANSMISSION_DOWNLOAD_DIR: /downloads
       # FFmpeg API
       FFMPEG_API_URL: http://ffmpeg-api:8080
     volumes:
-      - ./uploads:/app/uploads
-      - ./temp:/app/temp
-      - ./outputs:/app/outputs
-      - ./logs:/app/logs
+      - /mnt/DATA_2TB/administracion-peliculas/ffmpeg/uploads:/app/uploads
+      - /mnt/DATA_2TB/administracion-peliculas/ffmpeg/temp:/app/temp
+      - /mnt/DATA_2TB/administracion-peliculas/ffmpeg/outputs:/app/outputs
+      - /mnt/DATA_2TB/administracion-peliculas/ffmpeg/logs:/app/logs
       - ${MOVIES_FOLDER}:/data/movies
       - /mnt/DATA_2TB/audiovisual/mkv:/mnt/DATA_2TB/audiovisual/mkv
       - /mnt/DATA_2TB/administracion-peliculas:/mnt/DATA_2TB/administracion-peliculas
-      - /mnt/DATA_2TB/administracion-peliculas:/downloads
-      - ./temp:/shared/temp
-      - ./uploads:/shared/uploads
-      - ./outputs:/shared/outputs
-      - ./temp:/shared/input
+      - /mnt/DATA_2TB/administracion-peliculas/downloads:/downloads
     extra_hosts:
       - "host.docker.internal:host-gateway"
     networks:
@@ -246,6 +290,8 @@ volumes:
     driver: local
   transmission-config:
     driver: local
+  cine_postgres_data:
+    name: cine_postgres_dev_data
 
 # ==========================================================================
 # REDES

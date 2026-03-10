@@ -141,6 +141,16 @@
                             <option value="">Seleccionar categoría...</option>
                         </select>
                     </div>
+
+                    <!-- Filtro de idioma español -->
+                    <div class="spanish-filter">
+                        <label class="filter-toggle">
+                            <input type="checkbox" id="spanish-filter-checkbox" checked 
+                                   onchange="toggleSpanishFilter()">
+                            <span class="filter-slider"></span>
+                            <span class="filter-label">🇪🇸 Mostrar solo resultados en español</span>
+                        </label>
+                    </div>
                 </div>
 
                 <div id="search-status" class="search-status"></div>
@@ -223,6 +233,9 @@
                     <p id="download-name" class="download-name"></p>
                     <p id="download-category" class="download-category"></p>
                 </div>
+                
+                <!-- Campo oculto para la URL del torrent -->
+                <input type="hidden" id="modal-torrent-url" value="">
                 
                 <!-- Selector de categoría en el modal -->
                 <div class="category-selector" style="margin: 15px 0;">

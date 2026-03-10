@@ -8,6 +8,8 @@
     <!-- Estilos principales -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/main/main.css') }}?v={{ range(1, 10000) | random }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/menu/menu.css') }}?v={{ range(1, 10000) | random }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/profile.css') }}?v={{ range(1, 10000) | random }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/notifications.css') }}?v={{ range(1, 10000) | random }}">
 </head>
 
 <body class="dark-mode">
@@ -75,6 +77,52 @@
     <!-- Contenido principal -->
     <main class="main-content" id="mainContent" role="main">
 
+        <!-- Header con icono de perfil -->
+        <div class="profile-header">
+            <div class="profile-dropdown" id="profileDropdown">
+                <button class="profile-button" onclick="toggleProfileMenu()">
+                    <img src="{{ session.get('avatar_url') or url_for('static', filename='images/default.jpg') }}" 
+                         alt="Perfil" 
+                         class="profile-avatar"
+                         id="profileAvatar">
+                    <span class="profile-name">{{ session.get('display_name') or session.get('username') or 'Usuario' }}</span>
+                    <span class="profile-arrow">▼</span>
+                </button>
+                
+                <!-- Menú desplegable -->
+                <div class="dropdown-menu" id="profileMenu">
+                    <div class="dropdown-header">
+                        <strong>{{ session.get('display_name') or session.get('username') or 'Usuario' }}</strong>
+                        <span class="dropdown-email">{{ session.get('email') or '' }}</span>
+                    </div>
+                    
+                    <div class="dropdown-divider"></div>
+                    
+                    <button class="dropdown-item" onclick="showProfileModal(); return false;">
+                        <span class="dropdown-icon">👤</span>
+                        Mi Perfil
+                    </button>
+                    
+                    <button class="dropdown-item" onclick="showSettingsModal(); return false;">
+                        <span class="dropdown-icon">⚙️</span>
+                        Configuración
+                    </button>
+                    
+                    <button class="dropdown-item" onclick="showWatchlistModal(); return false;">
+                        <span class="dropdown-icon">📋</span>
+                        Mi Watchlist
+                    </button>
+                    
+                    <div class="dropdown-divider"></div>
+                    
+                    <a href="/logout" class="dropdown-item logout">
+                        <span class="dropdown-icon">🚪</span>
+                        Cerrar Sesión
+                    </a>
+                </div>
+            </div>
+        </div>
+
         <!-- Tabs ocultos (compatibilidad) -->
         <div class="tabs" style="display: none;">
             <a id="moviesTab" class="tab-link active" onclick="showTab('movies')">Películas</a>
@@ -119,6 +167,51 @@
 
     </main>
 
+    <!-- Modal de perfil -->
+    <div id="profileModal" class="modal" style="display: none;">
+        <div class="modal-content profile-modal">
+            <div class="modal-header">
+                <h2>Mi Perfil</h2>
+                <button class="close-btn" onclick="closeProfileModal()">&times;</button>
+            </div>
+            <div class="modal-body" id="profileModalBody">
+                <div class="loading-spinner">Cargando...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de configuración -->
+    <div id="settingsModal" class="modal" style="display: none;">
+        <div class="modal-content settings-modal">
+            <div class="modal-header">
+                <h2>Configuración</h2>
+                <button class="close-btn" onclick="closeSettingsModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>Próximamente...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de watchlist -->
+    <div id="watchlistModal" class="modal" style="display: none;">
+        <div class="modal-content watchlist-modal">
+            <div class="modal-header">
+                <h2>Mi Watchlist</h2>
+                <button class="close-btn" onclick="closeWatchlistModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>Próximamente...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Overlay para modales -->
+    <div id="modalOverlay" class="modal-overlay" style="display: none;" onclick="closeAllModals()"></div>
+
+    <!-- Notificaciones -->
+    <div id="notificationContainer" class="notification-container"></div>
+
     <!-- Cargar módulos en orden -->
     <script src="{{ url_for('static', filename='js/main/cache.js') }}?v={{ range(1, 10000) | random }}" defer></script>
     <script src="{{ url_for('static', filename='js/main/categoryUtils.js') }}?v={{ range(1, 10000) | random }}" defer></script>
@@ -128,6 +221,8 @@
     <script src="{{ url_for('static', filename='js/main/menu.js') }}?v={{ range(1, 10000) | random }}" defer></script>
     <script src="{{ url_for('static', filename='js/main/utils.js') }}?v={{ range(1, 10000) | random }}" defer></script>
     <script src="{{ url_for('static', filename='js/main/api.js') }}?v={{ range(1, 10000) | random }}" defer></script>
+    <script src="{{ url_for('static', filename='js/notifications.js') }}?v={{ range(1, 10000) | random }}" defer></script>
+    <script src="{{ url_for('static', filename='js/profile.js') }}?v={{ range(1, 10000) | random }}" defer></script>
     <script src="{{ url_for('static', filename='js/main/init.js') }}?v={{ range(1, 10000) | random }}" defer></script>
 </body>
 </html>

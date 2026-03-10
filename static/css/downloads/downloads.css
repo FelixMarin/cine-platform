@@ -265,6 +265,54 @@
     background: #ff6b6b;
 }
 
+/* Botón de optimización */
+.btn-optimize {
+    background: linear-gradient(135deg, #4f46e5 0%, #06b6d4 100%);
+    color: white;
+}
+
+.btn-optimize:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(79, 70, 229, 0.4);
+}
+
+/* Estado: optimizando (pendiente) */
+.btn-pending {
+    background-color: #ffc107;
+    color: #000;
+    cursor: not-allowed;
+    opacity: 0.9;
+}
+
+.btn-pending:hover {
+    transform: none;
+    box-shadow: none;
+}
+
+/* Estado: completado */
+.btn-success {
+    background-color: #28a745;
+    color: #fff;
+    cursor: default;
+}
+
+.btn-success:hover {
+    transform: none;
+    box-shadow: none;
+}
+
+/* Estado: error */
+.btn-error {
+    background-color: #dc3545;
+    color: #fff;
+    cursor: default;
+}
+
+.btn-error:hover {
+    transform: none;
+    box-shadow: none;
+}
+
 /* Estados vacíos */
 .empty-state {
     text-align: center;
@@ -450,4 +498,96 @@
     .metrics-grid {
         grid-template-columns: repeat(2, 1fr);
     }
+}
+
+/* ==========================================================================
+   FILTRO DE IDIOMA ESPAÑOL
+   ========================================================================== */
+
+.spanish-filter {
+    display: flex;
+    align-items: center;
+    margin-top: 15px;
+    padding: 10px 15px;
+    background: rgba(233, 69, 96, 0.1);
+    border: 1px solid rgba(233, 69, 96, 0.3);
+    border-radius: 8px;
+}
+
+.filter-toggle {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    user-select: none;
+}
+
+.filter-toggle input {
+    display: none;
+}
+
+.filter-slider {
+    position: relative;
+    width: 44px;
+    height: 24px;
+    background-color: #2a2a4a;
+    border-radius: 24px;
+    transition: 0.3s;
+    margin-right: 12px;
+}
+
+.filter-slider::before {
+    content: "";
+    position: absolute;
+    height: 18px;
+    width: 18px;
+    left: 3px;
+    bottom: 3px;
+    background-color: #a0a0a0;
+    border-radius: 50%;
+    transition: 0.3s;
+}
+
+.filter-toggle input:checked + .filter-slider {
+    background-color: #e94560;
+}
+
+.filter-toggle input:checked + .filter-slider::before {
+    transform: translateX(20px);
+    background-color: white;
+}
+
+.filter-label {
+    color: #eaeaea;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+/* Badge de contenido en español */
+.spanish-badge {
+    display: inline-block;
+    margin-left: 8px;
+    padding: 2px 8px;
+    background: linear-gradient(135deg, #e94560 0%, #ff6b6b 100%);
+    color: white;
+    font-size: 0.7rem;
+    font-weight: 600;
+    border-radius: 10px;
+    text-transform: uppercase;
+}
+
+/* Tarjeta de contenido en español */
+.process-card.spanish-content {
+    border-left: 3px solid #e94560;
+}
+
+/* Estado de búsqueda */
+.search-status {
+    padding: 8px 15px;
+    color: #a0a0a0;
+    font-size: 0.85rem;
+    margin-top: 10px;
+}
+
+.search-status:empty {
+    display: none;
 }

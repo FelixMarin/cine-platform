@@ -56,7 +56,7 @@ def stream_video(filename):
         return 'File not found', 404
     
     check_time = time.time() - start_check
-    logger.info(f"⏱️ File check: {check_time:.3f}s - path: {file_path}")
+    logger.debug(f"⏱️ File check: {check_time:.3f}s - path: {file_path}")
     
     if not os.path.exists(file_path):
         return 'File not found', 404
@@ -65,7 +65,7 @@ def stream_video(filename):
     start_size = time.time()
     file_size = os.path.getsize(file_path)
     size_time = time.time() - start_size
-    logger.info(f"⏱️ File size: {size_time:.3f}s - {file_size/1024/1024:.2f}MB")
+    logger.debug(f"⏱️ File size: {size_time:.3f}s - {file_size/1024/1024:.2f}MB")
     
     # Obtener rango de bytes si existe
     range_header = request.headers.get('Range')
@@ -97,7 +97,7 @@ def stream_video(filename):
         }
         
         total_time = time.time() - start_total
-        logger.info(f"⏱️ Range request TOTAL: {total_time:.3f}s")
+        logger.debug(f"⏱️ Range request TOTAL: {total_time:.3f}s")
         
         return Response(data, status=206, headers=headers)
     else:
@@ -172,7 +172,7 @@ def stream_video_by_id(movie_id):
     start_size = time.time()
     file_size = os.path.getsize(file_path)
     size_time = time.time() - start_size
-    logger.info(f"⏱️ File size: {size_time:.3f}s - {file_size/1024/1024:.2f}MB")
+    logger.debug(f"⏱️ File size: {size_time:.3f}s - {file_size/1024/1024:.2f}MB")
     
     # Obtener rango de bytes si existe
     range_header = request.headers.get('Range')
@@ -190,7 +190,7 @@ def stream_video_by_id(movie_id):
         # Calcular tamaño del chunk
         chunk_size = end - start + 1
         
-        logger.info(f"📡 Range: {start}-{end} ({chunk_size/1024/1024:.1f}MB) - Buffer: {BUFFER_SIZE/1024}KB")
+        logger.debug(f"📡 Range: {start}-{end} ({chunk_size/1024/1024:.1f}MB) - Buffer: {BUFFER_SIZE/1024}KB")
         
         # Generador con buffer grande para streaming eficiente
         def generate_large_chunks():
@@ -321,7 +321,7 @@ def stream_episode_by_id(episode_id):
     start_size = time.time()
     file_size = os.path.getsize(file_path)
     size_time = time.time() - start_size
-    logger.info(f"⏱️ File size: {size_time:.3f}s - {file_size/1024/1024:.2f}MB")
+    logger.debug(f"⏱️ File size: {size_time:.3f}s - {file_size/1024/1024:.2f}MB")
     
     # Obtener rango de bytes si existe
     range_header = request.headers.get('Range')
@@ -339,7 +339,7 @@ def stream_episode_by_id(episode_id):
         # Calcular tamaño del chunk
         chunk_size = end - start + 1
         
-        logger.info(f"📡 Range: {start}-{end} ({chunk_size/1024/1024:.1f}MB)")
+        logger.debug(f"📡 Range: {start}-{end} ({chunk_size/1024/1024:.1f}MB)")
         
         # Generador con buffer grande para streaming eficiente
         def generate_large_chunks():

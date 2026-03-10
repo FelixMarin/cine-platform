@@ -89,12 +89,12 @@ def get_movies():
         start_step1 = time.time()
         movies = _list_movies_use_case.execute()
         step1_time = time.time() - start_step1
-        logger.info(f"⏱️ PASO 1 (execute): {step1_time:.2f}s - {len(movies)} películas")
+        logger.debug(f"⏱️ PASO 1 (execute): {step1_time:.2f}s - {len(movies)} películas")
         
         # === LOGS DE DEPURACIÓN ===
-        logger.info(f"🔍 Movies tipo: {type(movies)}")
+        logger.debug(f"🔍 Movies tipo: {type(movies)}")
         if movies:
-            logger.info(f"🔍 Primera película: {movies[0]}")
+            logger.debug(f"🔍 Primera película: {movies[0]}")
         # ===========================
         
         # Verificar tipo
@@ -114,7 +114,7 @@ def get_movies():
                 pass
         new_movies.sort(key=lambda x: x.get('days_ago', 999))
         step2_time = time.time() - start_step2
-        logger.info(f"⏱️ PASO 2 (filtrar nuevas): {step2_time:.2f}s - {len(new_movies)} nuevas")
+        logger.debug(f"⏱️ PASO 2 (filtrar nuevas): {step2_time:.2f}s - {len(new_movies)} nuevas")
         
         # PASO 3: Construir categorías
         start_step3 = time.time()
@@ -147,7 +147,7 @@ def get_movies():
             categorias.append([cat_name, cat_movies])
         
         step3_time = time.time() - start_step3
-        logger.info(f"⏱️ PASO 3 (categorizar): {step3_time:.2f}s - {len(categorias)} categorías")
+        logger.debug(f"⏱️ PASO 3 (categorizar): {step3_time:.2f}s - {len(categorias)} categorías")
         
         # PASO 4: Obtener series
         start_step4 = time.time()
@@ -166,7 +166,7 @@ def get_movies():
             except Exception as e:
                 logger.error(f"❌ Error obteniendo series: {e}")
         step4_time = time.time() - start_step4
-        logger.info(f"⏱️ PASO 4 (series): {step4_time:.2f}s")
+        logger.debug(f"⏱️ PASO 4 (series): {step4_time:.2f}s")
         
         # PASO 5: Normalizar
         start_step5 = time.time()
@@ -176,18 +176,18 @@ def get_movies():
         }
         
         # === LOGS DE DEPURACIÓN ===
-        logger.info(f"🔍 Response categorias: {len(categorias)} categorías")
-        logger.info(f"🔍 Response series: {len(series)} series")
+        logger.debug(f"🔍 Response categorias: {len(categorias)} categorías")
+        logger.debug(f"🔍 Response series: {len(series)} series")
         if categorias:
-            logger.info(f"🔍 Primera categoría: {categorias[0]}")
+            logger.debug(f"🔍 Primera categoría: {categorias[0]}")
         # ===========================
         
         normalized = normalize_dict(response_data)
         step5_time = time.time() - start_step5
-        logger.info(f"⏱️ PASO 5 (normalizar): {step5_time:.2f}s")
+        logger.debug(f"⏱️ PASO 5 (normalizar): {step5_time:.2f}s")
         
         total_time = time.time() - start_total
-        logger.info(f"⏱️ TOTAL: {total_time:.2f}s")
+        logger.debug(f"⏱️ TOTAL: {total_time:.2f}s")
         
         return jsonify(normalized)
     

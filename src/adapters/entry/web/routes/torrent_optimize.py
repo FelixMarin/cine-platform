@@ -16,7 +16,7 @@ import logging
 import os
 import subprocess
 import logging
-from flask import Blueprint, jsonify, request
+from flask import redirect, Blueprint, jsonify, request
 from src.infrastructure.config.settings import settings
 from src.adapters.entry.web.middleware.auth_middleware import require_auth, require_role
 from src.adapters.outgoing.services.ffmpeg import TorrentOptimizer
@@ -71,32 +71,15 @@ def init_torrent_optimize_routes(transmission_client=None, torrent_optimizer=Non
 def optimize_torrent():
     """
     Inicia la optimización de un torrent descargado
-
-    Request Body (JSON):
-        torrent_id (int): ID del torrent en Transmission (requerido)
-        category (str): Categoría para organizar (requerido)
-
-    Returns:
-        JSON con ID del proceso de optimización
-
-    Example:
-        POST /api/optimize-torrent
-        {
-            "torrent_id": 1,
-            "category": "action"
-        }
-
-        Response:
-        {
-            "success": true,
-            "process_id": "uuid-unico",
-            "message": "Optimización iniciada"
-        }
+    
     """
     data = request.get_json() or {}
 
     torrent_id = data.get("torrent_id")
     category = data.get("category", "action")
+    filename = data.get("filename")
+    
+    logger.info(f"[API] Datos recibidos: {data}")
 
     # Validar parámetros
     if not torrent_id:
@@ -110,42 +93,22 @@ def optimize_torrent():
         ), 400
 
     logger.info(
-        f"[API] Iniciando optimización para torrent {torrent_id}, categoría: {category}"
+        f"[API] Iniciando optimización para torrent {torrent_id}, categoría: {category}, archivo: {filename}"
     )
 
     try:
-        # Validar progreso del torrent (debe estar >= 99.9% para optimizar)
-        # Lo hace el optimizador internamente, pero verificamos aquí para dar mejor error
-        torrent = _transmission_client.get_torrent(torrent_id)
-
-        if not torrent:
-            return jsonify(
-                {"success": False, "error": f"Torrent {torrent_id} no encontrado"}
-            ), 404
-
-        # Verificar progreso del torrent
-        if torrent.size_when_done > 0:
-            progress_percent = (torrent.downloaded_ever / torrent.size_when_done) * 100
-        else:
-            progress_percent = 0
+        # El TorrentOptimizer busca el archivo directamente en las carpetas de Transmission
+        # No necesitamos validar con Transmission aquí, el botón GPU Optimize
+        # solo aparece cuando el torrent está completado (100%)
         
-        logger.info(f"[API] Torrent: {torrent.name}, progress={torrent.progress}%, calculated={progress_percent}%")
+        # Obtener filename si se proporciona (opcional, para buscar directamente)
+        filename = data.get("filename")
         
-        if progress_percent < 99.9:
-            return jsonify(
-                {
-                    "success": False,
-                    "error": f"El torrent no está listo (progreso: {progress_percent:.1f}%). Debe estar al 99.9% o más.",
-                }
-            ), 400
-
-        # El optimizador ahora maneja todo: buscar archivo, copiar, llamar a ffmpeg-api
-        logger.info(f"[API] Iniciando optimización para torrent {torrent_id}, categoría: {category}")
-
-        # Llamar al optimizador con torrent_id y categoría
+        # Iniciar optimización directamente
         process_id = _torrent_optimizer.start_optimization(
-            torrent_id=torrent_id, 
-            category=category
+            torrent_id=torrent_id,
+            category=category,
+            filename=filename
         )
 
         return jsonify(
@@ -153,13 +116,17 @@ def optimize_torrent():
                 "success": True,
                 "process_id": process_id,
                 "message": "Optimización iniciada",
-                "input_file": torrent.name,
                 "category": category,
             }
         )
 
+    except FileNotFoundError as e:
+        logger.error(f"[API] Archivo no encontrado: {e}")
+        return jsonify(
+            {"success": False, "error": f"Archivo no encontrado: {str(e)}"}
+        ), 404
     except Exception as e:
-        logger.error(f"[API] Error al iniciar optimización: {str(e)}")
+        logger.error(f"[API] Error al iniciar optimización: {str(e)}", exc_info=True)
         return jsonify(
             {"success": False, "error": f"Error al iniciar optimización: {str(e)}"}
         ), 500
@@ -217,7 +184,10 @@ def get_optimize_status(process_id):
 # ============================================================================
 # ENDPOINT: Listar optimizaciones activas
 # ============================================================================
-
+@torrent_optimize_bp.route("/active", methods=["GET"])
+def active_redirect():
+    """Redirige al endpoint correcto"""
+    return redirect("/api/optimize-torrent/active")
 
 @torrent_optimize_bp.route("/optimize-torrent/active", methods=["GET"])
 @require_role("admin")

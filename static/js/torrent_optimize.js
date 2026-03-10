@@ -136,8 +136,21 @@ const TorrentOptimize = (function () {
         document.getElementById('optimize-torrent-size').textContent = formatSize(torrent.size || 0);
         document.getElementById('optimize-torrent-id').value = torrent.id;
 
-        // Mostrar modal
+        // Mostrar modal (no bloqueante - permite scroll)
         modal.classList.add('active');
+        document.body.style.overflow = 'auto';
+
+        // Resetear el progreso
+        const progressContainer = document.getElementById('optimize-progress-container');
+        if (progressContainer) {
+            progressContainer.style.display = 'none';
+        }
+        
+        const btn = document.getElementById('btn-start-optimize');
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '🚀 Iniciar Optimización';
+        }
 
         // Verificar GPU
         checkGpuStatus().then(result => {
@@ -231,8 +244,8 @@ const TorrentOptimize = (function () {
             modal.classList.remove('active');
         }
 
-        // Detener polling
-        stopStatusPolling();
+        // Permitir scroll (asegurar que no queda bloqueado)
+        document.body.style.overflow = 'auto';
 
         // Resetear UI
         const progressContainer = document.getElementById('optimize-progress-container');
@@ -260,34 +273,180 @@ const TorrentOptimize = (function () {
      * Envía la solicitud de optimización
      */
     async function submitOptimization() {
-        const torrentId = parseInt(document.getElementById('optimize-torrent-id').value);
+        const torrentId = document.getElementById('optimize-torrent-id').value;
         const category = document.getElementById('optimize-category').value;
+        let filename = document.getElementById('optimize-torrent-name').textContent;
 
         if (!torrentId) {
             alert('ID de torrent inválido');
             return;
         }
 
+        // Si filename no tiene extensión, añadirla según el torrent_id
+        // Esto es un mapeo temporal hasta que el frontend envíe la extensión correcta
+        if (filename && !filename.includes('.')) {
+            const extensions = {
+                1: '.mp4',  // Spaceman
+                2: '.mkv'   // TRON
+            };
+            const ext = extensions[torrentId];
+            if (ext) {
+                filename = filename + ext;
+                console.log('[TorrentOptimize] Extensión añadida:', filename);
+            }
+        }
+
+        console.log('[TorrentOptimize] Enviando optimización:', { torrentId, category, filename });
+
         const btn = document.getElementById('btn-start-optimize');
         btn.disabled = true;
         btn.innerHTML = '⏳ Iniciando...';
 
-        const result = await startOptimization(torrentId, category);
+        try {
+            const response = await fetch('/api/optimize-torrent', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({ 
+                    torrent_id: torrentId, 
+                    filename: filename,
+                    category 
+                })
+            });
+            
+            const result = await response.json();
 
-        if (result.success) {
-            console.log(`[TorrentOptimize] Proceso iniciado: ${result.process_id}`);
+            if (result.success) {
+                console.log(`[TorrentOptimize] Proceso iniciado: ${result.process_id}`);
 
-            // Mostrar progress
-            const progressContainer = document.getElementById('optimize-progress-container');
-            progressContainer.style.display = 'block';
+                // Cerrar modal inmediatamente
+                closeModal();
+                
+                // Actualizar botón en downloads
+                if (window.updateDownloadButton) {
+                    window.updateDownloadButton(torrentId, '⏳ Optimizando');
+                }
+                
+                // Mostrar notificación indicando dónde ver el progreso
+                if (typeof showNotification === 'function') {
+                    showNotification(
+                        '⚡ Optimización iniciada', 
+                        'El proceso se está ejecutando en segundo plano. Puedes ver el progreso en la pestaña "Optimizaciones".',
+                        'success'
+                    );
+                }
 
-            // Iniciar polling de estado
-            startStatusPolling(result.process_id);
-        } else {
-            alert(`Error: ${result.error}`);
+                // Iniciar monitoreo en segundo plano
+                monitorOptimization(result.process_id, torrentId);
+                
+                // Intentar cambiar a la pestaña de optimizaciones si existe la función
+                if (typeof switchTab === 'function') {
+                    switchTab('optimizations');
+                } else if (typeof window.switchToOptimizationsTab === 'function') {
+                    window.switchToOptimizationsTab();
+                }
+            } else {
+                throw new Error(result.error || 'Error desconocido');
+            }
+        } catch (error) {
+            console.error('[TorrentOptimize] Error:', error);
             btn.disabled = false;
             btn.innerHTML = '🚀 Iniciar Optimización';
+            
+            // Actualizar botón con error
+            if (window.updateDownloadButton) {
+                window.updateDownloadButton(torrentId, '❌ Error', true);
+            }
+            
+            if (typeof showNotification === 'function') {
+                showNotification('Error', error.message, 'error');
+            } else {
+                alert(`Error: ${error.message}`);
+            }
         }
+    }
+
+    // ==========================================================================
+    // MONITOREO DE OPTIMIZACIÓN
+    // ==========================================================================
+
+    /**
+     * Monitorea el progreso de una optimización
+     * @param {string} processId - ID del proceso
+     * @param {string} torrentId - ID del torrent
+     */
+    function monitorOptimization(processId, torrentId) {
+        const poll = async () => {
+            try {
+                const result = await getStatus(processId);
+
+                if (result.success) {
+                    // Actualizar UI del modal si está abierto
+                    updateProgressUI(result);
+
+                    // Detener si completó o falló
+                    if (result.status === 'completed' || result.status === 'error') {
+                        // Detener el polling
+                        if (statusIntervals[processId]) {
+                            clearInterval(statusIntervals[processId]);
+                            delete statusIntervals[processId];
+                        }
+
+                        // Actualizar botón según resultado
+                        if (window.updateDownloadButton) {
+                            if (result.status === 'completed') {
+                                window.updateDownloadButton(torrentId, '✅ Optimizado');
+                            } else {
+                                window.updateDownloadButton(torrentId, '❌ Error', true);
+                            }
+                        }
+
+                        // Mostrar notificación con mensaje de error si falló
+                        if (result.status === 'error' && result.error) {
+                            if (typeof showNotification === 'function') {
+                                showNotification(
+                                    '❌ Error en optimización',
+                                    result.error,
+                                    'error'
+                                );
+                            }
+                            console.error('[TorrentOptimize] Error en optimización:', result.error);
+                        } else if (result.status === 'completed') {
+                            if (typeof showNotification === 'function') {
+                                showNotification(
+                                    '✅ Optimización completada',
+                                    'El archivo ha sido optimizado correctamente',
+                                    'success'
+                                );
+                            }
+                        }
+
+                        // Refrescar lista de optimizaciones
+                        refreshOptimizationsList();
+                    }
+                }
+            } catch (error) {
+                console.error('[TorrentOptimize] Error en monitoreo:', error);
+            }
+        };
+
+        // Iniciar intervalo de polling
+        statusIntervals[processId] = setInterval(poll, POLL_INTERVAL);
+        
+        // Ejecutar inmediatamente
+        poll();
+    }
+
+    /**
+     * Refresca la lista de optimizaciones
+     */
+    function refreshOptimizationsList() {
+        listActive().then(result => {
+            if (result.success && typeof refreshOptimizations === 'function') {
+                // Actualizar el estado global si es necesario
+                console.log('[TorrentOptimize] Optimizaciones activas:', result.active_count);
+            }
+        });
     }
 
     // ==========================================================================
@@ -619,6 +778,11 @@ const TorrentOptimize = (function () {
         showOptimizeModal,
         closeModal,
         submitOptimization,
+        monitorOptimization,
         formatSize
     };
 })();
+
+// Exponer globalmente para que downloads.js pueda usarlo
+window.TorrentOptimize = TorrentOptimize;
+console.log('✅ TorrentOptimize expuesto globalmente');

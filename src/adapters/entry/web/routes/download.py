@@ -306,12 +306,8 @@ def download_status():
     status_filter = request.args.get("status", "all")
     category_filter = request.args.get("category", "")
 
-    logger.info(f"[API] Obteniendo estado de descargas: {status_filter}")
-
     try:
-        logger.info("[API] 📡 Consultando Transmission...")
         torrents = _transmission_client.get_torrents()
-        logger.info(f"[API] ✅ Transmission respondió: {len(torrents)} torrents")
 
         torrents_data = [t.to_dict() for t in torrents]
 
@@ -329,10 +325,6 @@ def download_status():
 
         downloads = []
         for t in torrents_data:
-            logger.info(
-                f"[API] Torrent {t.get('id')}: {t.get('name')[:30]}... - Progress: {t.get('progress')}%"
-            )
-
             download_speed = t.get("rate_download", 0)
             upload_speed = t.get("rate_upload", 0)
             download_speed_formatted = t.get("download_speed_formatted", "0 B/s")
@@ -346,10 +338,6 @@ def download_status():
             if size_total > 0:
                 calculated_progress = (size_downloaded / size_total) * 100
                 calculated_progress = min(calculated_progress, 100)
-                if abs(calculated_progress - progress) > 1:
-                    logger.info(
-                        f"[API] Progreso: {progress}% → {calculated_progress:.1f}% ({size_downloaded}/{size_total})"
-                    )
                 progress = calculated_progress
 
             eta = t.get("eta", -1)
@@ -436,27 +424,55 @@ def download_from_url():
     if not data:
         return jsonify({"success": False, "error": "Cuerpo vacío"}), 400
 
-    url = data.get("url")
+    url = data.get("url", "").strip()
     category = data.get("category", "Peliculas")
 
     if not url:
         return jsonify({"success": False, "error": "URL requerida"}), 400
 
-    logger.info(f"[API] Descargando desde URL: {url[:50]}...")
+    logger.info(f"[API] Descargando desde URL directa: {url[:100]}...")
 
     try:
+        # Verificar si es URL de indexador (Prowlarr/Jackett)
+        if "prowlarr" in url.lower() or "jackett" in url.lower() or "/download" in url:
+            logger.info("[API] URL de indexador detectada, siguiendo redirección...")
+            url = follow_indexer_redirect(url)
+            logger.info(f"[API] URL final después de redirección: {url[:100]}...")
+
+        # Añadir a Transmission
         result = _transmission_client.add_torrent(url, category=category)
         return jsonify(
             {
                 "success": True,
                 "id": result.get("id"),
                 "title": result.get("name"),
-                "message": "Descarga iniciada",
+                "message": "Descarga iniciada correctamente",
             }
         )
     except Exception as e:
         logger.error(f"[API] Error al descargar: {str(e)}")
         return jsonify({"success": False, "error": str(e)}), 500
+
+
+def follow_indexer_redirect(url, max_redirects=5):
+    """Sigue redirecciones de indexadores para obtener la URL real"""
+    import requests
+    session = requests.Session()
+    session.max_redirects = max_redirects
+    
+    try:
+        # HEAD request es más ligero
+        response = session.head(url, allow_redirects=True, timeout=10)
+        return response.url
+    except:
+        # Si HEAD falla, intentar GET
+        try:
+            response = session.get(url, allow_redirects=True, timeout=10, stream=True)
+            response.close()
+            return response.url
+        except Exception as e:
+            logger.error(f"[API] Error siguiendo redirección: {e}")
+            return url
 
 
 @download_api_bp.route("/downloads/<int:torrent_id>/status", methods=["GET"])
@@ -530,6 +546,9 @@ def download_remove(torrent_id):
 def optimize_status():
     """
     Obtiene el estado de las optimizaciones activas
+    
+    Este endpoint es usado por el frontend para mostrar el progreso
+    en tiempo real de las optimizaciones de torrents.
     """
     logger.info("[API] Obteniendo estado de optimizaciones")
 
@@ -538,30 +557,55 @@ def optimize_status():
 
     try:
         active = _torrent_optimizer.list_active()
-        optimizations = []
-
+        jobs = []
+        
         for opt in active:
-            optimizations.append(
-                {
-                    "id": opt.process_id,
-                    "title": os.path.basename(opt.input_file),
-                    "status": opt.status,
-                    "progress": opt.progress,
-                    "start_time": opt.start_time,
-                }
-            )
+            # Obtener datos detallados del proceso
+            status = _torrent_optimizer.get_api_progress(opt.process_id)
+            
+            jobs.append({
+                "id": opt.process_id,
+                "input_path": opt.input_file,
+                "progress": opt.progress,
+                "status": opt.status,
+                "category": getattr(opt, 'category', 'default'),
+                "profile": getattr(opt, 'profile', 'balanced'),
+                "start_time": opt.start_time,
+                # Métricas de ffmpeg-api
+                "fps": status.get('fps', 0) if status else 0,
+                "bitrate": status.get('bitrate', 0) if status else 0,
+                "current_time": status.get('current_time', 0) if status else 0,
+                "eta": status.get('eta', 0) if status else 0,
+                "size_formatted": status.get('size_formatted', '0 B') if status else '0 B',
+                "elapsed": status.get('elapsed', 0) if status else 0
+            })
 
         return jsonify(
             {
                 "success": True,
-                "optimizations": optimizations,
-                "count": len(optimizations),
-                "message": f"{len(optimizations)} optimizaciones activas",
+                "active_jobs": jobs,
+                "count": len(jobs),
+                "message": f"{len(jobs)} optimizaciones activas",
             }
         )
     except Exception as e:
         logger.error(f"[API] Error obteniendo optimizaciones: {str(e)}")
         return jsonify({"success": False, "error": str(e)}), 500
+
+
+# ============================================================================
+# ENDPOINT: Estado de optimizaciones (compatibilidad con frontend)
+# ============================================================================
+
+
+@download_api_bp.route("/optimizer/status", methods=["GET"])
+@require_role("admin")
+def optimize_status_api():
+    """
+    Endpoint de compatibilidad para el frontend
+    El frontend espera /api/optimizer/status con formato active_jobs
+    """
+    return optimize_status()
 
 
 # ============================================================================
@@ -650,7 +694,7 @@ def download_test():
 @require_role("admin")
 def search_page():
     """Página de búsqueda"""
-    logger.info("[PAGE] Renderizando página de búsqueda")
+    logger.debug("[PAGE] Renderizando página de búsqueda")
     return render_template("search.html")
 
 
@@ -664,7 +708,7 @@ def downloads_page():
         )
         return redirect(url_for("main_page.index"))
 
-    logger.info("[PAGE] Renderizando página de descargas")
+    logger.debug("[PAGE] Renderizando página de descargas")
     return render_template("downloads.html")
 
 
