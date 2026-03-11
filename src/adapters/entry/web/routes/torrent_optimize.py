@@ -211,6 +211,10 @@ def list_active_optimizations():
                         "progress": round(p.progress, 1),
                         "input_file": os.path.basename(p.input_file),
                         "status": p.status,
+                        "torrent_id": getattr(p, 'torrent_id', None),
+                        "category": getattr(p, 'category', None),
+                        "original_filename": getattr(p, 'original_filename', None),
+                        "error": p.error_message,
                     }
                     for p in active
                 ],

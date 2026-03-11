@@ -16,6 +16,39 @@ const TorrentOptimize = (function () {
     const POLL_INTERVAL = 2000; // 2 segundos
 
     // ==========================================================================
+    // Helper: Fetch con manejo de 401
+    // ==========================================================================
+
+    /**
+     * Función fetch con manejo automático de 401
+     * @param {string} url - URL a.fetch
+     * @param {Object} options - Opciones de fetch
+     * @returns {Promise<Response>}
+     */
+    async function authFetch(url, options = {}) {
+        const defaultOptions = {
+            credentials: 'include'
+        };
+        const mergedOptions = { ...defaultOptions, ...options };
+        
+        const response = await fetch(url, mergedOptions);
+        
+        // Manejar 401 - redirigir a login
+        if (response.status === 401) {
+            console.warn('[TorrentOptimize] Sesión expirada, redirigiendo a login...');
+            if (typeof showNotification === 'function') {
+                showNotification('Sesión expirada', 'Por favor, inicia sesión nuevamente', 'warning');
+            }
+            // Redirigir a login después de un breve delay
+            setTimeout(() => {
+                window.location.href = '/login';
+            }, 1500);
+        }
+        
+        return response;
+    }
+
+    // ==========================================================================
     // API: Verificar disponibilidad de GPU
     // ==========================================================================
 
@@ -25,9 +58,7 @@ const TorrentOptimize = (function () {
      */
     async function checkGpuStatus() {
         try {
-            const response = await fetch('/api/optimize-torrent/gpu-status', {
-                credentials: 'include'
-            });
+            const response = await authFetch('/api/optimize-torrent/gpu-status');
             return await response.json();
         } catch (error) {
             console.error('[TorrentOptimize] Error verificando GPU:', error);
@@ -47,12 +78,11 @@ const TorrentOptimize = (function () {
      */
     async function startOptimization(torrentId, category) {
         try {
-            const response = await fetch('/api/optimize-torrent', {
+            const response = await authFetch('/api/optimize-torrent', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                credentials: 'include',
                 body: JSON.stringify({
                     torrent_id: torrentId,
                     category: category
@@ -83,9 +113,7 @@ const TorrentOptimize = (function () {
      */
     async function getStatus(processId) {
         try {
-            const response = await fetch(`/api/optimize-torrent/status/${processId}`, {
-                credentials: 'include'
-            });
+            const response = await authFetch(`/api/optimize-torrent/status/${processId}`);
             return await response.json();
         } catch (error) {
             console.error(`[TorrentOptimize] Error consultando estado de ${processId}:`, error);
@@ -103,9 +131,7 @@ const TorrentOptimize = (function () {
      */
     async function listActive() {
         try {
-            const response = await fetch('/api/optimize-torrent/active', {
-                credentials: 'include'
-            });
+            const response = await authFetch('/api/optimize-torrent/active');
             return await response.json();
         } catch (error) {
             console.error('[TorrentOptimize] Error listando activas:', error);
@@ -303,10 +329,9 @@ const TorrentOptimize = (function () {
         btn.innerHTML = '⏳ Iniciando...';
 
         try {
-            const response = await fetch('/api/optimize-torrent', {
+            const response = await authFetch('/api/optimize-torrent', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                credentials: 'include',
                 body: JSON.stringify({ 
                     torrent_id: torrentId, 
                     filename: filename,

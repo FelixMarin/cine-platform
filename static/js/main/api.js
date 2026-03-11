@@ -10,23 +10,103 @@ function getCacheManager() {
     return window.CacheManager || null;
 }
 
-function loadContent(forceRefresh = false) {
+// Obtener referencia al CatalogService
+function getCatalogService() {
+    return window.CatalogService || null;
+}
+
+async function loadContent(forceRefresh = false) {
     console.log('Cargando contenido...', forceRefresh ? '(forzando refresco)' : '');
 
-    // Si NO se fuerza refresco, intentar usar el caché
+    const catalogService = getCatalogService();
+
+    // Intentar obtener datos del catálogo de la base de datos
+    if (catalogService && !forceRefresh) {
+        try {
+            console.debug('🔍 CatalogService: Buscando en BBDD...');
+            const dbMovies = await catalogService.getMovies(100, 0);
+            const dbSeries = await catalogService.getSeries(50, 0);
+
+            if ((dbMovies.movies && dbMovies.movies.length > 0) || 
+                (dbSeries.series && dbSeries.series.length > 0)) {
+                console.debug(`✅ CatalogService: ${(dbMovies.movies?.length || 0) + (dbSeries.series?.length || 0)} items encontrados en BBDD`);
+                
+                // Transformar datos de BBDD al formato esperado
+                const data = transformCatalogToApiFormat(dbMovies.movies || [], dbSeries.series || []);
+                renderContent(data);
+                return;
+            }
+        } catch (e) {
+            console.warn('⚠️ CatalogService: Error obteniendo datos de BBDD, usando fallback:', e);
+        }
+    }
+
+    // Si NO se fuerza refresco, intentar usar el caché legacy
     if (!forceRefresh) {
-        // Intentar obtener datos del caché
         const cachedData = loadFromCache();
         if (cachedData) {
-            console.log('📦 Usando datos cacheados');
+            console.debug('📦 CatalogService: Usando datos cacheados (localStorage)');
             renderContent(cachedData);
             return;
         }
-        console.log('� свежих datos en caché, cargando del servidor...');
+        console.debug('ℹ️ CatalogService: No hay datos en caché, cargando del servidor...');
     }
 
     // No hay caché, expiró o se fuerza refresco → cargar del servidor
     fetchFromServer(forceRefresh);
+}
+
+// Transformar datos del catálogo de BBDD al formato de la API
+function transformCatalogToApiFormat(movies, series) {
+    const categorias = {};
+    
+    // Agrupar películas por categoría (usando genre o 'Otros')
+    movies.forEach(movie => {
+        const genre = movie.genre ? movie.genre.split(',')[0].trim() : 'Otros';
+        if (!categorias[genre]) {
+            categorias[genre] = [];
+        }
+        categorias[genre].push({
+            id: movie.id,
+            title: movie.title,
+            year: movie.year,
+            imdb_id: movie.imdb_id,
+            poster: movie.poster_url,
+            thumbnail: movie.poster_url,
+            plot: movie.plot,
+            rating: movie.imdb_rating,
+            genre: movie.genre,
+            type: 'movie',
+            file_path: movie.file_path
+        });
+    });
+
+    // Agrupar series
+    const seriesObj = {};
+    series.forEach(serie => {
+        seriesObj[serie.title] = [{
+            id: serie.id,
+            name: serie.title,
+            year: serie.year,
+            imdb_id: serie.imdb_id,
+            poster: serie.poster_url,
+            thumbnail: serie.poster_url,
+            plot: serie.plot,
+            rating: serie.imdb_rating,
+            genre: serie.genre,
+            type: 'series',
+            totalSeasons: serie.total_seasons,
+            file_path: serie.file_path
+        }];
+    });
+
+    // Convertir categorías a formato de array
+    const categoriasArray = Object.entries(categorias).map(([name, items]) => [name, items]);
+
+    return {
+        categorias: categoriasArray,
+        series: seriesObj
+    };
 }
 
 function loadFromCache() {

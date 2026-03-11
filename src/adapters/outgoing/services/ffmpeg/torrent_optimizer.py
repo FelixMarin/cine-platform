@@ -44,6 +44,10 @@ class OptimizationProgress:
     end_time: Optional[float] = None
     error_message: Optional[str] = None
     logs: str = ""
+    # Campos adicionales para metadata
+    torrent_id: Optional[int] = None
+    category: Optional[str] = None
+    original_filename: Optional[str] = None
 
 
 class TorrentOptimizer:
@@ -620,6 +624,17 @@ class TorrentOptimizer:
         return False
 
     def list_active(self) -> List[OptimizationProgress]:
-        """Lista todas las optimizaciones activas"""
+        """Lista todas las optimizaciones activas (running, pending, o recientemente completadas)"""
         with self._lock:
-            return [p for p in self._processes.values() if p.status == "running"]
+            active = []
+            for p in self._processes.values():
+                if p.status in ["pending", "running", "completed", "done"]:
+                    # Enrich with metadata from _pending if available
+                    pending = self._pending.get(p.process_id)
+                    if pending:
+                        # Add extra fields for the API response
+                        p.torrent_id = pending.get("torrent_id")
+                        p.category = pending.get("category")
+                        p.original_filename = pending.get("original_filename")
+                    active.append(p)
+            return active

@@ -277,6 +277,7 @@ def login():
             user_session = RoleService.process_user_data(user_info)
 
             # Guardar en sesión
+            session.permanent = True
             session["logged_in"] = True
             session.update(user_session)
 
@@ -479,6 +480,7 @@ def exchange_token():
         user_session = RoleService.process_user_data(user_info, access_token)
 
         # Guardar en sesión
+        session.permanent = True
         session["logged_in"] = True
         session.update(user_session)
         session["client_id"] = client_id
@@ -846,6 +848,7 @@ def oauth_callback():
         user_session = RoleService.process_user_data(user_info, access_token)
 
         # Guardar en sesión
+        session.permanent = True
         session["logged_in"] = True
         session.update(user_session)
         session["oauth_token"] = access_token

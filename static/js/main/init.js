@@ -39,6 +39,22 @@ function initializeApp() {
         window.CacheManager.init();
     }
 
+    // Inicializar migración del catálogo (si hay datos legacy)
+    if (window.initCatalogMigration) {
+        console.log('📦 CatalogService: Iniciando migración de localStorage...');
+        setTimeout(() => {
+            window.initCatalogMigration().then(result => {
+                if (result && result.success) {
+                    console.log(`✅ CatalogService: Migración completada - ${result.result?.omdb_entries || 0} entradas OMDB, ${result.result?.local_content || 0} contenido local`);
+                } else if (result && result.migrated === 0) {
+                    console.log('📦 CatalogService: No hay datos legacy para migrar');
+                }
+            }).catch(err => {
+                console.warn('⚠️ CatalogService: Error en migración automática:', err);
+            });
+        }, 1000);
+    }
+
     window.setupClickOutside();
     window.setupEmptyLinks();
     window.setupResizeHandler();

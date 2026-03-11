@@ -45,6 +45,10 @@ from src.adapters.entry.web.routes.thumbnails import (
     init_thumbnails_routes,
 )
 from src.adapters.entry.web.routes.profile import profile_bp
+from src.adapters.entry.web.routes.catalog_db import (
+    catalog_db_bp,
+    init_catalog_db_routes,
+)
 
 
 def register_all_blueprints(
@@ -83,12 +87,15 @@ def register_all_blueprints(
 __all__ = [
     "catalog_bp",
     "init_catalog_routes",
+    "catalog_db_bp",
+    "init_catalog_db_routes",
     "player_bp",
     "player_page_bp",
     "init_player_routes",
     "auth_bp",
     "init_auth_routes",
     "optimizer_bp",
+    "optimizer_page_bp",
     "init_optimizer_routes",
     "api_bp",
     "init_api_routes",
@@ -98,6 +105,7 @@ __all__ = [
     "torrent_optimize_bp",
     "init_torrent_optimize_routes",
     "admin_bp",
+    "admin_page_bp",
     "init_admin_routes",
     "outputs_bp",
     "init_outputs_routes",

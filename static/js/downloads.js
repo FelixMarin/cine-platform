@@ -17,6 +17,7 @@ const CONFIG = {
         downloadsActive: '/api/downloads/active',
         downloadStatus: (id) => `/api/downloads/${id}/status`,
         downloadCancel: (id) => `/api/downloads/${id}/cancel`,
+        downloadRemove: (id) => `/api/download-remove/${id}`,
         optimizeStart: '/api/optimizer/optimize',
         optimizeStatus: '/api/optimizer/status',
         optimizeCancel: '/api/optimizer/cancel',
@@ -623,7 +624,9 @@ function renderDownloads() {
 
         // Determinar si está completado o no basado en status
         const isCompleted = progress >= 99.9 || statusValue === 'seeding' || statusValue === 6 || statusValue === 'completed';
-        const isFailed = (progress >= 0 && statusValue === 'failed') || statusValue === 0 || statusValue === 'failed';
+        const isFailed = (progress >= 0 && statusValue === 'failed') || statusValue === '0' || statusValue === 'failed';
+        // Torrent detenido o detenido/completado (status 0 = stopped en Transmission)
+        const isStoppedOrCompleted = isCompleted || statusValue === 'stopped' || statusValue === '0' || statusValue === 'completed';
 
         if(progress > 100) {
             progress = 100;
@@ -663,6 +666,14 @@ function renderDownloads() {
                                 data-torrent-name="${encodeURIComponent(download.title)}"
                                 data-torrent-size="${download.size_total || download.sizeTotal || 0}">
                             🚀 GPU Optimize
+                        </button>
+                    ` : ''}
+                    ${isStoppedOrCompleted ? `
+                        <button class="btn-process btn-remove" onclick="removeTorrent('${download.id}', false)" title="Eliminar torrent (mantener archivos)">
+                            🗑️ Eliminar
+                        </button>
+                        <button class="btn-process btn-remove-files" onclick="removeTorrent('${download.id}', true)" title="Eliminar torrent y archivos descargados">
+                            🗑️📁 Eliminar todo
                         </button>
                     ` : ''}
                 </div>
@@ -729,6 +740,48 @@ async function cancelDownload(id) {
     }
 }
 
+/**
+ * Elimina un torrent de Transmission
+ * @param {number} id - ID del torrent
+ * @param {boolean} deleteFiles - Si true, elimina también los archivos descargados
+ */
+async function removeTorrent(id, deleteFiles = false) {
+    // Mensaje de confirmación diferente según si se eliminan archivos o no
+    const confirmMessage = deleteFiles 
+        ? '¿Eliminar torrent y archivos descargados? Esta acción no se puede deshacer.'
+        : '¿Eliminar el torrent? Los archivos descargados se mantendrán.';
+    
+    if (!confirm(confirmMessage)) {
+        return;
+    }
+
+    try {
+        const response = await fetch(CONFIG.endpoints.downloadRemove(id), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ delete_files: deleteFiles })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.error || 'Error al eliminar el torrent');
+        }
+
+        const message = deleteFiles 
+            ? 'Torrent y archivos eliminados correctamente'
+            : 'Torrent eliminado correctamente. Los archivos se han mantenido.';
+        
+        showNotification('Torrent eliminado', message, 'success');
+        refreshDownloads();
+    } catch (error) {
+        console.error('Error al eliminar torrent:', error);
+        showNotification('Error', error.message, 'error');
+    }
+}
+
 // ==========================================================================
 // GESTIÓN DE OPTIMIZACIONES
 // ==========================================================================
@@ -746,6 +799,17 @@ async function refreshOptimizations() {
         const response = await fetch(CONFIG.endpoints.torrentOptimizeActive, {
             credentials: 'include'
         });
+        
+        // Manejar 401 - sesión expirada
+        if (response.status === 401) {
+            console.warn('[Downloads] Sesión expirada, redirigiendo a login...');
+            if (typeof showNotification === 'function') {
+                showNotification('Sesión expirada', 'Por favor, inicia sesión nuevamente', 'warning');
+            }
+            setTimeout(() => { window.location.href = '/login'; }, 1500);
+            return;
+        }
+        
         const data = await response.json();
 
         if (response.ok && data.success) {
@@ -760,6 +824,13 @@ async function refreshOptimizations() {
                             CONFIG.endpoints.torrentOptimizeStatus(opt.process_id),
                             { credentials: 'include' }
                         );
+                        
+                        // Manejar 401 en status
+                        if (statusResponse.status === 401) {
+                            console.warn('[Downloads] Sesión expirada al obtener status');
+                            return opt;
+                        }
+                        
                         const statusData = await statusResponse.json();
                         if (statusResponse.ok && statusData.success) {
                             return {

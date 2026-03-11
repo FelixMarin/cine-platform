@@ -12,6 +12,15 @@ async function getCacheManager() {
     return cacheManager;
 }
 
+// Obtener referencia al CatalogService
+let catalogService = null;
+async function getCatalogService() {
+    if (!catalogService && window.CatalogService) {
+        catalogService = window.CatalogService;
+    }
+    return catalogService;
+}
+
 function createMovieCard(movie) {
     const card = document.createElement("div");
     card.classList.add("movie-card");
@@ -85,13 +94,13 @@ function createMovieCard(movie) {
     const playPath = movie.id || movie.path || movie.file;
     card.onclick = () => window.playMovie(playPath);
 
-    // Cargar thumbnail en segundo plano
-    loadMovieThumbnail(img, title, movie.year, movie.filename);
+    // Cargar thumbnail en segundo plano - pasar imdb_id si está disponible
+    loadMovieThumbnail(img, title, movie.year, movie.filename, movie.imdb_id);
 
     return card;
 }
 
-async function loadMovieThumbnail(imgElement, title, year, filename) {
+async function loadMovieThumbnail(imgElement, title, year, filename, imdbId) {
     // Limpiar título: eliminar año, sufijos como -optimized, (2024), etc.
     let searchTitle = title;
     // Eliminar año entre paréntesis o al final
@@ -108,6 +117,25 @@ async function loadMovieThumbnail(imgElement, title, year, filename) {
     searchTitle = searchTitle.replace(/\s+/g, ' ').trim();
 
     const cacheKey = `thumb_${searchTitle}_${year || 'no-year'}`;
+
+    // NUEVO: Intentar primero obtener póster desde la base de datos usando imdb_id
+    if (imdbId) {
+        try {
+            const cs = await getCatalogService();
+            if (cs) {
+                const posterUrl = await cs.getPoster(imdbId);
+                if (posterUrl) {
+                    console.debug(`🖼️ CatalogService: Póster para ${imdbId} obtenido desde BBDD`);
+                    imgElement.src = posterUrl;
+                    return;
+                } else {
+                    console.debug(`⚠️ CatalogService: Póster no encontrado en BBDD para ${imdbId}, usando fallback`);
+                }
+            }
+        } catch (e) {
+            console.warn('⚠️ CatalogService: Error obteniendo póster de BBDD:', e);
+        }
+    }
 
     // Intentar primero con CacheManager (nueva implementación)
     const cm = await getCacheManager();
@@ -126,7 +154,7 @@ async function loadMovieThumbnail(imgElement, title, year, filename) {
         if (cm) {
             const cachedUrl = await cm.getCachedImageUrl(url);
             if (cachedUrl !== url) {
-                console.log(`📦 Thumbnail desde Cache API para: ${searchTitle}`);
+                console.debug(`📦 Thumbnail desde Cache API para: ${searchTitle}`);
                 imgElement.src = cachedUrl;
 
                 // También guardar en localStorage para compatibilidad

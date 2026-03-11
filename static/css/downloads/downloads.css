@@ -276,6 +276,32 @@
     box-shadow: 0 4px 15px rgba(79, 70, 229, 0.4);
 }
 
+/* Botón de eliminar torrent (solo torrent, mantener archivos) */
+.btn-remove {
+    background: rgba(255, 193, 7, 0.2);
+    color: #ffc107;
+}
+
+.btn-remove:hover {
+    background: #ffc107;
+    color: #000;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(255, 193, 7, 0.4);
+}
+
+/* Botón de eliminar torrent y archivos */
+.btn-remove-files {
+    background: rgba(244, 67, 54, 0.2);
+    color: #f44336;
+}
+
+.btn-remove-files:hover {
+    background: #f44336;
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(244, 67, 54, 0.4);
+}
+
 /* Estado: optimizando (pendiente) */
 .btn-pending {
     background-color: #ffc107;

@@ -2,7 +2,9 @@
 Cine Platform - Servidor Principal
 Arquitectura Hexagonal
 """
+
 from flask import Flask, request, session
+from datetime import timedelta
 import os
 from dotenv import load_dotenv
 import logging
@@ -23,7 +25,7 @@ from src.adapters.config.dependencies import (
     get_optimize_movie_use_case,
     get_estimate_size_use_case,
     get_login_use_case,
-    get_logout_use_case
+    get_logout_use_case,
 )
 
 # Logging
@@ -60,7 +62,7 @@ def create_app():
         __name__,
         template_folder="./templates",
         static_folder="./static",
-        static_url_path="/static"
+        static_url_path="/static",
     )
 
     # ============================
@@ -68,11 +70,11 @@ def create_app():
     # ============================
     secret = os.environ["SECRET_KEY"]
     app.secret_key = secret
-    app.config['JSON_AS_ASCII'] = False
-    app.config['JSONIFY_PRETTYPRINT_REGULAR'] = True
-    app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024 * 1024  # 50GB
-    app.config['UPLOAD_TIMEOUT'] = 7200  # 2 horas
-    app.config['MAX_CONTENT_PATH'] = None
+    app.config["JSON_AS_ASCII"] = False
+    app.config["JSONIFY_PRETTYPRINT_REGULAR"] = True
+    app.config["MAX_CONTENT_LENGTH"] = 50 * 1024 * 1024 * 1024  # 50GB
+    app.config["UPLOAD_TIMEOUT"] = 7200  # 2 horas
+    app.config["MAX_CONTENT_PATH"] = None
     logger.info(f"[CONFIG] SECRET_KEY cargada: {secret[:8]}********")
 
     # ============================
@@ -80,20 +82,25 @@ def create_app():
     # ============================
 
     # Configuración base (producción)
-    app.config['MAX_CONTENT_LENGTH'] = int(os.environ["MAX_CONTENT_LENGTH"])
-    app.config['SESSION_COOKIE_DOMAIN'] = os.environ["SESSION_COOKIE_DOMAIN"]
-    app.config['SESSION_COOKIE_HTTPONLY'] = os.environ["SESSION_COOKIE_HTTPONLY"] == "True"
-    app.config['SESSION_COOKIE_SAMESITE'] = os.environ["SESSION_COOKIE_SAMESITE"]
-    app.config['SESSION_COOKIE_SECURE'] = os.environ["SESSION_COOKIE_SECURE"] == "True"
-    app.config['SESSION_COOKIE_PATH'] = os.environ["SESSION_COOKIE_PATH"]
-    app.config['SESSION_PERMANENT'] = False
-    app.config['SESSION_TYPE'] = 'filesystem'
+    app.config["MAX_CONTENT_LENGTH"] = int(os.environ["MAX_CONTENT_LENGTH"])
+    app.config["SESSION_COOKIE_DOMAIN"] = os.environ["SESSION_COOKIE_DOMAIN"]
+    app.config["SESSION_COOKIE_HTTPONLY"] = (
+        os.environ["SESSION_COOKIE_HTTPONLY"] == "True"
+    )
+    app.config["SESSION_COOKIE_SAMESITE"] = os.environ["SESSION_COOKIE_SAMESITE"]
+    app.config["SESSION_COOKIE_SECURE"] = os.environ["SESSION_COOKIE_SECURE"] == "True"
+    app.config["SESSION_COOKIE_PATH"] = os.environ["SESSION_COOKIE_PATH"]
+
+    # Sesión permanente (31 días) - se activa en login
+    app.config["SESSION_PERMANENT"] = True
+    app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(days=31)
+    app.config["SESSION_TYPE"] = "filesystem"
 
     # Ajustes automáticos para desarrollo
     if env == "development":
         logger.info("[CONFIG] Modo desarrollo: ajustando cookies y seguridad")
-        app.config['SESSION_COOKIE_DOMAIN'] = None
-        app.config['SESSION_COOKIE_SECURE'] = False
+        app.config["SESSION_COOKIE_DOMAIN"] = None
+        app.config["SESSION_COOKIE_SECURE"] = False
 
     logger.info("[CONFIG] Cookies configuradas:")
     logger.info(f"  DOMAIN={app.config['SESSION_COOKIE_DOMAIN']}")
@@ -109,7 +116,7 @@ def create_app():
 
     # Inicializar casos de uso
     init_all()
-    
+
     # Obtener casos de uso
     list_movies_use_case = get_list_movies_use_case()
     list_series_use_case = get_list_series_use_case()
@@ -120,7 +127,7 @@ def create_app():
     estimate_size_use_case = get_estimate_size_use_case()
     login_use_case = get_login_use_case()
     logout_use_case = get_logout_use_case()
-    
+
     logger.info("[ARCH] Casos de uso inicializados:")
     logger.info(f"  - ListMoviesUseCase: {list_movies_use_case}")
     logger.info(f"  - SearchUseCase: {search_use_case}")
@@ -136,35 +143,58 @@ def create_app():
     # ============================
 
     logger.info("=== Registrando blueprints ===")
-    
+
     # Importar blueprints de la nueva arquitectura
     from src.adapters.entry.web.routes import (
-        catalog_bp, init_catalog_routes,
-        player_bp, player_page_bp, init_player_routes,
-        auth_bp, main_page_bp, init_auth_routes,
-        optimizer_bp, optimizer_page_bp, init_optimizer_routes,
-        api_bp, init_api_routes,
-        download_api_bp, search_page_bp, init_download_routes,
-        admin_bp, admin_page_bp, init_admin_routes,
-        outputs_bp, init_outputs_routes,
-        proxy_bp, init_proxy_routes,
-        streaming_bp, stream_page_bp, init_streaming_routes,
-        thumbnails_bp, init_thumbnails_routes,
-        torrent_optimize_bp, init_torrent_optimize_routes
+        catalog_bp,
+        init_catalog_routes,
+        player_bp,
+        player_page_bp,
+        init_player_routes,
+        auth_bp,
+        main_page_bp,
+        init_auth_routes,
+        optimizer_bp,
+        optimizer_page_bp,
+        init_optimizer_routes,
+        api_bp,
+        init_api_routes,
+        download_api_bp,
+        search_page_bp,
+        init_download_routes,
+        admin_bp,
+        admin_page_bp,
+        init_admin_routes,
+        outputs_bp,
+        init_outputs_routes,
+        proxy_bp,
+        init_proxy_routes,
+        streaming_bp,
+        stream_page_bp,
+        init_streaming_routes,
+        thumbnails_bp,
+        init_thumbnails_routes,
+        torrent_optimize_bp,
+        init_torrent_optimize_routes,
+        catalog_db_bp,
+        init_catalog_db_routes,
     )
-    
+
     # Inicializar rutas
     init_catalog_routes(
         list_movies_use_case=list_movies_use_case,
         list_series_use_case=list_series_use_case,
-        search_use_case=search_use_case
+        search_use_case=search_use_case,
     )
     init_player_routes(
         track_progress_use_case=track_progress_use_case,
-        get_continue_watching_use_case=continue_watching_use_case
+        get_continue_watching_use_case=continue_watching_use_case,
     )
     init_auth_routes(login_use_case=login_use_case, logout_use_case=logout_use_case)
-    init_optimizer_routes(optimize_movie_use_case=optimize_movie_use_case, estimate_size_use_case=estimate_size_use_case)
+    init_optimizer_routes(
+        optimize_movie_use_case=optimize_movie_use_case,
+        estimate_size_use_case=estimate_size_use_case,
+    )
     init_api_routes()
     init_download_routes()
     init_admin_routes()
@@ -172,18 +202,19 @@ def create_app():
     init_proxy_routes()
     init_streaming_routes()
     init_thumbnails_routes()
-    
+    init_catalog_db_routes()
+
     # Inicializar TorrentOptimizer con parámetros necesarios
     from src.adapters.outgoing.services.ffmpeg import TorrentOptimizer
     from src.adapters.outgoing.services.transmission import TransmissionClient
+
     _torrent_optimizer = TorrentOptimizer(
         upload_folder=settings.UPLOAD_FOLDER,
         output_folder=settings.MOVIES_BASE_PATH,
     )
     _transmission_client = TransmissionClient()
     init_torrent_optimize_routes(
-        transmission_client=_transmission_client,
-        torrent_optimizer=_torrent_optimizer
+        transmission_client=_transmission_client, torrent_optimizer=_torrent_optimizer
     )
 
     # Registrar blueprints
@@ -205,6 +236,7 @@ def create_app():
     app.register_blueprint(stream_page_bp)  # /stream/ para templates
     app.register_blueprint(thumbnails_bp)
     app.register_blueprint(torrent_optimize_bp)
+    app.register_blueprint(catalog_db_bp)
 
     logger.info("[ROUTER] Blueprints registrados correctamente")
 
@@ -215,8 +247,9 @@ def create_app():
     def inject_session():
         """Inyecta la sesión en todas las plantillas"""
         from flask import session
+
         return dict(session=session)
-    
+
     return app
 
 
@@ -247,10 +280,7 @@ if __name__ == "__main__":
     if use_ssl:
         logger.info(f"=== Iniciando Cine Platform en {host}:{port} con HTTPS ===")
         app.run(
-            host=host,
-            port=port,
-            debug=debug_mode,
-            ssl_context=(cert_file, key_file)
+            host=host, port=port, debug=debug_mode, ssl_context=(cert_file, key_file)
         )
     else:
         logger.info(f"=== Iniciando Cine Platform en {host}:{port} ===")

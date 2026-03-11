@@ -173,23 +173,65 @@ async function preloadSeriesPosters(series) {
         }
     }
 
+    const seriesCount = Object.keys(uniqueSeries).length;
+    if (seriesCount > 0) {
+        console.debug(`🔄 CatalogService: Precargando pósters para ${seriesCount} series`);
+    }
+
+    // Obtener referencia al CatalogService
+    const catalogService = window.CatalogService || null;
+
     // Cargar póster para cada serie única
     for (const cleanName in uniqueSeries) {
         if (!seriePosterCache[cleanName]) {
-            try {
-                const response = await fetch(`/api/serie-poster?name=${encodeURIComponent(cleanName)}`);
-                if (response.ok) {
-                    const data = await response.json();
-                    if (data.poster) {
-                        seriePosterCache[cleanName] = data.poster;
-                        saveSeriePosterCache(); // Guardar en localStorage
-                        console.log(`📺 Póster precargado para: ${cleanName}`);
+            let posterUrl = null;
+
+            // NUEVO: Intentar obtener póster desde la base de datos
+            if (catalogService) {
+                try {
+                    // Buscar en el catálogo local por nombre
+                    const dbSeries = await catalogService.getSeries(100, 0);
+                    const matchingSeries = (dbSeries.series || []).find(s => 
+                        s.title && s.title.toLowerCase().includes(cleanName.toLowerCase())
+                    );
+                    
+                    if (matchingSeries && matchingSeries.imdb_id) {
+                        posterUrl = await catalogService.getPoster(matchingSeries.imdb_id);
+                        if (posterUrl) {
+                            console.debug(`🖼️ CatalogService: Póster para "${cleanName}" obtenido desde BBDD`);
+                        }
                     }
+                } catch (e) {
+                    console.warn('⚠️ CatalogService: Error obteniendo póster de BBDD:', e);
                 }
-            } catch (e) {
-                console.error(`Error cargando póster para ${cleanName}:`, e);
+            }
+
+            // Fallback a OMDB si no se encontró en BBDD
+            if (!posterUrl) {
+                console.debug(`⚠️ CatalogService: Póster no encontrado en BBDD para "${cleanName}", usando OMDB`);
+                try {
+                    const response = await fetch(`/api/serie-poster?name=${encodeURIComponent(cleanName)}`);
+                    if (response.ok) {
+                        const data = await response.json();
+                        if (data.poster) {
+                            posterUrl = data.poster;
+                        }
+                    }
+                } catch (e) {
+                    console.error(`Error cargando póster para ${cleanName}:`, e);
+                }
+            }
+
+            if (posterUrl) {
+                seriePosterCache[cleanName] = posterUrl;
+                saveSeriePosterCache(); // Guardar en localStorage
+                console.debug(`📺 Póster precargado para: ${cleanName}`);
             }
         }
+    }
+
+    if (seriesCount > 0) {
+        console.debug(`✅ CatalogService: Precarga de pósters completada`);
     }
 }
 
