@@ -2,6 +2,8 @@
 Rutas web - Adaptadores de entrada
 """
 
+import logging
+
 from src.adapters.entry.web.routes.catalog import catalog_bp, init_catalog_routes
 from src.adapters.entry.web.routes.player import (
     player_bp,
@@ -49,6 +51,10 @@ from src.adapters.entry.web.routes.catalog_db import (
     catalog_db_bp,
     init_catalog_db_routes,
 )
+from src.adapters.entry.web.routes.optimization_history import (
+    history_bp,
+    init_history_routes,
+)
 
 
 def register_all_blueprints(
@@ -80,6 +86,14 @@ def register_all_blueprints(
         torrent_optimize_bp
     )  # 🔴 AÑADIDO - Endpoints de optimización de torrents
     app.register_blueprint(profile_bp)  # Rutas de perfil de usuario
+    app.register_blueprint(history_bp)  # Historial de optimizaciones
+    
+    # Log de todas las rutas registradas
+    logger.info("=== Rutas registradas ===")
+    for rule in app.url_map.iter_rules():
+        if 'optimization-history' in str(rule):
+            logger.info(f"  RUTA ENCONTRADA: {rule} -> {rule.endpoint}")
+    logger.info("===========================")
 
     print("✅ Todos los blueprints registrados correctamente")
 
@@ -116,4 +130,6 @@ __all__ = [
     "init_streaming_routes",
     "thumbnails_bp",
     "init_thumbnails_routes",
+    "history_bp",
+    "init_history_routes",
 ]

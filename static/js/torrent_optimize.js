@@ -299,9 +299,12 @@ const TorrentOptimize = (function () {
      * Envía la solicitud de optimización
      */
     async function submitOptimization() {
+        console.log('[DEBUG] startOptimization - INICIO');
         const torrentId = document.getElementById('optimize-torrent-id').value;
         const category = document.getElementById('optimize-category').value;
         let filename = document.getElementById('optimize-torrent-name').textContent;
+
+        console.log('[DEBUG] submitOptimization - torrentId:', torrentId, 'category:', category, 'filename:', filename);
 
         if (!torrentId) {
             alert('ID de torrent inválido');

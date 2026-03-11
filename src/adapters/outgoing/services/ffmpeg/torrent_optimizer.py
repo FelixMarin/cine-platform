@@ -128,6 +128,91 @@ class TorrentOptimizer:
 
         return FFmpegAPIClient(self.api_url)
 
+    def _add_to_history(self, process_id: str, final_path: str, pending: dict, status: str = 'completed', error_message: Optional[str] = None):
+        """
+        Añade una entrada al historial de optimizaciones.
+        
+        Args:
+            process_id: ID del proceso de optimización
+            final_path: Ruta final del archivo optimizado
+            pending: Datos pendientes del proceso
+            status: Estado de la optimización ('completed', 'error', 'cancelled')
+            error_message: Mensaje de error si falló
+        """
+        try:
+            from datetime import datetime
+            import requests
+            
+            # Calcular duración de optimización
+            optimization_duration = None
+            progress = self._processes.get(process_id)
+            if progress and hasattr(progress, 'start_time'):
+                optimization_duration = int(datetime.now().timestamp() - progress.start_time)
+            
+            # Obtener datos del torrent
+            torrent = None
+            torrent_id = pending.get('torrent_id')
+            if torrent_id and self.transmission_client:
+                try:
+                    torrent = self.transmission_client.get_torrent(torrent_id)
+                except Exception as e:
+                    logger.warning(f"[TorrentOptimizer] No se pudo obtener torrent {torrent_id}: {e}")
+            
+            # Calcular duración de descarga
+            download_duration = None
+            if torrent and hasattr(torrent, 'added_date') and hasattr(torrent, 'done_date'):
+                download_duration = int(torrent.done_date - torrent.added_date)
+            
+            # Obtener tamaños
+            original_size = None
+            if source_path := pending.get('source_path'):
+                if os.path.exists(source_path):
+                    original_size = os.path.getsize(source_path)
+            
+            optimized_size = None
+            if os.path.exists(final_path):
+                optimized_size = os.path.getsize(final_path)
+            
+            # Calcular ratio de compresión
+            compression_ratio = None
+            if original_size and optimized_size:
+                compression_ratio = round((1 - optimized_size / original_size) * 100, 2)
+            
+            # Datos para el historial
+            history_data = {
+                'process_id': process_id,
+                'torrent_id': torrent_id,
+                'torrent_name': torrent.name if torrent else pending.get('original_filename'),
+                'category': pending.get('category'),
+                'input_file': pending.get('source_path', ''),
+                'output_file': final_path,
+                'output_filename': pending.get('final_filename'),
+                'optimization_start': datetime.fromtimestamp(progress.start_time).isoformat() if progress and hasattr(progress, 'start_time') else datetime.now().isoformat(),
+                'optimization_end': datetime.now().isoformat() if status == 'completed' else None,
+                'download_duration_seconds': download_duration,
+                'optimization_duration_seconds': optimization_duration,
+                'status': status,
+                'error_message': error_message,
+                'file_size_bytes': optimized_size,
+                'original_size_bytes': original_size,
+                'compression_ratio': compression_ratio,
+            }
+            
+            # Llamar al endpoint del historial
+            response = requests.post(
+                'http://localhost:5000/api/optimization-history/add',
+                json=history_data,
+                timeout=10
+            )
+            
+            if response.status_code == 200:
+                logger.info(f"[TorrentOptimizer] ✅ Entrada añadida al historial: {process_id}")
+            else:
+                logger.warning(f"[TorrentOptimizer] ⚠️ Error añadiendo al historial: {response.status_code} - {response.text}")
+                
+        except Exception as e:
+            logger.error(f"[TorrentOptimizer] ❌ Error añadiendo al historial: {e}")
+
     def _get_cleanup_service(self):
         """Obtiene el servicio de limpieza (inyección de dependencia)"""
         from src.adapters.outgoing.services.cleanup import FileCleanupService
@@ -389,6 +474,9 @@ class TorrentOptimizer:
             input_file=source_path,
             output_file=shared_output,
             start_time=time.time(),
+            torrent_id=torrent_id,  # Guardar torrent_id directamente en el objeto
+            category=category,  # Guardar categoría directamente
+            original_filename=filename,  # Guardar nombre original
         )
 
         with self._lock:
@@ -588,6 +676,9 @@ class TorrentOptimizer:
             # Mover el archivo optimizado al catálogo
             shutil.move(output_path, final_path)
             logger.info(f"[TorrentOptimizer] ✅ Archivo movido a catálogo: {final_path}")
+            
+            # Añadir al historial de optimizaciones
+            self._add_to_history(process_id, final_path, pending, "completed")
 
             # Actualizar la base de datos del catálogo
             try:
@@ -707,6 +798,9 @@ class TorrentOptimizer:
 
             # Eliminar el proceso del diccionario de pendientes
             del self._pending[process_id]
+            
+            # Añadir al historial como error
+            self._add_to_history(process_id, "", pending, "error", error_message)
 
             logger.warning(
                 f"[TorrentOptimizer] ✓ Optimización fallida para {original_filename}. "
@@ -718,8 +812,14 @@ class TorrentOptimizer:
 
     def get_progress(self, process_id: str) -> Optional[OptimizationProgress]:
         """Obtiene el progreso de una optimización (datos locales)"""
+        logger.info(f"[TorrentOptimizer] get_progress - Buscando proceso {process_id}")
         with self._lock:
-            return self._processes.get(process_id)
+            progress = self._processes.get(process_id)
+            if progress:
+                logger.info(f"[TorrentOptimizer] get_progress - Proceso encontrado: status={progress.status}, progress={progress.progress}")
+            else:
+                logger.warning(f"[TorrentOptimizer] get_progress - Proceso NO encontrado en _processes")
+            return progress
 
     def get_api_progress(self, process_id: str) -> Optional[Dict]:
         """
@@ -779,16 +879,35 @@ class TorrentOptimizer:
 
     def list_active(self) -> List[OptimizationProgress]:
         """Lista todas las optimizaciones activas (running, pending, o recientemente completadas)"""
+        # Incluir todos los estados activos
+        active_statuses = ['pending', 'running', 'starting', 'copying']
+        
+        logger.info(f"[TorrentOptimizer] list_active - Buscando optimizaciones activas (status: {active_statuses})...")
         with self._lock:
+            # Debug: mostrar todos los procesos
+            logger.info(f"[TorrentOptimizer] list_active - Procesos en _processes: {len(self._processes)}")
+            logger.info(f"[TorrentOptimizer] list_active - Procesos keys: {list(self._processes.keys())}")
+            for pid, p in self._processes.items():
+                logger.info(f"[TorrentOptimizer] list_active - Proceso {pid}: status='{p.status}'")
+            
             active = []
             for p in self._processes.values():
-                if p.status in ["pending", "running", "completed", "done"]:
+                # Incluir procesos con status activo
+                if p.status in active_statuses:
+                    logger.info(f"[TorrentOptimizer] list_active - Incluyendo proceso {p.process_id}: status={p.status}")
+                    
                     # Enrich with metadata from _pending if available
                     pending = self._pending.get(p.process_id)
                     if pending:
-                        # Add extra fields for the API response
-                        p.torrent_id = pending.get("torrent_id")
+                        # Add extra fields for the API response from _pending
+                        # Esto asegura que tenemos los datos más recientes
+                        p.torrent_id = pending.get("torrent_id", p.torrent_id)
                         p.category = pending.get("category")
                         p.original_filename = pending.get("original_filename")
+                    # Si no hay pending, el torrent_id ya debería estar en p (establecido en start_optimization)
+                    
+                    logger.info(f"[TorrentOptimizer] list_active - proceso {p.process_id}: status={p.status}, torrent_id={getattr(p, 'torrent_id', None)}, category={getattr(p, 'category', None)}")
                     active.append(p)
+            
+            logger.info(f"[TorrentOptimizer] list_active - total activos: {len(active)}")
             return active
