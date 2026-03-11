@@ -146,7 +146,7 @@ services:
       - /mnt/DATA_2TB/administracion-peliculas/ffmpeg/temp:/shared/temp
       - /mnt/DATA_2TB/administracion-peliculas/ffmpeg/uploads:/shared/uploads
       - /mnt/DATA_2TB/administracion-peliculas/ffmpeg/outputs:/shared/outputs
-      - /mnt/DATA_2TB/administracion-peliculas/complete:/shared/input
+      - /mnt/DATA_2TB/administracion-peliculas/downloads:/shared/input
     networks:
       - cine-network
     healthcheck:

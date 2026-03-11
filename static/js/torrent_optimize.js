@@ -781,10 +781,343 @@ const TorrentOptimize = (function () {
             .btn-secondary:hover {
                 background: var(--bg-tertiary, #1f2937);
             }
+            
+            /* ESTADOS DEL BOTÓN GPU OPTIMIZE */
+            .btn-optimize {
+                background-color: #28a745;
+                color: white;
+                border: none;
+                padding: 5px 10px;
+                border-radius: 3px;
+                cursor: pointer;
+                transition: all 0.2s ease;
+                font-size: 0.9rem;
+            }
+            
+            .btn-optimize:hover {
+                background-color: #218838;
+            }
+            
+            .btn-optimize.optimizing {
+                background-color: #ffc107;
+                color: #212529;
+                cursor: not-allowed;
+                opacity: 0.8;
+            }
+            
+            .btn-optimize.optimizing:hover {
+                background-color: #ffc107;
+            }
+            
+            .btn-optimize.optimized {
+                background-color: #6c757d;
+                color: white;
+                cursor: not-allowed;
+                opacity: 0.6;
+            }
+            
+            .btn-optimize.optimized:hover {
+                background-color: #6c757d;
+            }
+            
+            .btn-optimize.error {
+                background-color: #dc3545;
+                color: white;
+            }
+            
+            .btn-optimize.error:hover {
+                background-color: #c82333;
+            }
+            
+            .btn-optimize:disabled {
+                cursor: not-allowed;
+            }
         `;
 
         document.head.appendChild(styles);
     }
+
+    // ==========================================================================
+    // ESTADOS DEL BOTÓN GPU OPTIMIZE - Persistencia y gestión de estados
+    // ==========================================================================
+
+    // Constantes para estados del botón
+    const BUTTON_STATES = {
+        IDLE: 'idle',           // No optimizado o error - habilitado verde
+        OPTIMIZING: 'optimizing', // Optimizando - deshabilitado amarillo
+        OPTIMIZED: 'optimized',   // Optimizado con éxito - deshabilitado gris
+        ERROR: 'error'            // Error - habilitado verde para reintentar
+    };
+
+    // Clave para localStorage
+    const STORAGE_KEY = 'cine-platform-optimize-processes';
+    const STORAGE_TIMEOUT = 5 * 60 * 1000; // 5 minutos
+
+    /**
+     * Obtiene los procesos guardados en localStorage
+     * @returns {Object} Objeto con torrentId -> {process_id, status, lastUpdate}
+     */
+    function getStoredProcesses() {
+        try {
+            const stored = localStorage.getItem(STORAGE_KEY);
+            if (!stored) return {};
+            
+            const processes = JSON.parse(stored);
+            // Limpiar procesos antiguos (más de 5 minutos)
+            const now = Date.now();
+            const cleaned = {};
+            for (const [torrentId, data] of Object.entries(processes)) {
+                if (now - data.lastUpdate < STORAGE_TIMEOUT) {
+                    cleaned[torrentId] = data;
+                }
+            }
+            return cleaned;
+        } catch (e) {
+            console.error('[TorrentOptimize] Error leyendo procesos guardados:', e);
+            return {};
+        }
+    }
+
+    /**
+     * Guarda un proceso en localStorage
+     * @param {string} torrentId - ID del torrent
+     * @param {string} processId - ID del proceso
+     * @param {string} status - Estado del proceso
+     */
+    function saveProcess(torrentId, processId, status) {
+        try {
+            const processes = getStoredProcesses();
+            processes[torrentId] = {
+                process_id: processId,
+                status: status,
+                lastUpdate: Date.now()
+            };
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(processes));
+        } catch (e) {
+            console.error('[TorrentOptimize] Error guardando proceso:', e);
+        }
+    }
+
+    /**
+     * Elimina un proceso de localStorage
+     * @param {string} torrentId - ID del torrent
+     */
+    function removeProcess(torrentId) {
+        try {
+            const processes = getStoredProcesses();
+            delete processes[torrentId];
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(processes));
+        } catch (e) {
+            console.error('[TorrentOptimize] Error eliminando proceso:', e);
+        }
+    }
+
+    /**
+     * Obtiene el estado del botón según el estado de optimización
+     * @param {string} status - Estado del proceso (running, starting, copying, completed, error)
+     * @returns {string} Estado del botón
+     */
+    function getButtonState(status) {
+        if (!status) return BUTTON_STATES.IDLE;
+        
+        const lowerStatus = status.toLowerCase();
+        if (['running', 'starting', 'copying'].includes(lowerStatus)) {
+            return BUTTON_STATES.OPTIMIZING;
+        } else if (lowerStatus === 'completed') {
+            return BUTTON_STATES.OPTIMIZED;
+        } else if (lowerStatus === 'error') {
+            return BUTTON_STATES.ERROR;
+        }
+        return BUTTON_STATES.IDLE;
+    }
+
+    /**
+     * Actualiza el botón GPU Optimize según el estado
+     * @param {string} torrentId - ID del torrent
+     * @param {string} state - Estado del botón
+     * @param {string} processId - ID del proceso (opcional)
+     */
+    function updateOptimizeButton(torrentId, state, processId = null) {
+        const btn = document.querySelector(`.btn-optimize[data-torrent-id="${torrentId}"]`);
+        if (!btn) return;
+
+        // Quitar todas las clases de estado
+        btn.classList.remove('optimizing', 'optimized', 'error');
+        btn.disabled = false;
+
+        switch (state) {
+            case BUTTON_STATES.OPTIMIZING:
+                btn.textContent = '⚡ Optimizing...';
+                btn.classList.add('optimizing');
+                btn.disabled = true;
+                break;
+            case BUTTON_STATES.OPTIMIZED:
+                btn.textContent = '✅ Optimized';
+                btn.classList.add('optimized');
+                btn.disabled = true;
+                break;
+            case BUTTON_STATES.ERROR:
+                btn.textContent = '🚀 GPU Optimize';
+                btn.classList.add('error');
+                btn.disabled = false;
+                // Limpiar proceso guardado si hubo error
+                if (processId) {
+                    removeProcess(torrentId);
+                }
+                break;
+            case BUTTON_STATES.IDLE:
+            default:
+                btn.textContent = '🚀 GPU Optimize';
+                btn.disabled = false;
+                break;
+        }
+    }
+
+    /**
+     * Recupera los estados de optimización al cargar la página
+     * Consulta el backend para cada proceso guardado
+     */
+    async function restoreButtonStates() {
+        const processes = getStoredProcesses();
+        console.log('[TorrentOptimize] Restaurando estados de botones:', Object.keys(processes));
+
+        for (const [torrentId, data] of Object.entries(processes)) {
+            try {
+                const result = await getStatus(data.process_id);
+                if (result.success) {
+                    const buttonState = getButtonState(result.status);
+                    updateOptimizeButton(torrentId, buttonState, data.process_id);
+
+                    // Si está en proceso, continuar monitoreando
+                    if (buttonState === BUTTON_STATES.OPTIMIZING) {
+                        monitorOptimization(data.process_id, torrentId);
+                    } else if (buttonState === BUTTON_STATES.OPTIMIZED) {
+                        // Mantener en localStorage para saber que ya está optimizado
+                        saveProcess(torrentId, data.process_id, 'completed');
+                    } else if (buttonState === BUTTON_STATES.ERROR) {
+                        // Error - limpiar
+                        removeProcess(torrentId);
+                    }
+                } else {
+                    // Proceso no encontrado en backend, limpiar
+                    removeProcess(torrentId);
+                }
+            } catch (e) {
+                console.error(`[TorrentOptimize] Error restaurando estado para ${torrentId}:`, e);
+                removeProcess(torrentId);
+            }
+        }
+    }
+
+    /**
+     * Sincroniza los botones con las optimizaciones activas del backend
+     * @returns {Promise<Object>} Mapa de torrentId -> estado
+     */
+    async function syncWithActiveOptimizations() {
+        try {
+            const result = await listActive();
+            if (!result.success) return {};
+
+            const activeMap = {};
+            for (const opt of result.optimizations || []) {
+                if (opt.torrent_id) {
+                    activeMap[opt.torrent_id] = {
+                        process_id: opt.process_id,
+                        status: opt.status
+                    };
+                    // Guardar en localStorage
+                    saveProcess(String(opt.torrent_id), opt.process_id, opt.status);
+                    
+                    // Actualizar botón
+                    const buttonState = getButtonState(opt.status);
+                    updateOptimizeButton(String(opt.torrent_id), buttonState, opt.process_id);
+
+                    // Iniciar monitoreo si está en proceso
+                    if (buttonState === BUTTON_STATES.OPTIMIZING) {
+                        monitorOptimization(opt.process_id, String(opt.torrent_id));
+                    }
+                }
+            }
+            return activeMap;
+        } catch (e) {
+            console.error('[TorrentOptimize] Error sincronizando optimizaciones activas:', e);
+            return {};
+        }
+    }
+
+    /**
+     * Inicia el monitoreo de un proceso y actualiza el botón
+     * @param {string} processId - ID del proceso
+     * @param {string} torrentId - ID del torrent
+     */
+    function startOptimizationMonitoring(processId, torrentId) {
+        // Guardar en localStorage
+        saveProcess(torrentId, processId, 'starting');
+        
+        // Actualizar botón inmediatamente
+        updateOptimizeButton(torrentId, BUTTON_STATES.OPTIMIZING, processId);
+        
+        // Iniciar monitoreo
+        monitorOptimization(processId, torrentId);
+    }
+
+
+    // Modificar monitorOptimization para actualizar el botón correctamente
+    const originalMonitorOptimization = monitorOptimization;
+    monitorOptimization = function(processId, torrentId) {
+        const poll = async () => {
+            try {
+                const result = await getStatus(processId);
+
+                if (result.success) {
+                    // Actualizar UI del modal si está abierto
+                    updateProgressUI(result);
+
+                    // Actualizar botón según resultado
+                    const buttonState = getButtonState(result.status);
+                    updateOptimizeButton(torrentId, buttonState, processId);
+
+                    // Guardar estado
+                    saveProcess(torrentId, processId, result.status);
+
+                    // Detener si completó o falló
+                    if (result.status === 'completed' || result.status === 'error') {
+                        if (statusIntervals[processId]) {
+                            clearInterval(statusIntervals[processId]);
+                            delete statusIntervals[processId];
+                        }
+
+                        // Notificaciones
+                        if (result.status === 'error' && result.error) {
+                            if (typeof showNotification === 'function') {
+                                showNotification(
+                                    '❌ Error en optimización',
+                                    result.error,
+                                    'error'
+                                );
+                            }
+                        } else if (result.status === 'completed') {
+                            if (typeof showNotification === 'function') {
+                                showNotification(
+                                    '✅ Optimización completada',
+                                    'El archivo ha sido optimizado correctamente',
+                                    'success'
+                                );
+                            }
+                        }
+
+                        // Refrescar lista
+                        refreshOptimizationsList();
+                    }
+                }
+            } catch (error) {
+                console.error('[TorrentOptimize] Error en monitoreo:', error);
+            }
+        };
+
+        statusIntervals[processId] = setInterval(poll, POLL_INTERVAL);
+        poll();
+    };
 
     // Inicializar cuando el DOM esté listo
     if (document.readyState === 'loading') {
@@ -804,7 +1137,17 @@ const TorrentOptimize = (function () {
         closeModal,
         submitOptimization,
         monitorOptimization,
-        formatSize
+        formatSize,
+        // Nuevas funciones exportadas
+        getStoredProcesses,
+        saveProcess,
+        removeProcess,
+        getButtonState,
+        updateOptimizeButton,
+        restoreButtonStates,
+        syncWithActiveOptimizations,
+        startOptimizationMonitoring,
+        BUTTON_STATES
     };
 })();
 

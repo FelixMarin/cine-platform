@@ -7,7 +7,7 @@ from src.adapters.entry.cli.commands.optimize_movie import (
     FFmpegRunner,
     check_container,
     FFMPEG_CONTAINER,
-    SHARED_INPUT,
+    SHARED_UPLOADS,
     SHARED_OUTPUT,
     SHARED_TEMP,
 )
@@ -16,7 +16,7 @@ from src.adapters.entry.cli.commands.optimize_movie import (
 class TestFFmpegInfoConstants:
     def test_constants(self):
         assert FFMPEG_CONTAINER == "ffmpeg-cuda"
-        assert SHARED_INPUT == "/shared/input"
+        assert SHARED_UPLOADS == "/shared/uploads"
         assert SHARED_OUTPUT == "/shared/outputs"
         assert SHARED_TEMP == "/shared/temp"
 

@@ -23,7 +23,7 @@ FFMPEG_CMD = ["docker", "exec", FFMPEG_CONTAINER, "ffmpeg"]
 FFPROBE_CMD = ["docker", "exec", FFMPEG_CONTAINER, "ffprobe"]
 
 # Directorios compartidos (deben coincidir con el docker-compose)
-SHARED_INPUT = "/shared/input"
+SHARED_UPLOADS = "/shared/uploads"
 SHARED_OUTPUT = "/shared/outputs"
 SHARED_TEMP = "/shared/temp"
 

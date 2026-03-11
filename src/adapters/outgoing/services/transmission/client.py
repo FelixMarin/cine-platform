@@ -17,6 +17,7 @@ from src.infrastructure.config.settings import settings
 
 logger = logging.getLogger(__name__)
 
+VIDEO_EXTENSIONS = ('.mkv', '.mp4', '.avi', '.mov', '.webm', '.m4v', '.wmv', '.flv', '.ts', '.m2ts')
 
 # Constantes para estados de Transmission
 TORRENT_STATUS = {
@@ -683,7 +684,7 @@ class TransmissionClient:
         except TransmissionError as e:
             # Si el torrent no existe (quizás ya fue eliminado manualmente), no es un error crítico
             if "torrent not found" in str(e.message).lower() or "invalid id" in str(e.message).lower():
-                logger.warning(f"[Transmission] Torrent {torrent_id} no encontrado en Transmission (puede que ya estuviera eliminado)")
+                logger.warning(f"[Transmission] Torrent {torrent_id} no encontrado en Transmission (puede que ya estuviera eliminado)")              
                 return True  # Consideramos éxito porque el resultado final es el mismo
             logger.error(f"[Transmission] ❌ Error eliminando torrent {torrent_id}: {e.message}")
             raise
@@ -731,6 +732,194 @@ class TransmissionClient:
                 "connectedCount", 0
             ),
         }
+
+    def get_torrent_file_path(
+        self, torrent_id: int, filename: Optional[str] = None
+    ) -> Optional[str]:
+        """
+        Obtiene la ruta completa del archivo de video de un torrent usando:
+        - downloadDir (directorio base)
+        - files[].name (ruta relativa del archivo)
+
+        Args:
+            torrent_id: ID del torrent
+            filename: Nombre del archivo específico (opcional)
+
+        Returns:
+            Ruta completa al archivo o None si no se encuentra
+        """
+        # Obtener torrent con get_torrent() que ya incluye files y downloadDir
+        torrent = self.get_torrent(torrent_id)
+        if not torrent:
+            logger.warning(f"[Transmission] Torrent {torrent_id} no encontrado")
+            return None
+
+        # Si no tenemos información del directorio de descarga, no podemos continuar
+        if not torrent.download_dir:
+            logger.warning(
+                f"[Transmission] Torrent {torrent_id} no tiene downloadDir"
+            )
+            return None
+
+        logger.info(
+            f"[Transmission] Torrent: {torrent.name}, downloadDir: {torrent.download_dir}"
+        )
+        logger.info(f"[Transmission] Archivos del torrent: {[f.get('name') for f in torrent.files]}")
+
+        # Si se especifica un filename, buscar ese archivo específico
+        if filename:
+            logger.info(f"[Transmission] Buscando archivo: '{filename}'")
+            
+            # PRIMERO: buscar en los archivos del torrent
+            for f in torrent.files:
+                file_name = f.get("name", "")
+                # El nombre puede ser solo el archivo o una ruta relativa
+                base_name = os.path.basename(file_name)
+                
+                # Coincidencia exacta, por nombre base, o si filename está contenido
+                if (file_name == filename or 
+                    base_name == filename or 
+                    filename in file_name or 
+                    filename in base_name):
+                    
+                    full_path = os.path.join(torrent.download_dir, file_name)
+                    
+                    # Verificar que NO es un directorio
+                    if os.path.isdir(full_path):
+                        logger.warning(f"[Transmission] La ruta es un directorio, no un archivo: {full_path}")
+                        # Buscar archivos dentro del directorio
+                        for root, dirs, files in os.walk(full_path):
+                            for file in files:
+                                if any(file.lower().endswith(ext) for ext in VIDEO_EXTENSIONS):
+                                    nested_path = os.path.join(root, file)
+                                    logger.info(f"[Transmission] ✅ Archivo encontrado dentro del directorio: {nested_path}")
+                                    return nested_path
+                        continue
+                    
+                    if os.path.exists(full_path):
+                        logger.info(f"[Transmission] ✅ Archivo encontrado: {full_path}")
+                        return full_path
+                    else:
+                        logger.warning(f"[Transmission] Archivo no existe en disco: {full_path}")
+            
+            # SEGUNDO: intentar con el filename como ruta directa
+            direct_path = os.path.join(torrent.download_dir, filename)
+            if os.path.exists(direct_path) and not os.path.isdir(direct_path):
+                logger.info(f"[Transmission] ✅ Archivo encontrado (ruta directa): {direct_path}")
+                return direct_path
+            
+            # TERCERO: si filename es el nombre del directorio, buscar dentro
+            dir_path = os.path.join(torrent.download_dir, filename)
+            if os.path.isdir(dir_path):
+                logger.info(f"[Transmission] Filename es un directorio, buscando archivos dentro: {dir_path}")
+                for ext in VIDEO_EXTENSIONS:
+                    for file in os.listdir(dir_path):
+                        if file.lower().endswith(ext):
+                            full_path = os.path.join(dir_path, file)
+                            logger.info(f"[Transmission] ✅ Archivo encontrado dentro del directorio: {full_path}")
+                            return full_path
+            
+            logger.warning(f"[Transmission] Archivo especificado no encontrado: {filename}")
+            return None
+        
+        for f in torrent.files:
+            file_name = f.get("name", "")
+            full_path = os.path.join(torrent.download_dir, file_name)
+            
+            # Si es un directorio, explorar dentro
+            if os.path.isdir(full_path):
+                logger.debug(f"[Transmission] Explorando directorio: {full_path}")
+                for root, dirs, files in os.walk(full_path):
+                    for file in files:
+                        if file.lower().endswith(VIDEO_EXTENSIONS):
+                            nested_path = os.path.join(root, file)
+                            logger.info(f"[Transmission] ✅ Archivo de video encontrado en subdirectorio: {nested_path}")
+                            return nested_path
+                continue
+            
+            # Si es archivo, verificar extensión
+            if file_name.lower().endswith(VIDEO_EXTENSIONS):
+                if os.path.exists(full_path):
+                    logger.info(f"[Transmission] ✅ Archivo de video encontrado: {full_path}")
+                    return full_path
+                else:
+                    logger.warning(f"[Transmission] Archivo de video no existe en disco: {full_path}")
+
+        # Si no se encontró ningún archivo de video, listar lo que hay para debug
+        logger.warning(f"[Transmission] No se encontró archivo de video para torrent {torrent_id}")
+        
+        # Listar contenido del download_dir para depuración
+        if os.path.exists(torrent.download_dir):
+            try:
+                contents = os.listdir(torrent.download_dir)
+                logger.info(f"[Transmission] Contenido de {torrent.download_dir}: {contents[:10]}")
+            except Exception as e:
+                logger.error(f"[Transmission] Error listando directorio: {e}")
+
+        return None
+
+    def debug_torrent_files(self, torrent_id: int) -> Dict[str, Any]:
+        """
+        Devuelve información detallada de los archivos del torrent para depuración
+
+        Args:
+            torrent_id: ID del torrent
+
+        Returns:
+            Diccionario con información de debug del torrent y sus archivos
+        """
+        torrent = self.get_torrent(torrent_id)
+        if not torrent:
+            return {
+                "error": f"Torrent {torrent_id} no encontrado",
+                "torrent_id": torrent_id,
+            }
+
+        # Información del torrent
+        debug_info = {
+            "torrent_id": torrent.id,
+            "name": torrent.name,
+            "hash": torrent.hash_string,
+            "status": torrent.status,
+            "status_display": TORRENT_STATUS.get(torrent.status, "unknown"),
+            "progress": round(torrent.progress * 100, 1),
+            "download_dir": torrent.download_dir,
+            "category": torrent.category,
+            "files_count": len(torrent.files),
+            "files": [],
+        }
+
+        # Información de cada archivo
+        video_extensions = (".mkv", ".mp4", ".avi", ".mov", ".webm", ".m4v")
+        for f in torrent.files:
+            file_name = f.get("name", "")
+            file_size = f.get("size", 0)
+            file_completed = f.get("bytes_completed", 0)
+
+            # Verificar si existe en disco
+            full_path = os.path.join(torrent.download_dir, file_name) if torrent.download_dir else None
+            exists = os.path.exists(full_path) if full_path else False
+
+            file_info = {
+                "name": file_name,
+                "size": file_size,
+                "size_formatted": self._format_size(file_size),
+                "bytes_completed": file_completed,
+                "completed_percent": round((file_completed / file_size * 100), 1) if file_size > 0 else 0,
+                "full_path": full_path,
+                "exists": exists,
+                "is_video": file_name.lower().endswith(video_extensions),
+            }
+            debug_info["files"].append(file_info)
+
+        # Intentar encontrar el archivo de video principal
+        for f in debug_info["files"]:
+            if f["is_video"] and f["exists"]:
+                debug_info["primary_video_path"] = f["full_path"]
+                break
+
+        logger.debug(f"[Transmission] Debug torrent {torrent_id}: {debug_info}")
+        return debug_info
 
     def test_connection(self) -> bool:
         """

@@ -682,6 +682,14 @@ function renderDownloads() {
     }).join('');
 
     updateHeaderStats();
+    
+    // Sincronizar estados de botones de optimización después de renderizar
+    if (typeof TorrentOptimize !== 'undefined' && TorrentOptimize.syncWithActiveOptimizations) {
+        // Usar setTimeout para asegurar que los botones ya están en el DOM
+        setTimeout(() => {
+            TorrentOptimize.syncWithActiveOptimizations();
+        }, 100);
+    }
 }
 
 /**
@@ -1380,10 +1388,19 @@ function initDownloadsPage() {
             if (typeof TorrentOptimize !== 'undefined') {
                 clearInterval(checkTorrentOptimize);
                 console.log('[Downloads] TorrentOptimize cargado correctamente');
+                // Sincronizar estados de botones al cargar
+                if (TorrentOptimize.syncWithActiveOptimizations) {
+                    TorrentOptimize.syncWithActiveOptimizations();
+                }
             }
         }, 500);
         // Cancelar después de 10 segundos
         setTimeout(() => clearInterval(checkTorrentOptimize), 10000);
+    } else {
+        // TorrentOptimize ya está cargado, sincronizar inmediatamente
+        if (TorrentOptimize.syncWithActiveOptimizations) {
+            TorrentOptimize.syncWithActiveOptimizations();
+        }
     }
 
     // Iniciar polling

@@ -5,8 +5,8 @@ Este servicio proporciona métodos para optimizar archivos de video descargados
 usando FFmpeg con aceleración GPU NVIDIA a través de una API HTTP externa.
 
 Flujo de optimización:
-1. Busca el archivo en las carpetas de Transmission (/downloads/complete/ o /downloads/incomplete/)
-2. COPIA el archivo a /shared/input/ (no mueve, para preservar el original)
+1. Obtiene la ruta del archivo desde Transmission
+2. USA DIRECTAMENTE el archivo original como input (sin copiar)
 3. Llama a FFmpeg API con las rutas compartidas
 4. Mueve el resultado final a /mnt/DATA_2TB/audiovisual/mkv/{categoría}/
 5. Limpia archivos temporales
@@ -27,8 +27,8 @@ from src.infrastructure.config.settings import settings
 
 logger = logging.getLogger(__name__)
 
-SHARED_INPUT = os.environ.get("SHARED_INPUT_PATH", "/shared/input")
-SHARED_OUTPUT = os.environ.get("SHARED_OUTPUT_PATH", "/shared/outputs")
+SHARED_INPUT = os.environ.get("SHARED_INPUT_PATH", "/app/uploads")
+SHARED_OUTPUT = os.environ.get("SHARED_OUTPUT_PATH", "/app/outputs")
 
 
 @dataclass
@@ -134,18 +134,45 @@ class TorrentOptimizer:
 
         return FileCleanupService()
 
-    def _find_torrent_file(self, filename: str) -> Optional[str]:
+    def _find_torrent_file_fallback(self, filename: str, torrent_id: Optional[int] = None) -> Optional[str]:
         """
-        Busca el archivo en las carpetas de Transmission, probando con extensiones comunes
-        si el archivo no se encuentra con el nombre exacto.
+        Busca el archivo en las carpetas tradicionales de Transmission (fallback).
+        Este método solo se usa si el método principal con TransmissionClient falla.
 
         Args:
             filename: Nombre del archivo a buscar (puede incluir o no extensión)
+            torrent_id: ID del torrent en Transmission (opcional)
 
         Returns:
             Ruta completa del archivo si se encuentra, None si no
         """
         search_paths = [self.TRANSMISSION_COMPLETE, self.TRANSMISSION_INCOMPLETE]
+
+        # Primero, intentar obtener la ruta real desde Transmission si tenemos torrent_id
+        if torrent_id and self.transmission_client:
+            try:
+                torrent = self.transmission_client.get_torrent(torrent_id)
+                if torrent and torrent.download_dir and os.path.exists(torrent.download_dir):
+                    logger.info(
+                        f"[TorrentOptimizer] Fallback: buscando en downloadDir del torrent: {torrent.download_dir}"
+                    )
+                    # Buscar el archivo en el directorio del torrent
+                    for f in torrent.files:
+                        file_name = f.get("name", "")
+                        # Buscar archivos de video
+                        if file_name.lower().endswith(('.mkv', '.mp4', '.avi', '.mov', '.webm', '.m4v', '.wmv', '.flv', '.ts', '.m2ts')):
+                            full_path = os.path.join(torrent.download_dir, file_name)
+                            if os.path.exists(full_path):
+                                logger.info(f"[TorrentOptimizer] ✓ Archivo encontrado en downloadDir: {full_path}")
+                                return full_path
+            except Exception as e:
+                if "torrent not found" in str(e).lower():
+                    logger.error(f"[TorrentOptimizer] ❌ Torrent {torrent_id} no existe en Transmission")
+                    logger.info("[TorrentOptimizer] 📋 Torrents activos en Transmission:")
+                    # Listar torrents disponibles para ayudar al usuario
+                    active_torrents = self.transmission_client.get_torrents()
+                    for t in active_torrents[:5]:  # Mostrar primeros 5
+                        logger.info(f"   - ID: {t.id}, Nombre: {t.name}")
 
         # Intentar con el nombre exacto primero
         for base in search_paths:
@@ -217,19 +244,30 @@ class TorrentOptimizer:
         Raises:
             Exception: Si el archivo no se encuentra
         """
+        # Asegurar que tenemos el transmission_client para buscar archivos
+        if not self.transmission_client and torrent_id:
+            from src.adapters.outgoing.services.transmission import TransmissionClient
+
+            logger.warning(
+                "[TorrentOptimizer] Transmission client no configurado, creando uno nuevo"
+            )
+            self.transmission_client = TransmissionClient()
+
+        # Convertir torrent_id a int si es string
+        try:
+            torrent_id_int = int(torrent_id) if torrent_id else None
+        except (ValueError, TypeError):
+            torrent_id_int = None
+            logger.warning(f"[TorrentOptimizer] torrent_id inválido: {torrent_id}")
+
         # Si no se proporciona filename, intentamos obtenerlo de Transmission
         if not filename:
             if not self.transmission_client:
-                from src.adapters.outgoing.services.transmission import TransmissionClient
+                raise Exception("Se requiere transmission_client para obtener el nombre del archivo")
 
-                logger.warning(
-                    "[TorrentOptimizer] Transmission client no configurado, creando uno nuevo"
-                )
-                self.transmission_client = TransmissionClient()
-
-            torrent = self.transmission_client.get_torrent(torrent_id)
+            torrent = self.transmission_client.get_torrent(torrent_id_int)
             if not torrent:
-                raise FileNotFoundError(f"Torrent {torrent_id} no encontrado en Transmission")
+                raise FileNotFoundError(f"Torrent {torrent_id_int} no encontrado en Transmission")
 
             logger.info(
                 f"[TorrentOptimizer] Torrent: {torrent.name}, progress={torrent.progress}%"
@@ -247,19 +285,80 @@ class TorrentOptimizer:
         else:
             logger.info(f"[TorrentOptimizer] Usando filename proporcionado: {filename}")
 
-        # Buscar el archivo en las carpetas de Transmission usando el método mejorado
-        source_path = self._find_torrent_file(filename)
+        # PRIORIZAR: Usar TransmissionClient para obtener la ruta real del archivo
+        source_path = None
+        if torrent_id_int and self.transmission_client:
+            try:
+                logger.info(
+                    f"[TorrentOptimizer] Intentando obtener ruta desde Transmission (torrent_id={torrent_id_int}, filename={filename})"
+                )
+                # Intentar obtener la ruta del archivo de video directamente
+                source_path = self.transmission_client.get_torrent_file_path(
+                    torrent_id_int, filename
+                )
+                if source_path and os.path.exists(source_path):
+                    ext = os.path.splitext(source_path)[1]
+                    logger.info(
+                        f"[Transmission] ✅ Archivo de entrada encontrado: {source_path} (extensión: {ext})"
+                    )
+                elif source_path:
+                    logger.warning(
+                        f"[Transmission] Transmission devolvió ruta pero no existe: {source_path}"
+                    )
+                else:
+                    logger.warning(
+                        f"[Transmission] ❌ No se encontró archivo de video para torrent {torrent_id_int}"
+                    )
+                    # Debug: mostrar información del torrent para diagnosticar
+                    debug_info = self.transmission_client.debug_torrent_files(torrent_id_int)
+                    logger.warning(
+                        f"[Transmission] Debug: download_dir={debug_info.get('download_dir')}, files_count={debug_info.get('files_count')}"
+                    )
+            except Exception as e:
+                logger.warning(
+                    f"[TorrentOptimizer] Error usando TransmissionClient: {e}"
+                )
+
+        # Fallback: búsqueda tradicional en carpetas solo si falló el método de Transmission
+        if not source_path:
+            logger.info(
+                f"[TorrentOptimizer] Fallback: usando búsqueda tradicional en carpetas para: {filename} (torrent_id={torrent_id_int})"
+            )
+            source_path = self._find_torrent_file_fallback(filename, torrent_id_int)
+
         if not source_path:
             raise FileNotFoundError(f"Archivo no encontrado: {filename}")
 
-        name_sanitizer = self._get_name_sanitizer()
-        output_filename = name_sanitizer.sanitize(filename)
+        # Verificar que source_path es un archivo, no un directorio
+        if os.path.isdir(source_path):
+            raise FileNotFoundError(f"El path encontrado es un directorio, no un archivo: {source_path}")
 
-        shared_input = os.path.join(SHARED_INPUT, filename)
-        shutil.copy2(source_path, shared_input)
-        logger.info(f"[TorrentOptimizer] Copiado a {shared_input}")
+        # Usar el nombre del archivo real del source_path para generar el nombre de salida
+        actual_filename = os.path.basename(source_path)
+        logger.info(f"[TorrentOptimizer] Archivo real a procesar: {actual_filename}")
+
+        # Verificar que el archivo existe y es válido ANTES de continuar
+        if not os.path.exists(source_path):
+            raise FileNotFoundError(f"Archivo no encontrado: {source_path}")
+
+        if not os.path.isfile(source_path):
+            raise Exception(f"La ruta no es un archivo: {source_path}")
+
+        name_sanitizer = self._get_name_sanitizer()
+        # El sanitizador ya añade .mkv, no añadirlo de nuevo
+        output_filename = name_sanitizer.sanitize(actual_filename)
+
+        # USAR DIRECTAMENTE la ruta original como input (no copiar)
+        # Convertir la ruta del host (/downloads/...) a la ruta del contenedor ffmpeg-api (/shared/input/)
+        # porque /downloads/ está mapeado a /shared/input/ en el contenedor ffmpeg-api
+        shared_input = source_path.replace("/downloads/", "/shared/input/")
+        logger.info(f"[TorrentOptimizer] Usando archivo original directamente: {shared_input}")
+        logger.info(f"[TorrentOptimizer] SOURCE es archivo? {os.path.isfile(source_path)}")
+        logger.info(f"[TorrentOptimizer] SOURCE existe? {os.path.exists(source_path)}")
+        logger.info(f"[TorrentOptimizer] SOURCE tamaño: {os.path.getsize(source_path) if os.path.exists(source_path) else 'N/A'}")
 
         shared_output = os.path.join(SHARED_OUTPUT, output_filename)
+        logger.info(f"[TorrentOptimizer] Usando archivo de entrada: {shared_input} -> salida: {shared_output}")
 
         os.makedirs(SHARED_OUTPUT, exist_ok=True)
 
@@ -364,13 +463,6 @@ class TorrentOptimizer:
                     progress.status = "error"
                     progress.error_message = f"Error al iniciar optimización: {str(e)}"
                     progress.end_time = time.time()
-            
-            # Limpiar archivo temporal si falló al iniciar
-            if os.path.exists(shared_input):
-                try:
-                    os.remove(shared_input)
-                except Exception:
-                    pass
 
     def _monitor_optimization(
         self,
@@ -493,8 +585,15 @@ class TorrentOptimizer:
 
             os.makedirs(os.path.dirname(final_path), exist_ok=True)
 
+            # Mover el archivo optimizado al catálogo
             shutil.move(output_path, final_path)
-            logger.info(f"[TorrentOptimizer] Archivo movido a: {final_path}")
+            logger.info(f"[TorrentOptimizer] ✅ Archivo movido a catálogo: {final_path}")
+
+            # Actualizar la base de datos del catálogo
+            try:
+                self._update_catalog_db(final_path, category, pending)
+            except Exception as e:
+                logger.warning(f"[TorrentOptimizer] ⚠️ Error actualizando catálogo: {e}")
 
             # Solo limpiar y eliminar torrent si el archivo se movió correctamente
             cleanup_service = self._get_cleanup_service()
@@ -512,6 +611,61 @@ class TorrentOptimizer:
 
         except Exception as e:
             logger.error(f"[TorrentOptimizer] Error finalizando optimización: {e}")
+
+    def _update_catalog_db(self, file_path: str, category: str, metadata: dict):
+        """
+        Actualiza la base de datos del catálogo con la nueva película optimizada.
+        
+        Args:
+            file_path: Ruta completa del archivo en el catálogo
+            category: Categoría de la película (action, horror, sci_fi, etc.)
+            metadata: Metadatos del proceso de optimización
+        """
+        try:
+            from src.adapters.outgoing.repositories.postgresql.catalog_repository import (
+                get_catalog_repository,
+            )
+            
+            repo = get_catalog_repository()
+            
+            # Extraer título del nombre del archivo
+            filename = metadata.get("final_filename", "")
+            title = filename.replace("-optimized", "").replace(".mkv", "").replace("-", " ").title()
+            
+            # Obtener tamaño del archivo
+            file_size = 0
+            if os.path.exists(file_path):
+                file_size = os.path.getsize(file_path)
+            
+            # Buscar si ya existe contenido con esta ruta
+            existing = repo.get_local_content_by_file_path(file_path)
+            
+            if existing:
+                # Actualizar registro existente
+                logger.info(f"[TorrentOptimizer] Actualizando registro existente en catálogo: {existing.id}")
+            else:
+                # Crear nuevo registro
+                content_data = {
+                    "title": title,
+                    "file_path": file_path,
+                    "file_size": file_size,
+                    "type": "movie",
+                    "genre": category,
+                    "is_optimized": True,
+                    "quality": "optimized",
+                    "format": "mkv",
+                }
+                
+                try:
+                    new_content = repo.create_local_content(content_data)
+                    logger.info(f"[TorrentOptimizer] ✅ Nuevo contenido registrado en catálogo: {new_content.id} - {title}")
+                except Exception as create_error:
+                    logger.warning(f"[TorrentOptimizer] ⚠️ Error creando contenido en catálogo: {create_error}")
+                    # No fallar la optimización si el catálogo no se puede actualizar
+                    
+        except Exception as e:
+            logger.warning(f"[TorrentOptimizer] ⚠️ Error en _update_catalog_db: {e}")
+            # No propagar el error para no afectar el flujo de optimización
 
     def _handle_error(self, process_id: str, error_message: str):
         """

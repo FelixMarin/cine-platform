@@ -169,8 +169,8 @@ class Settings:
     # ============================
     # 📁 Rutas compartidas (para optimización)
     # ============================
-    SHARED_INPUT_PATH: str = os.environ.get("SHARED_INPUT_PATH", "/shared/input")
-    SHARED_OUTPUT_PATH: str = os.environ.get("SHARED_OUTPUT_PATH", "/shared/outputs")
+    SHARED_INPUT_PATH: str = os.environ.get("SHARED_INPUT_PATH", "/app/uploads")
+    SHARED_OUTPUT_PATH: str = os.environ.get("SHARED_OUTPUT_PATH", "/app/outputs")
     TRANSMISSION_COMPLETE_PATH: str = os.environ.get(
         "TRANSMISSION_COMPLETE_PATH", "/downloads/complete"
     )

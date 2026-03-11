@@ -88,9 +88,9 @@ class OptimizationRunner:
     
     # Configuración del contenedor FFmpeg
     FFMPEG_CONTAINER = "ffmpeg-cuda"
-    SHARED_INPUT = "/shared/input"
-    SHARED_OUTPUT = "/shared/outputs"
-    SHARED_TEMP = "/shared/temp"
+    SHARED_INPUT = "/app/uploads"
+    SHARED_OUTPUT = "/app/outputs"
+    SHARED_TEMP = "/app/temp"
     
     def __init__(self, job: OptimizationJob, queue: OptimizationQueue):
         self.job = job

@@ -167,6 +167,7 @@ def get_optimize_status(process_id):
             {
                 "success": True,
                 "process_id": progress.process_id,
+                "torrent_id": getattr(progress, 'torrent_id', None),
                 "status": progress.status,
                 "progress": round(progress.progress, 1),
                 "input_file": os.path.basename(progress.input_file),

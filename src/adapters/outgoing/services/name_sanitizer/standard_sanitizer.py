@@ -5,6 +5,7 @@ Implementación de INameSanitizer para sanitizar nombres de archivos
 import re
 import os
 import logging
+import unicodedata
 
 from src.core.ports.services.INameSanitizer import INameSanitizer
 
@@ -14,53 +15,83 @@ logger = logging.getLogger(__name__)
 
 class StandardSanitizer(INameSanitizer):
     """
-    Sanitizador estándar de nombres de archivos
+    Sanitizador estándar de nombres de archivos de películas
+
+    Formato de salida: nombre-de-pelicula-(año)-optimized.mkv
 
     Reglas:
-    - Extraer año con regex: r'\\(\\d{4}\\)'
-    - Reemplazar espacios y guiones bajos por guiones
-    - Eliminar caracteres especiales (solo letras, números, guiones y paréntesis)
-    - Convertir a minúsculas
-    - Siempre terminar en "-optimized.mkv"
+    1. Conservar el año entre paréntesis (2025) → debe mantenerse igual
+    2. Eliminar todo lo que esté entre corchetes [...] (calidad, idioma, etc.)
+    3. Eliminar palabras como: Bluray, HDTV, WEB-DL, 720p, 1080p, 4K, Esp, Ing, etc.
+    4. Convertir a minúsculas
+    5. Reemplazar espacios por guiones
+    6. Eliminar acentos (á → a, é → e, etc.)
+    7. Añadir sufijo -optimized al final
 
     Ejemplos:
-    - "Spaceman (2024).mp4" -> "spaceman-(2024)-optimized.mkv"
-    - "The Matrix 1999.mkv" -> "the-matrix-(1999)-optimized.mkv"
-    - "Inception_2010.avi" -> "inception-(2010)-optimized.mkv"
+    - "28 años después El templo de los huesos (2026) [Bluray 720p][Esp].mkv" -> "28-anos-despues-el-templo-de-los-huesos-(2026)-optimized.mkv"
+    - "Jurassic World El renacer (2025) [Bluray 720p][Esp].mkv" -> "jurassic-world-el-renacer-(2025)-optimized.mkv"
+    - "The Movie (2024) [4K HDR][Ing].mkv" -> "the-movie-(2024)-optimized.mkv"
     """
 
     def sanitize(self, filename: str) -> str:
         """
-        Sanitiza un nombre de archivo para el output
+        Sanitiza el nombre del archivo según el estándar:
+        nombre-de-pelicula-(año)-optimized.mkv
 
         Args:
-            filename: Nombre original del archivo
+            filename: Nombre original del archivo (ej: "28 años después... (2026) [Bluray][Esp].mkv")
 
         Returns:
-            Nombre sanitizado para el archivo de salida
+            Nombre sanitizado (ej: "28-anos-despues-el-templo-de-los-huesos-(2026)-optimized.mkv")
         """
-        base_name = os.path.splitext(filename)[0]
+        # 1. Extraer nombre base sin extensión
+        base = os.path.splitext(filename)[0]
 
-        year_match = re.search(r"\\(\\d{4}\\)", base_name)
-        year = year_match.group(1) if year_match else None
+        # 2. Extraer y CONSERVAR el año entre paréntesis
+        year_match = re.search(r'\((\d{4})\)', base)
+        year = year_match.group(0) if year_match else ''  # Conservar con paréntesis: "(2025)"
 
+        # 3. Eliminar el año temporalmente para procesar el título
         if year:
-            base_name = re.sub(r"\\s*\\(\\d{4}\\)\\s*", "", base_name)
+            base = base.replace(year, '')
 
-        base_name = base_name.replace(" ", "-").replace("_", "-")
+        # 4. Eliminar todo lo que está entre corchetes [ ... ]
+        base = re.sub(r'\[[^\]]*\]', '', base)
 
-        base_name = re.sub(r"[^a-zA-Z0-9\\-]", "", base_name)
+        # 5. Eliminar palabras comunes de calidad/idioma (que no estén entre paréntesis)
+        quality_patterns = [
+            r'\bBluray\b', r'\bHDTV\b', r'\bWEB-DL\b', r'\bWEBRip\b', r'\bDVD\b', r'\bHDRip\b', r'\bBDRip\b',
+            r'\b720p\b', r'\b1080p\b', r'\b2160p\b', r'\b4K\b', r'\bUHD\b',
+            r'\bEsp\b', r'\bIng\b', r'\bCastellano\b', r'\bVO\b', r'\bVOSE\b', r'\bSubtitulado\b',
+            r'\bx264\b', r'\bx265\b', r'\bHEVC\b', r'\bAVC\b', r'\bH\.?264\b', r'\bH\.?265\b',
+        ]
 
-        base_name = base_name.lower()
+        for pattern in quality_patterns:
+            base = re.sub(pattern, '', base, flags=re.IGNORECASE)
 
-        base_name = re.sub(r"-+", "-", base_name)
+        # 6. Limpiar espacios extras y caracteres especiales
+        base = re.sub(r'\s+', ' ', base)  # Múltiples espacios → un espacio
+        base = re.sub(r'[^\w\s-]', '', base)  # Eliminar puntuación
 
-        base_name = base_name.strip("-")
+        # 7. Eliminar acentos
+        base = unicodedata.normalize('NFKD', base).encode('ASCII', 'ignore').decode('utf-8')
 
+        # 8. Reemplazar espacios por guiones y convertir a minúsculas
+        base = re.sub(r'\s+', '-', base.strip()).lower()
+
+        # 9. Añadir el año (con paréntesis) si existe
         if year:
-            final_name = f"{base_name}-({year})-optimized.mkv"
-        else:
-            final_name = f"{base_name}-optimized.mkv"
+            base = f"{base}-{year}"
 
-        logger.info(f"[StandardSanitizer] Sanitizado: '{filename}' -> '{final_name}'")
-        return final_name
+        # 10. Eliminar posibles guiones dobles
+        base = re.sub(r'-+', '-', base)
+
+        # 11. Añadir sufijo -optimized y extensión
+        result = f"{base}-optimized.mkv"
+
+        # 12. Limpieza final
+        result = re.sub(r'-+', '-', result)
+
+        logger.debug(f"[StandardSanitizer] Original: {filename} -> Sanitizado: {result}")
+        return result
