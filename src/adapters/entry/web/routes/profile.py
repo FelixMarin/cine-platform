@@ -67,8 +67,12 @@ def get_my_profile():
         # Obtener ID de usuario de la sesión (cualquiera de los dos)
         app_user_id = session.get("app_user_id") or session.get("user_id")
         
+        logger.info(f"[Profile] get_my_profile - app_user_id from session: {app_user_id}")
+        logger.info(f"[Profile] get_my_profile - session keys: {list(session.keys())}")
+        
         if not app_user_id:
             # Fallback: intentar obtener datos básicos de la sesión
+            logger.warning("[Profile] No app_user_id in session, using session data")
             return jsonify(
                 {
                     "success": True,
@@ -87,6 +91,7 @@ def get_my_profile():
         service = get_user_sync_service()
         if not service:
             # Fallback: usar datos de sesión si el servicio no está disponible
+            logger.warning("[Profile] UserSyncService not available, using session data")
             return jsonify(
                 {
                     "success": True,
@@ -103,8 +108,11 @@ def get_my_profile():
         
         profile = service.get_user_profile(app_user_id)
         
+        logger.info(f"[Profile] get_user_profile result: {profile}")
+        
         if not profile:
             # Fallback: usar datos de sesión si el perfil no existe en BD
+            logger.warning(f"[Profile] Profile not found for app_user_id: {app_user_id}")
             return jsonify(
                 {
                     "success": True,
@@ -118,6 +126,9 @@ def get_my_profile():
                     },
                 }
             )
+        
+        # Log para depuración
+        logger.info(f"[Profile] Perfil obtenido: id={profile.get('id')}, username={profile.get('username')}, email={profile.get('email')}")
         
         return jsonify({
             "success": True,

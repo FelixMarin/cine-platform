@@ -199,9 +199,10 @@ def login_post():
                 
                 session["app_user_id"] = app_user["id"]
                 session["user_id"] = app_user["id"]
+                session["email"] = app_user.get("email")  # Guardar email en sesión
                 session["display_name"] = app_user.get("display_name")
                 
-                logger.info(f"[LOGIN] Usuario sincronizado en app_users: ID {app_user['id']}")
+                logger.info(f"[LOGIN] Usuario sincronizado en app_users: ID {app_user['id']}, email={app_user.get('email')}")
             except Exception as sync_error:
                 logger.error(f"[LOGIN] Error sincronizando usuario: {sync_error}")
                 session["app_user_id"] = None
@@ -328,6 +329,7 @@ def login():
 
                 session["app_user_id"] = app_user["id"]
                 session["user_id"] = app_user["id"]  # Alias para compatibilidad
+                session["email"] = app_user.get("email")  # Guardar email en sesión
                 session["display_name"] = app_user.get("display_name")
                 session["avatar_url"] = app_user.get("avatar_url")
                 session["privacy_level"] = app_user.get("privacy_level")
