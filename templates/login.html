@@ -177,7 +177,7 @@
                 
                 // Mostrar estado de carga
                 const container = document.getElementById('login-container');
-                container.innerHTML = '<h2 class="menu-title-full">Cine<span>Platform</span></h2><p>Completando autenticación...</p>';
+                container.innerHTML = '<h2 class="menu-title-full">Cine<span>Platform</span></h2><p style="text-align: center;>Completando autenticación...</p>';
                 
                 // Enviar al backend para canjear el código
                 fetch('/api/auth/exchange-token', {

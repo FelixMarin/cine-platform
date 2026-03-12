@@ -178,6 +178,7 @@ def create_app():
         init_torrent_optimize_routes,
         catalog_db_bp,
         init_catalog_db_routes,
+        profile_bp,
     )
 
     # Inicializar rutas
@@ -237,6 +238,7 @@ def create_app():
     app.register_blueprint(thumbnails_bp)
     app.register_blueprint(torrent_optimize_bp)
     app.register_blueprint(catalog_db_bp)
+    app.register_blueprint(profile_bp)  # Rutas de perfil de usuario
 
     logger.info("[ROUTER] Blueprints registrados correctamente")
 

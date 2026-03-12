@@ -15,7 +15,7 @@ from werkzeug.utils import secure_filename
 
 logger = logging.getLogger(__name__)
 
-profile_bp = Blueprint("profile", __name__)
+profile_bp = Blueprint("profile", __name__, url_prefix="/api/profile")
 
 _user_sync_service = None
 
@@ -50,7 +50,7 @@ def require_app_user(f):
     """Decorador para requerir app_user_id en sesión"""
 
     def wrapper(*args, **kwargs):
-        app_user_id = session.get("app_user_id")
+        app_user_id = session.get("app_user_id") or session.get("user_id")
         if not app_user_id:
             return jsonify({"success": False, "error": "No autenticado"}), 401
         return f(*args, **kwargs)
@@ -59,11 +59,11 @@ def require_app_user(f):
     return wrapper
 
 
-@profile_bp.route("/api/profile/me", methods=["GET"])
+@profile_bp.route("/me", methods=["GET"])
 def get_my_profile():
     """Obtiene el perfil del usuario actual"""
     try:
-        app_user_id = session.get("app_user_id")
+        app_user_id = session.get("app_user_id") or session.get("user_id")
 
         if not app_user_id:
             # Intentar obtener datos básicos de la sesión
@@ -116,7 +116,7 @@ def get_my_profile():
         return jsonify({"success": False, "error": str(e)}), 500
 
 
-@profile_bp.route("/api/profile/update", methods=["POST"])
+@profile_bp.route("/update", methods=["POST"])
 def update_my_profile():
     """Actualiza el perfil del usuario actual"""
     try:
@@ -150,7 +150,7 @@ def update_my_profile():
         return jsonify({"success": False, "error": str(e)}), 500
 
 
-@profile_bp.route("/api/profile/avatar", methods=["POST"])
+@profile_bp.route("/avatar", methods=["POST"])
 def upload_avatar():
     """Sube una nueva imagen de avatar"""
     app_user_id = session.get("app_user_id")
