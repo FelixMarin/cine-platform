@@ -20,8 +20,10 @@ from sqlalchemy.dialects.postgresql import JSONB, BYTEA
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
+import logging
 
 Base = declarative_base()
+logger = logging.getLogger(__name__)
 
 
 class OmdbEntry(Base):
@@ -67,47 +69,51 @@ class OmdbEntry(Base):
     local_contents = relationship(
         "LocalContent",
         back_populates="omdb_entry",
-        foreign_keys="LocalContent.imdb_id_fk",
+        foreign_keys="LocalContent.imdb_id",
     )
 
     def to_dict(self, include_image=False):
-        """Convierte el modelo a diccionario"""
-        result = {
-            "id": self.id,
-            "imdb_id": self.imdb_id,
-            "title": self.title,
-            "year": self.year,
-            "rated": self.rated,
-            "released": self.released,
-            "runtime": self.runtime,
-            "genre": self.genre,
-            "director": self.director,
-            "writer": self.writer,
-            "actors": self.actors,
-            "plot": self.plot,
-            "language": self.language,
-            "country": self.country,
-            "awards": self.awards,
-            "poster_url": self.poster_url,
-            "metascore": self.metascore,
-            "imdb_rating": float(self.imdb_rating) if self.imdb_rating else None,
-            "imdb_votes": self.imdb_votes,
-            "type": self.type,
-            "box_office": self.box_office,
-            "production": self.production,
-            "website": self.website,
-            "dvd_release": self.dvd_release,
-            "total_seasons": self.total_seasons,
-            "season": self.season,
-            "episode": self.episode,
-            "series_id": self.series_id,
-            "ratings": self.ratings,
-            "created_at": self.created_at.isoformat() if self.created_at else None,
-            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
-        }
-        if include_image and self.poster_image:
-            result["has_poster_image"] = True
-        return result
+        """Convierte el modelo a diccionario de forma segura"""
+        try:
+            result = {
+                "id": self.id,
+                "imdb_id": self.imdb_id,
+                "title": self.title,
+                "year": self.year,
+                "rated": self.rated,
+                "released": self.released,
+                "runtime": self.runtime,
+                "genre": self.genre,
+                "director": self.director,
+                "writer": self.writer,
+                "actors": self.actors,
+                "plot": self.plot,
+                "language": self.language,
+                "country": self.country,
+                "awards": self.awards,
+                "poster_url": self.poster_url,
+                "metascore": self.metascore,
+                "imdb_rating": float(self.imdb_rating) if self.imdb_rating else None,
+                "imdb_votes": self.imdb_votes,
+                "type": self.type,
+                "box_office": self.box_office,
+                "production": self.production,
+                "website": self.website,
+                "dvd_release": self.dvd_release,
+                "total_seasons": self.total_seasons,
+                "season": self.season,
+                "episode": self.episode,
+                "series_id": self.series_id,
+                "ratings": self.ratings,
+                "created_at": self.created_at.isoformat() if self.created_at else None,
+                "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+            }
+            if include_image and self.poster_image:
+                result["has_poster_image"] = True
+            return result
+        except Exception as e:
+            logger.error(f"Error en OmdbEntry.to_dict: {e}")
+            return {"id": self.id, "error": "Error al serializar"}
 
     @classmethod
     def from_omdb_response(cls, data: dict, poster_bytes: bytes = None):
@@ -202,52 +208,54 @@ class LocalContent(Base):
         "OmdbEntry", back_populates="local_contents", foreign_keys=[imdb_id]
     )
 
-    imdb_id_fk = Column(String(20), ForeignKey("omdb_entries.imdb_id"), nullable=True)
-
     def to_dict(self, include_image=False):
-        """Convierte el modelo a diccionario"""
-        result = {
-            "id": self.id,
-            "imdb_id": self.imdb_id,
-            "title": self.title,
-            "year": self.year,
-            "rated": self.rated,
-            "released": self.released,
-            "runtime": self.runtime,
-            "genre": self.genre,
-            "director": self.director,
-            "writer": self.writer,
-            "actors": self.actors,
-            "plot": self.plot,
-            "language": self.language,
-            "country": self.country,
-            "awards": self.awards,
-            "poster_url": self.poster_url,
-            "metascore": self.metascore,
-            "imdb_rating": float(self.imdb_rating) if self.imdb_rating else None,
-            "imdb_votes": self.imdb_votes,
-            "type": self.type,
-            "box_office": self.box_office,
-            "production": self.production,
-            "website": self.website,
-            "dvd_release": self.dvd_release,
-            "total_seasons": self.total_seasons,
-            "season": self.season,
-            "episode": self.episode,
-            "series_id": self.series_id,
-            "ratings": self.ratings,
-            "file_path": self.file_path,
-            "file_size": self.file_size,
-            "duration": self.duration,
-            "resolution": self.resolution,
-            "codec": self.codec,
-            "quality": self.quality,
-            "format": self.format,
-            "is_optimized": self.is_optimized,
-            "notes": self.notes,
-            "created_at": self.created_at.isoformat() if self.created_at else None,
-            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
-        }
-        if include_image and self.poster_image:
-            result["has_poster_image"] = True
-        return result
+        """Convierte el modelo a diccionario de forma segura"""
+        try:
+            result = {
+                "id": self.id,
+                "imdb_id": self.imdb_id,
+                "title": self.title,
+                "year": self.year,
+                "rated": self.rated,
+                "released": self.released,
+                "runtime": self.runtime,
+                "genre": self.genre,
+                "director": self.director,
+                "writer": self.writer,
+                "actors": self.actors,
+                "plot": self.plot,
+                "language": self.language,
+                "country": self.country,
+                "awards": self.awards,
+                "poster_url": self.poster_url,
+                "metascore": self.metascore,
+                "imdb_rating": float(self.imdb_rating) if self.imdb_rating else None,
+                "imdb_votes": self.imdb_votes,
+                "type": self.type,
+                "box_office": self.box_office,
+                "production": self.production,
+                "website": self.website,
+                "dvd_release": self.dvd_release,
+                "total_seasons": self.total_seasons,
+                "season": self.season,
+                "episode": self.episode,
+                "series_id": self.series_id,
+                "ratings": self.ratings,
+                "file_path": self.file_path,
+                "file_size": self.file_size,
+                "duration": self.duration,
+                "resolution": self.resolution,
+                "codec": self.codec,
+                "quality": self.quality,
+                "format": self.format,
+                "is_optimized": self.is_optimized,
+                "notes": self.notes,
+                "created_at": self.created_at.isoformat() if self.created_at else None,
+                "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+            }
+            if include_image and self.poster_image:
+                result["has_poster_image"] = True
+            return result
+        except Exception as e:
+            logger.error(f"Error en LocalContent.to_dict: {e}")
+            return {"id": self.id, "error": "Error al serializar"}

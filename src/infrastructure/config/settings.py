@@ -31,6 +31,8 @@ class Settings:
     )
     LOG_FOLDER: str = os.environ.get("LOG_FOLDER", "/tmp/cineplatform/logs")
 
+    CINE_PLATFORM_URL: str = os.environ.get('CINE_PLATFORM_URL', 'http://cine-platform:5000')
+    
     # ============================
     # 🗄️ PostgreSQL
     # ============================

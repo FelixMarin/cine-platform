@@ -16,7 +16,7 @@ import logging
 import os
 import subprocess
 import logging
-from flask import redirect, Blueprint, jsonify, request
+from flask import redirect, Blueprint, jsonify, request, session
 from src.infrastructure.config.settings import settings
 from src.adapters.entry.web.middleware.auth_middleware import require_auth, require_role
 from src.adapters.outgoing.services.ffmpeg import TorrentOptimizer
@@ -104,11 +104,17 @@ def optimize_torrent():
         # Obtener filename si se proporciona (opcional, para buscar directamente)
         filename = data.get("filename")
         
+        # Obtener user_id de la sesión
+        user_id = session.get('user_id')
+        if not user_id:
+            logger.warning("[API] No hay user_id en sesión, la optimización no tendrá usuario asignado")
+        
         # Iniciar optimización directamente
         process_id = _torrent_optimizer.start_optimization(
             torrent_id=torrent_id,
             category=category,
-            filename=filename
+            filename=filename,
+            user_id=user_id,
         )
 
         return jsonify(
@@ -150,12 +156,17 @@ def get_optimize_status(process_id):
         JSON con estado de la optimización
     """
     try:
+        logger.info(f"[API] get_optimize_status - Consultando estado para process_id={process_id}")
+        
         progress = _torrent_optimizer.get_progress(process_id)
 
         if not progress:
+            logger.warning(f"[API] Proceso {process_id} no encontrado")
             return jsonify(
                 {"success": False, "error": f"Proceso {process_id} no encontrado"}
             ), 404
+
+        logger.info(f"[API] get_optimize_status - Progreso encontrado: status={progress.status}, progress={progress.progress:.1f}%")
 
         # Calcular tiempo restante estimado
         eta = None
@@ -163,22 +174,24 @@ def get_optimize_status(process_id):
             elapsed = time.time() - progress.start_time
             eta = int((elapsed / progress.progress) * (100 - progress.progress))
 
-        return jsonify(
-            {
-                "success": True,
-                "process_id": progress.process_id,
-                "torrent_id": getattr(progress, 'torrent_id', None),
-                "status": progress.status,
-                "progress": round(progress.progress, 1),
-                "input_file": os.path.basename(progress.input_file),
-                "output_file": os.path.basename(progress.output_file),
-                "eta_seconds": eta,
-                "error": progress.error_message,
-            }
-        )
+        response_data = {
+            "success": True,
+            "process_id": progress.process_id,
+            "torrent_id": getattr(progress, 'torrent_id', None),
+            "status": progress.status,
+            "progress": round(progress.progress, 1),
+            "input_file": os.path.basename(progress.input_file),
+            "output_file": os.path.basename(progress.output_file),
+            "eta_seconds": eta,
+            "error": progress.error_message,
+        }
+        
+        logger.info(f"[API] get_optimize_status - Respuesta para {process_id}: {response_data}")
+
+        return jsonify(response_data)
 
     except Exception as e:
-        logger.error(f"[API] Error consultando estado: {str(e)}")
+        logger.error(f"[API] Error consultando estado: {str(e)}", exc_info=True)
         return jsonify({"success": False, "error": str(e)}), 500
 
 

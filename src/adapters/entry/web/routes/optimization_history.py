@@ -162,6 +162,7 @@ def add_history_entry():
             file_size_bytes=data.get('file_size_bytes'),
             original_size_bytes=data.get('original_size_bytes'),
             compression_ratio=data.get('compression_ratio'),
+            app_user_id=data.get('app_user_id'),
         )
 
         db.add(entry)

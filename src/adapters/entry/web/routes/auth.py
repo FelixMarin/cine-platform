@@ -181,6 +181,31 @@ def login_post():
             session["logged_in"] = True
             session["username"] = username
             session["client_id"] = client_id
+            
+            # Sincronizar usuario con app_users
+            try:
+                if _user_sync_service is None:
+                    init_user_sync()
+                
+                # Buscar el usuario por email o username
+                oauth_user_data = {
+                    "id": None,  # No tenemos el ID de OAuth, usar el email como identificador
+                    "username": username,
+                    "email": f"{username}@{client_id}.local",  # Generar email temporal
+                    "display_name": username,
+                }
+                
+                app_user = _user_sync_service.sync_user(oauth_user_data)
+                
+                session["app_user_id"] = app_user["id"]
+                session["user_id"] = app_user["id"]
+                session["display_name"] = app_user.get("display_name")
+                
+                logger.info(f"[LOGIN] Usuario sincronizado en app_users: ID {app_user['id']}")
+            except Exception as sync_error:
+                logger.error(f"[LOGIN] Error sincronizando usuario: {sync_error}")
+                session["app_user_id"] = None
+                session["user_id"] = None
 
             # Si hay code_challenge, redirigir al flujo OAuth2
             if code_challenge:
@@ -302,6 +327,7 @@ def login():
                 app_user = _user_sync_service.sync_user(oauth_user_data)
 
                 session["app_user_id"] = app_user["id"]
+                session["user_id"] = app_user["id"]  # Alias para compatibilidad
                 session["display_name"] = app_user.get("display_name")
                 session["avatar_url"] = app_user.get("avatar_url")
                 session["privacy_level"] = app_user.get("privacy_level")
@@ -470,6 +496,7 @@ def exchange_token():
                 f"{oauth2_url}/userinfo",
                 headers={"Authorization": f"Bearer {access_token}"},
             )
+            logger.info(f"[EXCHANGE_TOKEN] 🔴 TOKEN {access_token}")
             if userinfo_response.status_code == 200:
                 user_info = userinfo_response.json()
                 logger.info(f"[EXCHANGE_TOKEN] Userinfo obtenido")
@@ -493,15 +520,31 @@ def exchange_token():
                 if _user_sync_service is None:
                     init_user_sync()
 
+                # Extraer username del JWT: usar sub como fallback si no hay preferred_username
+                # El JWT típico tiene: sub, email, name, preferred_username
+                username = (
+                    user_info.get("preferred_username")
+                    or user_info.get("username")
+                    or user_info.get("sub").split("@")[0]  # Usar parte antes de @ del email
+                    if user_info.get("sub")
+                    else None
+                )
+                
+                # El email puede estar en "email" o en "sub" (si es email)
+                email = user_info.get("email") or user_info.get("sub")
+                
+                # El display_name puede estar en "name" o en "preferred_username"
+                display_name = user_info.get("name") or username
+                
                 oauth_user_data = {
                     "id": user_info.get("id") or user_info.get("sub"),
-                    "username": user_info.get("preferred_username")
-                    or user_info.get("username"),
-                    "email": user_info.get("email"),
+                    "username": username,
+                    "email": email,
                     "roles": user_session.get("user_roles", []),
-                    "display_name": user_info.get("name")
-                    or user_info.get("preferred_username"),
+                    "display_name": display_name,
                 }
+                
+                logger.info(f"[EXCHANGE_TOKEN] Datos OAuth extraídos: {oauth_user_data}")
 
                 logger.info(f"[EXCHANGE_TOKEN] Sincronizando usuario con app DB")
 
@@ -860,16 +903,30 @@ def oauth_callback():
             if _user_sync_service is None:
                 init_user_sync()
 
+            # Extraer username del JWT: usar sub como fallback si no hay preferred_username
+            username = (
+                user_info.get("preferred_username")
+                or user_info.get("username")
+                or user_info.get("sub").split("@")[0]  # Usar parte antes de @ del email
+                if user_info.get("sub")
+                else None
+            )
+            
+            # El email puede estar en "email" o en "sub" (si es email)
+            email = user_info.get("email") or user_info.get("sub")
+            
+            # El display_name puede estar en "name" o en "preferred_username"
+            display_name = user_info.get("name") or username
+            
             oauth_user_data = {
                 "id": user_info.get("id") or user_info.get("sub"),
-                "username": user_info.get("preferred_username")
-                or user_info.get("username"),
-                "email": user_info.get("email"),
+                "username": username,
+                "email": email,
                 "roles": user_session.get("user_roles", []),
-                "display_name": user_info.get("name")
-                or user_info.get("preferred_username"),
+                "display_name": display_name,
             }
-
+            
+            logger.info(f"[OAUTH_CALLBACK] Datos OAuth extraídos: {oauth_user_data}")
             logger.info(f"[OAUTH_CALLBACK] Sincronizando usuario con app DB")
 
             app_user = _user_sync_service.sync_user(oauth_user_data)

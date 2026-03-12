@@ -142,6 +142,20 @@ class TorrentOptimizer:
         try:
             from datetime import datetime
             import requests
+            from flask import session
+            
+            # Obtener user_id del pending (pasado desde la sesión al iniciar optimización)
+            # Fallback: intentar de la sesión de Flask
+            user_id = pending.get('user_id')
+            if not user_id:
+                try:
+                    user_id = session.get('user_id')
+                except RuntimeError:
+                    # La sesión de Flask no está disponible en este hilo
+                    pass
+            
+            if not user_id:
+                logger.warning("[TorrentOptimizer] No hay user_id, el historial no tendrá usuario asignado")
             
             # Calcular duración de optimización
             optimization_duration = None
@@ -196,19 +210,21 @@ class TorrentOptimizer:
                 'file_size_bytes': optimized_size,
                 'original_size_bytes': original_size,
                 'compression_ratio': compression_ratio,
+                'app_user_id': user_id,
             }
-            
-            # Llamar al endpoint del historial
-            response = requests.post(
-                'http://localhost:5000/api/optimization-history/add',
-                json=history_data,
-                timeout=10
-            )
-            
-            if response.status_code == 200:
+
+            # Obtener la URL base desde la configuración
+            history_url = f"{settings.CINE_PLATFORM_URL}/api/optimization-history/add"            
+            logger.info(f"[TorrentOptimizer] Llamando a endpoint de historial: {history_url}")
+                    
+            try:
+                response = requests.post(history_url, json=history_data, timeout=10)
+                response.raise_for_status()
                 logger.info(f"[TorrentOptimizer] ✅ Entrada añadida al historial: {process_id}")
-            else:
-                logger.warning(f"[TorrentOptimizer] ⚠️ Error añadiendo al historial: {response.status_code} - {response.text}")
+            except requests.exceptions.ConnectionError:
+                logger.warning(f"[TorrentOptimizer] ⚠️ No se pudo conectar al servicio de historial")
+            except requests.exceptions.Timeout:
+                logger.warning(f"[TorrentOptimizer] ⚠️ Timeout al conectar con historial")
                 
         except Exception as e:
             logger.error(f"[TorrentOptimizer] ❌ Error añadiendo al historial: {e}")
@@ -312,6 +328,7 @@ class TorrentOptimizer:
         category: str,
         filename: Optional[str] = None,
         progress_callback: Optional[Callable] = None,
+        user_id: Optional[int] = None,
     ) -> str:
         """
         Inicia optimización de un torrent
@@ -322,6 +339,7 @@ class TorrentOptimizer:
             filename: Nombre del archivo (opcional). Si se proporciona, se usa directamente
                      para buscar en las carpetas de Transmission sin consultar la API
             progress_callback: Función de callback para progreso
+            user_id: ID del usuario que inicia la optimización (para historial)
 
         Returns:
             ID del proceso de optimización
@@ -493,6 +511,7 @@ class TorrentOptimizer:
             "source_path": source_path,
             "api_process_id": None,  # Se llenará cuando la API responda
             "params": payload["params"],  # Guardar params para reintento si es necesario
+            "user_id": user_id,  # ID del usuario que inició la optimización
         }
 
         # Lanzar el monitoreo INMEDIATAMENTE - no esperar a que la API responda
@@ -577,6 +596,7 @@ class TorrentOptimizer:
             if pending:
                 current_api_process_id = pending.get("api_process_id")
                 if current_api_process_id:
+                    logger.info(f"[TorrentOptimizer] API process_id obtenido: {current_api_process_id}")
                     break
             
             # Verificar si hay un error
@@ -587,32 +607,49 @@ class TorrentOptimizer:
             # Timeout esperando el api_process_id
             if time.time() - wait_start > max_wait_for_api:
                 logger.error(f"[TorrentOptimizer] Timeout esperando api_process_id")
-                progress.status = "error"
-                progress.error_message = "Timeout esperando respuesta de API"
-                progress.end_time = time.time()
+                with self._lock:
+                    progress.status = "error"
+                    progress.error_message = "Timeout esperando respuesta de API"
+                    progress.end_time = time.time()
                 return
 
             time.sleep(0.5)  # Esperar 500ms antes de volver a revisar
 
         # Actualizar estado a running una vez que tenemos el api_process_id
-        if progress.status == "pending":
-            progress.status = "running"
+        with self._lock:
+            if progress.status == "pending":
+                progress.status = "running"
+                logger.info(f"[TorrentOptimizer] Estado cambiado a 'running' para {local_process_id}")
 
-        logger.debug(f"[TorrentOptimizer] Monitoreando proceso: {current_api_process_id}")
+        logger.info(f"[TorrentOptimizer] Monitoreando proceso: {current_api_process_id}")
 
         while True:
             try:
                 api_status = api_client.get_status(current_api_process_id)
 
+                logger.info(f"[TorrentOptimizer] Estado API para {current_api_process_id}: {api_status}")
+
                 if api_status:
-                    progress.status = api_status.get("status", "running")
-                    progress.progress = api_status.get("progress", 0)
+                    # ACTUALIZAR PROGRESO con lock para thread-safety
+                    new_progress = api_status.get("progress", 0)
+                    new_status = api_status.get("status", "running")
+                    
+                    with self._lock:
+                        # Actualizar solo si hay cambios
+                        if new_progress != progress.progress:
+                            logger.info(f"[TorrentOptimizer] Progreso actualizado: {progress.progress:.1f}% -> {new_progress:.1f}%")
+                            progress.progress = new_progress
+                        
+                        if new_status != progress.status:
+                            logger.info(f"[TorrentOptimizer] Estado cambiado: {progress.status} -> {new_status}")
+                            progress.status = new_status
 
                     # Capturar mensaje de error si existe
                     if progress.status == "error":
                         error_msg = api_status.get("error", "Error desconocido en FFmpeg")
-                        progress.error_message = error_msg
-                        progress.end_time = time.time()
+                        with self._lock:
+                            progress.error_message = error_msg
+                            progress.end_time = time.time()
                         logger.error(
                             f"[TorrentOptimizer] ❌ Optimización fallida para {local_process_id}: {error_msg}"
                         )
@@ -622,13 +659,15 @@ class TorrentOptimizer:
 
                     logs = api_status.get("logs", [])
                     if logs:
-                        progress.logs += "\n".join(logs[-5:]) + "\n"
+                        with self._lock:
+                            progress.logs += "\n".join(logs[-5:]) + "\n"
 
                     if progress_callback:
                         progress_callback(progress)
 
                     if progress.status in ["completed", "done"]:
-                        progress.end_time = time.time()
+                        with self._lock:
+                            progress.end_time = time.time()
                         self._finalize_optimization(local_process_id)
                         break
 
@@ -816,7 +855,14 @@ class TorrentOptimizer:
         with self._lock:
             progress = self._processes.get(process_id)
             if progress:
-                logger.info(f"[TorrentOptimizer] get_progress - Proceso encontrado: status={progress.status}, progress={progress.progress}")
+                # Enriquecer con datos de _pending si están disponibles
+                pending = self._pending.get(process_id)
+                if pending:
+                    progress.torrent_id = pending.get("torrent_id", progress.torrent_id)
+                    progress.category = pending.get("category", progress.category)
+                    progress.original_filename = pending.get("original_filename", progress.original_filename)
+                
+                logger.info(f"[TorrentOptimizer] get_progress({process_id}): status={progress.status}, progress={progress.progress:.1f}%")
             else:
                 logger.warning(f"[TorrentOptimizer] get_progress - Proceso NO encontrado en _processes")
             return progress

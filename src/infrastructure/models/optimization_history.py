@@ -54,7 +54,7 @@ class OptimizationHistory(Base):
     created_at = Column(DateTime, server_default=func.now(), index=True)
 
     # Relaciones
-    # app_user_id = Column(Integer, ForeignKey('app_users.id'), nullable=True)
+    app_user_id = Column(Integer, ForeignKey('app_users.id'), nullable=True)
     # movie_id = Column(Integer, ForeignKey('movie_metadata.id'), nullable=True)
 
     def to_dict(self):

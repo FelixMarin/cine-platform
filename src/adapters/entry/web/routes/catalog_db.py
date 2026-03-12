@@ -101,6 +101,7 @@ def get_catalog_movies():
     limit = request.args.get("limit", 100, type=int)
     offset = request.args.get("offset", 0, type=int)
 
+    repo = None
     try:
         repo = _get_catalog_repo()
         movies = repo.list_movies(limit=limit, offset=offset)
@@ -114,7 +115,12 @@ def get_catalog_movies():
         )
     except Exception as e:
         logger.error(f"Error listando películas: {e}")
+        if repo:
+            repo.rollback()
         return jsonify({"error": str(e)}), 500
+    finally:
+        if repo:
+            repo.close()
 
 
 @catalog_db_bp.route("/catalog/series", methods=["GET"])
@@ -123,6 +129,7 @@ def get_catalog_series():
     limit = request.args.get("limit", 100, type=int)
     offset = request.args.get("offset", 0, type=int)
 
+    repo = None
     try:
         repo = _get_catalog_repo()
         series = repo.list_series(limit=limit, offset=offset)
@@ -136,7 +143,12 @@ def get_catalog_series():
         )
     except Exception as e:
         logger.error(f"Error listando series: {e}")
+        if repo:
+            repo.rollback()
         return jsonify({"error": str(e)}), 500
+    finally:
+        if repo:
+            repo.close()
 
 
 @catalog_db_bp.route("/catalog", methods=["POST"])
@@ -148,13 +160,19 @@ def create_catalog_entry():
     if not data:
         return jsonify({"error": "Datos no proporcionados"}), 400
 
+    repo = None
     try:
         repo = _get_catalog_repo()
         content = repo.create_local_content(data)
         return jsonify(content.to_dict()), 201
     except Exception as e:
         logger.error(f"Error creando entrada: {e}")
+        if repo:
+            repo.rollback()
         return jsonify({"error": str(e)}), 500
+    finally:
+        if repo:
+            repo.close()
 
 
 @catalog_db_bp.route("/catalog/<int:content_id>", methods=["PUT"])
@@ -166,6 +184,7 @@ def update_catalog_entry(content_id):
     if not data:
         return jsonify({"error": "Datos no proporcionados"}), 400
 
+    repo = None
     try:
         repo = _get_catalog_repo()
         content = repo.update_local_content(content_id, data)
@@ -176,13 +195,19 @@ def update_catalog_entry(content_id):
         return jsonify(content.to_dict())
     except Exception as e:
         logger.error(f"Error actualizando entrada: {e}")
+        if repo:
+            repo.rollback()
         return jsonify({"error": str(e)}), 500
+    finally:
+        if repo:
+            repo.close()
 
 
 @catalog_db_bp.route("/catalog/<int:content_id>", methods=["DELETE"])
 @require_auth
 def delete_catalog_entry(content_id):
     """Elimina contenido del catálogo"""
+    repo = None
     try:
         repo = _get_catalog_repo()
         success = repo.delete_local_content(content_id)
@@ -193,12 +218,18 @@ def delete_catalog_entry(content_id):
         return jsonify({"success": True})
     except Exception as e:
         logger.error(f"Error eliminando entrada: {e}")
+        if repo:
+            repo.rollback()
         return jsonify({"error": str(e)}), 500
+    finally:
+        if repo:
+            repo.close()
 
 
 @catalog_db_bp.route("/catalog/<int:content_id>", methods=["GET"])
 def get_catalog_entry(content_id):
     """Obtiene una entrada del catálogo por ID"""
+    repo = None
     try:
         repo = _get_catalog_repo()
         content = repo.get_local_content_by_id(content_id)
@@ -209,7 +240,12 @@ def get_catalog_entry(content_id):
         return jsonify(content.to_dict(include_image=True))
     except Exception as e:
         logger.error(f"Error obteniendo entrada: {e}")
+        if repo:
+            repo.rollback()
         return jsonify({"error": str(e)}), 500
+    finally:
+        if repo:
+            repo.close()
 
 
 @catalog_db_bp.route("/migrate/localstorage", methods=["POST"])
@@ -221,13 +257,19 @@ def migrate_localstorage():
     if not data:
         return jsonify({"error": "Datos no proporcionados"}), 400
 
+    repo = None
     try:
         repo = _get_catalog_repo()
         result = repo.migrate_local_storage_data(data)
         return jsonify({"success": True, "result": result})
     except Exception as e:
         logger.error(f"Error en migración: {e}")
+        if repo:
+            repo.rollback()
         return jsonify({"error": str(e)}), 500
+    finally:
+        if repo:
+            repo.close()
 
 
 def init_catalog_db_routes(state=None):

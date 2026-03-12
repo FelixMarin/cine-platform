@@ -6,6 +6,7 @@ Implementación con SQLAlchemy
 from datetime import datetime, timedelta
 from typing import List, Optional, Dict
 from io import BytesIO
+import logging
 import requests
 
 from sqlalchemy.orm import Session
@@ -15,6 +16,7 @@ from src.infrastructure.models.catalog import OmdbEntry, LocalContent
 from src.infrastructure.database.connection import get_db_session
 
 
+logger = logging.getLogger(__name__)
 CACHE_EXPIRY_DAYS = 7
 
 
@@ -23,6 +25,7 @@ class CatalogRepository:
 
     def __init__(self, db_session: Session = None):
         self._db = db_session
+        self._owns_session = db_session is None
 
     def _get_db(self) -> Session:
         if self._db is None:
@@ -30,8 +33,15 @@ class CatalogRepository:
         return self._db
 
     def close(self):
-        if self._db:
+        """Cierra la sesión de base de datos"""
+        if self._db and self._owns_session:
             self._db.close()
+            self._db = None
+
+    def rollback(self):
+        """Hace rollback de la transacción actual"""
+        if self._db:
+            self._db.rollback()
 
     def is_cache_expired(self, entry: OmdbEntry) -> bool:
         """Verifica si la entrada ha expirado"""
@@ -66,34 +76,44 @@ class CatalogRepository:
         """Crea o actualiza una entrada de OMDB"""
         db = self._get_db()
 
-        imdb_id = data.get("imdbID")
-        if not imdb_id:
-            raise ValueError("imdbID es requerido")
+        try:
+            imdb_id = data.get("imdbID")
+            if not imdb_id:
+                raise ValueError("imdbID es requerido")
 
-        existing = self.get_omdb_entry_by_imdb_id(imdb_id)
+            existing = self.get_omdb_entry_by_imdb_id(imdb_id)
 
-        if existing:
-            for key, value in data.items():
-                if hasattr(existing, key.lower()) and key not in ["id", "created_at"]:
-                    setattr(existing, key.lower(), value)
-            if poster_bytes:
-                existing.poster_image = poster_bytes
-            existing.updated_at = datetime.utcnow()
-            db.commit()
-            db.refresh(existing)
-            return existing
-        else:
-            new_entry = OmdbEntry.from_omdb_response(data, poster_bytes)
-            db.add(new_entry)
-            db.commit()
-            db.refresh(new_entry)
-            return new_entry
+            if existing:
+                for key, value in data.items():
+                    if hasattr(existing, key.lower()) and key not in ["id", "created_at"]:
+                        setattr(existing, key.lower(), value)
+                if poster_bytes:
+                    existing.poster_image = poster_bytes
+                existing.updated_at = datetime.utcnow()
+                db.commit()
+                db.refresh(existing)
+                return existing
+            else:
+                new_entry = OmdbEntry.from_omdb_response(data, poster_bytes)
+                db.add(new_entry)
+                db.commit()
+                db.refresh(new_entry)
+                return new_entry
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Error en create_or_update_omdb_entry: {e}")
+            raise
 
     def update_last_accessed(self, entry: OmdbEntry):
         """Actualiza el timestamp de último acceso"""
         db = self._get_db()
-        entry.last_accessed = datetime.utcnow()
-        db.commit()
+        try:
+            entry.last_accessed = datetime.utcnow()
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Error en update_last_accessed: {e}")
+            raise
 
     def get_poster_image(self, imdb_id: str) -> Optional[bytes]:
         """Obtiene la imagen del póster"""
@@ -145,51 +165,56 @@ class CatalogRepository:
         """Crea contenido local"""
         db = self._get_db()
 
-        content = LocalContent(
-            imdb_id=data.get("imdb_id"),
-            title=data.get("title"),
-            year=data.get("year"),
-            rated=data.get("rated"),
-            released=data.get("released"),
-            runtime=data.get("runtime"),
-            genre=data.get("genre"),
-            director=data.get("director"),
-            writer=data.get("writer"),
-            actors=data.get("actors"),
-            plot=data.get("plot"),
-            language=data.get("language"),
-            country=data.get("country"),
-            awards=data.get("awards"),
-            poster_url=data.get("poster_url"),
-            poster_image=data.get("poster_image"),
-            metascore=data.get("metascore"),
-            imdb_rating=data.get("imdb_rating"),
-            imdb_votes=data.get("imdb_votes"),
-            type=data.get("type", "movie"),
-            box_office=data.get("box_office"),
-            production=data.get("production"),
-            website=data.get("website"),
-            total_seasons=data.get("total_seasons"),
-            season=data.get("season"),
-            episode=data.get("episode"),
-            series_id=data.get("series_id"),
-            ratings=data.get("ratings"),
-            full_response=data.get("full_response"),
-            file_path=data.get("file_path"),
-            file_size=data.get("file_size"),
-            duration=data.get("duration"),
-            resolution=data.get("resolution"),
-            codec=data.get("codec"),
-            quality=data.get("quality"),
-            format=data.get("format"),
-            is_optimized=data.get("is_optimized", False),
-            notes=data.get("notes"),
-        )
+        try:
+            content = LocalContent(
+                imdb_id=data.get("imdb_id"),
+                title=data.get("title"),
+                year=data.get("year"),
+                rated=data.get("rated"),
+                released=data.get("released"),
+                runtime=data.get("runtime"),
+                genre=data.get("genre"),
+                director=data.get("director"),
+                writer=data.get("writer"),
+                actors=data.get("actors"),
+                plot=data.get("plot"),
+                language=data.get("language"),
+                country=data.get("country"),
+                awards=data.get("awards"),
+                poster_url=data.get("poster_url"),
+                poster_image=data.get("poster_image"),
+                metascore=data.get("metascore"),
+                imdb_rating=data.get("imdb_rating"),
+                imdb_votes=data.get("imdb_votes"),
+                type=data.get("type", "movie"),
+                box_office=data.get("box_office"),
+                production=data.get("production"),
+                website=data.get("website"),
+                total_seasons=data.get("total_seasons"),
+                season=data.get("season"),
+                episode=data.get("episode"),
+                series_id=data.get("series_id"),
+                ratings=data.get("ratings"),
+                full_response=data.get("full_response"),
+                file_path=data.get("file_path"),
+                file_size=data.get("file_size"),
+                duration=data.get("duration"),
+                resolution=data.get("resolution"),
+                codec=data.get("codec"),
+                quality=data.get("quality"),
+                format=data.get("format"),
+                is_optimized=data.get("is_optimized", False),
+                notes=data.get("notes"),
+            )
 
-        db.add(content)
-        db.commit()
-        db.refresh(content)
-        return content
+            db.add(content)
+            db.commit()
+            db.refresh(content)
+            return content
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Error en create_local_content: {e}")
+            raise
 
     def update_local_content(
         self, content_id: int, data: dict
@@ -197,30 +222,40 @@ class CatalogRepository:
         """Actualiza contenido local"""
         db = self._get_db()
 
-        content = self.get_local_content_by_id(content_id)
-        if not content:
-            return None
+        try:
+            content = self.get_local_content_by_id(content_id)
+            if not content:
+                return None
 
-        for key, value in data.items():
-            if hasattr(content, key) and key not in ["id", "created_at"]:
-                setattr(content, key, value)
+            for key, value in data.items():
+                if hasattr(content, key) and key not in ["id", "created_at"]:
+                    setattr(content, key, value)
 
-        content.updated_at = datetime.utcnow()
-        db.commit()
-        db.refresh(content)
-        return content
+            content.updated_at = datetime.utcnow()
+            db.commit()
+            db.refresh(content)
+            return content
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Error en update_local_content: {e}")
+            raise
 
     def delete_local_content(self, content_id: int) -> bool:
         """Elimina contenido local"""
         db = self._get_db()
 
-        content = self.get_local_content_by_id(content_id)
-        if not content:
-            return False
+        try:
+            content = self.get_local_content_by_id(content_id)
+            if not content:
+                return False
 
-        db.delete(content)
-        db.commit()
-        return True
+            db.delete(content)
+            db.commit()
+            return True
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Error en delete_local_content: {e}")
+            raise
 
     def migrate_local_storage_data(self, data: dict) -> Dict:
         """Migra datos desde localStorage del frontend"""
@@ -228,64 +263,20 @@ class CatalogRepository:
 
         results = {"omdb_entries": 0, "local_content": 0, "errors": []}
 
-        movies_cache = data.get("movies_cache", [])
-        series_posts = data.get("series_posts", {})
+        try:
+            movies_cache = data.get("movies_cache", [])
+            series_posts = data.get("series_posts", {})
 
-        for movie_data in movies_cache:
-            try:
-                imdb_id = movie_data.get("imdb_id") or movie_data.get("imdbID")
-                if not imdb_id:
-                    results["errors"].append(f"Sin imdb_id: {movie_data.get('title')}")
-                    continue
+            for movie_data in movies_cache:
+                try:
+                    imdb_id = movie_data.get("imdb_id") or movie_data.get("imdbID")
+                    if not imdb_id:
+                        results["errors"].append(f"Sin imdb_id: {movie_data.get('title')}")
+                        continue
 
-                existing = self.get_omdb_entry_by_imdb_id(imdb_id)
-                if not existing:
-                    poster_bytes = movie_data.get("poster_image")
-                    if isinstance(poster_bytes, str):
-                        poster_bytes = (
-                            poster_bytes.encode("utf-8")
-                            if len(poster_bytes) < 1000000
-                            else None
-                        )
-
-                    entry = OmdbEntry(
-                        imdb_id=imdb_id,
-                        title=movie_data.get("title"),
-                        year=movie_data.get("year"),
-                        type="movie",
-                        poster_url=movie_data.get("poster"),
-                        poster_image=poster_bytes,
-                        full_response=movie_data,
-                    )
-                    db.add(entry)
-                    results["omdb_entries"] += 1
-
-                file_path = movie_data.get("file_path") or movie_data.get("path")
-                if file_path:
-                    existing_local = self.get_local_content_by_file_path(file_path)
-                    if not existing_local:
-                        local = LocalContent(
-                            imdb_id=imdb_id,
-                            title=movie_data.get("title"),
-                            year=movie_data.get("year"),
-                            type="movie",
-                            file_path=file_path,
-                            poster_url=movie_data.get("poster"),
-                        )
-                        db.add(local)
-                        results["local_content"] += 1
-
-            except Exception as e:
-                results["errors"].append(str(e))
-
-        for series_name, series_data in series_posts.items():
-            try:
-                imdb_id = series_data.get("imdb_id") or series_data.get("imdbID")
-
-                if imdb_id:
                     existing = self.get_omdb_entry_by_imdb_id(imdb_id)
                     if not existing:
-                        poster_bytes = series_data.get("poster_image")
+                        poster_bytes = movie_data.get("poster_image")
                         if isinstance(poster_bytes, str):
                             poster_bytes = (
                                 poster_bytes.encode("utf-8")
@@ -295,37 +286,86 @@ class CatalogRepository:
 
                         entry = OmdbEntry(
                             imdb_id=imdb_id,
-                            title=series_name,
-                            type="series",
-                            poster_url=series_data.get("poster"),
+                            title=movie_data.get("title"),
+                            year=movie_data.get("year"),
+                            type="movie",
+                            poster_url=movie_data.get("poster"),
                             poster_image=poster_bytes,
-                            total_seasons=series_data.get("total_seasons"),
-                            full_response=series_data,
+                            full_response=movie_data,
                         )
                         db.add(entry)
                         results["omdb_entries"] += 1
 
-                file_path = series_data.get("file_path") or series_data.get("path")
-                if file_path:
-                    existing_local = self.get_local_content_by_file_path(file_path)
-                    if not existing_local:
-                        local = LocalContent(
-                            imdb_id=imdb_id,
-                            title=series_name,
-                            type="series",
-                            file_path=file_path,
-                            poster_url=series_data.get("poster"),
-                            season=series_data.get("season"),
-                            episode=series_data.get("episode"),
-                        )
-                        db.add(local)
-                        results["local_content"] += 1
+                    file_path = movie_data.get("file_path") or movie_data.get("path")
+                    if file_path:
+                        existing_local = self.get_local_content_by_file_path(file_path)
+                        if not existing_local:
+                            local = LocalContent(
+                                imdb_id=imdb_id,
+                                title=movie_data.get("title"),
+                                year=movie_data.get("year"),
+                                type="movie",
+                                file_path=file_path,
+                                poster_url=movie_data.get("poster"),
+                            )
+                            db.add(local)
+                            results["local_content"] += 1
 
-            except Exception as e:
-                results["errors"].append(str(e))
+                except Exception as e:
+                    results["errors"].append(str(e))
 
-        db.commit()
-        return results
+            for series_name, series_data in series_posts.items():
+                try:
+                    imdb_id = series_data.get("imdb_id") or series_data.get("imdbID")
+
+                    if imdb_id:
+                        existing = self.get_omdb_entry_by_imdb_id(imdb_id)
+                        if not existing:
+                            poster_bytes = series_data.get("poster_image")
+                            if isinstance(poster_bytes, str):
+                                poster_bytes = (
+                                    poster_bytes.encode("utf-8")
+                                    if len(poster_bytes) < 1000000
+                                    else None
+                                )
+
+                            entry = OmdbEntry(
+                                imdb_id=imdb_id,
+                                title=series_name,
+                                type="series",
+                                poster_url=series_data.get("poster"),
+                                poster_image=poster_bytes,
+                                total_seasons=series_data.get("total_seasons"),
+                                full_response=series_data,
+                            )
+                            db.add(entry)
+                            results["omdb_entries"] += 1
+
+                    file_path = series_data.get("file_path") or series_data.get("path")
+                    if file_path:
+                        existing_local = self.get_local_content_by_file_path(file_path)
+                        if not existing_local:
+                            local = LocalContent(
+                                imdb_id=imdb_id,
+                                title=series_name,
+                                type="series",
+                                file_path=file_path,
+                                poster_url=series_data.get("poster"),
+                                season=series_data.get("season"),
+                                episode=series_data.get("episode"),
+                            )
+                            db.add(local)
+                            results["local_content"] += 1
+
+                except Exception as e:
+                    results["errors"].append(str(e))
+
+            db.commit()
+            return results
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Error en migrate_local_storage_data: {e}")
+            raise
 
 
 def get_catalog_repository() -> CatalogRepository:
