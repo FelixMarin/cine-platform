@@ -75,13 +75,16 @@ function renderProfileForm(profile) {
     if (!modalBody) return;
     
     const defaultAvatar = '/static/images/default.jpg';
+    const timestamp = Date.now();
+    const avatarUrl = (profile.avatar_url || defaultAvatar) + '?t=' + timestamp;
     
     modalBody.innerHTML = `
         <div class="profile-avatar-section">
-            <img src="${profile.avatar_url || defaultAvatar}" 
+            <img src="${avatarUrl}" 
                  alt="Avatar" 
                  class="profile-avatar-large"
-                 id="profileAvatarPreview">
+                 id="profileAvatarPreview"
+                 onerror="this.src='${defaultAvatar}'">
             <button class="btn-secondary btn-small" onclick="showAvatarModal()">
                 Cambiar avatar
             </button>
@@ -192,14 +195,19 @@ function showAvatarModal() {
     if (!modalBody) return;
     
     const defaultAvatar = '/static/images/default.jpg';
+    const timestamp = Date.now();
+    // Usar sessionStorage para obtener la última URL del avatar si está disponible
+    const savedAvatar = sessionStorage.getItem('lastAvatarUrl') || currentProfile?.avatar_url || defaultAvatar;
+    const avatarUrl = savedAvatar + (savedAvatar.includes('?') ? '&' : '?') + 't=' + timestamp;
     
     modalBody.innerHTML = `
         <div class="avatar-upload-container">
             <div class="current-avatar">
-                <img src="${currentProfile?.avatar_url || defaultAvatar}" 
+                <img src="${avatarUrl}" 
                      alt="Avatar actual" 
                      id="currentAvatarPreview"
-                     class="avatar-preview-large">
+                     class="avatar-preview-large"
+                     onerror="this.src='${defaultAvatar}'">
             </div>
             
             <div class="upload-controls">
@@ -278,6 +286,28 @@ function cancelAvatarUpload() {
     window.selectedAvatarFile = null;
 }
 
+// Función para cerrar el modal de avatar y volver al formulario de perfil
+function closeAvatarModal() {
+    if (currentProfile) {
+        renderProfileForm(currentProfile);
+    }
+}
+
+// Función para cargar los datos del perfil y mostrar el modal
+async function loadProfileAndShowModal() {
+    try {
+        const response = await fetch('/api/profile/me');
+        const data = await response.json();
+        
+        if (data.success) {
+            currentProfile = data.profile;
+            renderProfileForm(data.profile);
+        }
+    } catch (error) {
+        console.error('Error recargando perfil:', error);
+    }
+}
+
 async function uploadAvatar() {
     if (!window.selectedAvatarFile) return;
     
@@ -304,19 +334,45 @@ async function uploadAvatar() {
             progressBar.style.width = '100%';
             statusEl.textContent = '¡Completado!';
             
-            document.querySelectorAll('.profile-avatar, .avatar-preview-large').forEach(img => {
-                img.src = result.avatar_url + '?t=' + Date.now();
+            const timestamp = Date.now();
+            const avatarUrl = result.avatar_url + '?t=' + timestamp;
+            
+            // 1. Actualizar avatar en el menú lateral (buscar por id común)
+            const menuAvatar = document.getElementById('avatar-img');
+            if (menuAvatar) {
+                menuAvatar.src = avatarUrl;
+            }
+            
+            // 2. Actualizar avatar en el modal de perfil
+            const profileAvatarPreview = document.getElementById('profileAvatarPreview');
+            if (profileAvatarPreview) {
+                profileAvatarPreview.src = avatarUrl;
+            }
+            
+            // 3. Actualizar cualquier otra imagen de avatar en la página
+            document.querySelectorAll('.profile-avatar, .avatar-preview-large, [class*="avatar"]').forEach(img => {
+                if (img.id !== 'avatar-img' && img.tagName === 'IMG') {
+                    img.src = avatarUrl;
+                }
             });
             
+            // 4. Guardar la nueva URL en sessionStorage para persistencia
+            sessionStorage.setItem('lastAvatarUrl', avatarUrl);
+            
+            // 5. Actualizar el perfil local con el nuevo avatar
             if (currentProfile) {
                 currentProfile.avatar_url = result.avatar_url;
             }
             
             showNotification('Éxito', 'Avatar actualizado correctamente', 'success');
             
-            setTimeout(() => {
-                showProfileModal();
-            }, 1000);
+            // Cerrar modal de avatar y recargar datos del perfil
+            closeAvatarModal();
+            
+            // Recargar datos del perfil y mostrar modal
+            setTimeout(async () => {
+                await loadProfileAndShowModal();
+            }, 300);
         } else {
             throw new Error(result.error || 'Error al subir avatar');
         }

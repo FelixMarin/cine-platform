@@ -258,6 +258,7 @@ services:
       # FFmpeg API
       FFMPEG_API_URL: http://ffmpeg-api:8080
     volumes:
+      - ./static:/app/static
       - /mnt/DATA_2TB/administracion-peliculas/ffmpeg/uploads:/app/uploads
       - /mnt/DATA_2TB/administracion-peliculas/ffmpeg/temp:/app/temp
       - /mnt/DATA_2TB/administracion-peliculas/ffmpeg/outputs:/app/outputs
