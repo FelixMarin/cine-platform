@@ -15,7 +15,7 @@ venv.bak/
 .env
 .env.local
 .env.dev
-
+.env.prod
 
 # Logs
 logs/*
@@ -49,6 +49,7 @@ pb_data/
 
 # K3s
 k3s/cine-secret.yaml
+k8s/
 
 .coverage
 .coveragerc
@@ -56,3 +57,5 @@ htmlcov/
 
 *.txt
 .movie_index_cache.json
+
+docker-compose.prod.yml

@@ -41,7 +41,9 @@ class OAuth2Client:
         
         # Redirect URI - IMPORTANTE: Debe ser la URL PÚBLICA que el navegador usará
         # ya que el servidor OAuth2 valida que coincida con su redirect_uri registrado
-        self.redirect_uri = os.environ.get("PUBLIC_REDIRECT_URI", "http://localhost:5000/oauth/callback").rstrip('/')
+        self.redirect_uri = os.environ.get("PUBLIC_REDIRECT_URI", "").rstrip('/')
+        if not self.redirect_uri:
+            raise ValueError("PUBLIC_REDIRECT_URI must be set")
         
         self.token: Optional[str] = None
         self.refresh_token: Optional[str] = None

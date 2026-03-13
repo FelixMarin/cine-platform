@@ -970,7 +970,10 @@ def oauth_callback_redirect():
         return "Código faltante", 400
 
     # Solo redirigir al frontend
-    frontend_url = os.environ.get("PUBLIC_URL", "http://localhost:5000")
+    frontend_url = os.environ.get("CINE_PLATFORM_URL", "")
+    if not frontend_url:
+        raise ValueError("CINE_PLATFORM_URL must be set")
+    
     return redirect(f"{frontend_url}/login?code={code}&state={state}")
 
 
