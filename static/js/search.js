@@ -325,7 +325,7 @@ function viewDownloads() {
     closeDownloadModal();
     // Por ahora, simplemente actualizamos la página
     // Podría abrirse una pestaña de descargas
-    window.location.href = '/catalog';
+    window.location.href = '/';
 }
 
 // =====================

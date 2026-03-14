@@ -39,6 +39,7 @@ const CONFIG = {
 const state = {
     activeTab: 'search',
     downloads: [],
+    activeDownloadsCount: 0,
     optimizations: [],
     history: [],
     isPolling: false,
@@ -573,9 +574,11 @@ async function refreshDownloads() {
 
         console.log('📥 Datos recibidos:', data);
 
-        if (response.ok) {
+        if (response.ok && data.success !== false) {
             state.downloads = data.downloads || [];
+            state.activeDownloadsCount = data.stats?.active_count || 0;
             console.log('📥 Descargas en estado:', state.downloads);
+            console.log('📥 activeDownloadsCount:', state.activeDownloadsCount);
             renderDownloads();
         } else {
             console.error('❌ Error en respuesta:', data);
@@ -1518,11 +1521,20 @@ function addToHistory(item) {
  * Actualiza las estadísticas en el header
  */
 function updateHeaderStats() {
-    const downloadsEl = document.getElementById('stats-downloads');
-    const optimizationsEl = document.getElementById('stats-optimizations');
+    const downloadsEl = document.getElementById('active-downloads-count') || document.getElementById('stats-downloads');
+    const optimizationsEl = document.getElementById('active-optimizations-count') || document.getElementById('stats-optimizations');
 
     if (downloadsEl) {
-        downloadsEl.textContent = state.downloads?.length || 0;
+        // Usar el active_count del backend si está disponible, sino calcular manualmente
+        let activeCount = state.activeDownloadsCount;
+        if (activeCount === undefined || activeCount === null) {
+            activeCount = (state.downloads || []).filter(d => {
+                const status = d.status;
+                return status === 4 || status === 6 || status === 'downloading' || status === 'seeding';
+            }).length;
+        }
+        console.log('[DEBUG] updateHeaderStats - Descargas activas:', activeCount, 'Total:', state.downloads?.length);
+        downloadsEl.textContent = activeCount;
     }
     if (optimizationsEl) {
         optimizationsEl.textContent = state.optimizations?.length || 0;
@@ -1565,10 +1577,9 @@ async function pollAll() {
     console.log('[DEBUG] POLLING - ejecutando refreshDownloads y refreshOptimizations');
     console.log('[DEBUG] POLLING - activeTab:', state.activeTab);
     
-    // Siempre refrescar descargas
-    if (state.activeTab === 'downloads') {
-        await refreshDownloads();
-    }
+    // SIEMPRE refrescar descargas para actualizar el contador del header
+    // No depende de la pestaña activa
+    await refreshDownloads();
     // SIEMPRE refrescar optimizaciones (no solo cuando la pestaña está activa)
     // Esto mantiene el estado de los botones actualizado
     await refreshOptimizations();
@@ -1631,6 +1642,9 @@ function handleSearchKeypress(event) {
  */
 function initDownloadsPage() {
     console.log('Inicializando página de descargas...');
+
+    // Cargar descargas inmediatamente para actualizar el contador del header
+    refreshDownloads();
 
     // Configurar event listeners para pestañas
     document.querySelectorAll('.download-tab').forEach(tab => {

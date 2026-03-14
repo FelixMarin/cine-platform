@@ -12,7 +12,6 @@
     font-weight: 600;
     margin: 0 0 2rem 0;  /* Ajuste para login */
     text-align: center;
-    white-space: nowrap;
 }
 
 .menu-title-full span {
@@ -26,9 +25,41 @@
     font-size: 1.5rem;
     font-weight: 600;
     margin-bottom: 2rem;
-    white-space: nowrap;
 }
 
 .login-box h2 span {
     color: red;
+}
+
+/* Botón OAuth */
+.oauth-btn {
+    padding: 18px;
+    background: var(--login-accent);
+    color: white;
+    border: none;
+    cursor: pointer;
+    font-size: 1.1rem;
+    font-weight: 600;
+    border-radius: var(--login-border-radius-sm);
+    width: 100%;
+    margin-top: 10px;
+    transition: opacity 0.2s ease;
+}
+
+.oauth-btn:hover {
+    opacity: 0.9;
+}
+
+.oauth-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* Texto informativo */
+.info-text {
+    color: #aaa;
+    font-size: 0.9rem;
+    text-align: center;
+    margin-top: 16px;
+    line-height: 1.5;
 }

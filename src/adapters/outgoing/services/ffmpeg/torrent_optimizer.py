@@ -128,10 +128,17 @@ class TorrentOptimizer:
 
         return FFmpegAPIClient(self.api_url)
 
-    def _add_to_history(self, process_id: str, final_path: str, pending: dict, status: str = 'completed', error_message: Optional[str] = None):
+    def _add_to_history(
+        self,
+        process_id: str,
+        final_path: str,
+        pending: dict,
+        status: str = "completed",
+        error_message: Optional[str] = None,
+    ):
         """
         Añade una entrada al historial de optimizaciones.
-        
+
         Args:
             process_id: ID del proceso de optimización
             final_path: Ruta final del archivo optimizado
@@ -139,95 +146,159 @@ class TorrentOptimizer:
             status: Estado de la optimización ('completed', 'error', 'cancelled')
             error_message: Mensaje de error si falló
         """
+        from datetime import datetime
+        from src.infrastructure.database.connection import get_session_maker
+        from src.infrastructure.models.optimization_history import OptimizationHistory
+
+        db = None
         try:
-            from datetime import datetime
-            import requests
-            from flask import session
-            
             # Obtener user_id del pending (pasado desde la sesión al iniciar optimización)
-            # Fallback: intentar de la sesión de Flask
-            user_id = pending.get('user_id')
+            user_id = pending.get("user_id")
+
+            logger.info(
+                f"[TorrentOptimizer] _add_to_history() iniciado para process_id={process_id}, status={status}"
+            )
+            logger.info(
+                f"[TorrentOptimizer] user_id obtenido: {user_id} (tipo: {type(user_id).__name__})"
+            )
+
             if not user_id:
-                try:
-                    user_id = session.get('user_id')
-                except RuntimeError:
-                    # La sesión de Flask no está disponible en este hilo
-                    pass
-            
-            if not user_id:
-                logger.warning("[TorrentOptimizer] No hay user_id, el historial no tendrá usuario asignado")
-            
+                logger.warning(
+                    "[TorrentOptimizer] ⚠️ No hay user_id, el historial no tendrá usuario asignado"
+                )
+
             # Calcular duración de optimización
             optimization_duration = None
             progress = self._processes.get(process_id)
-            if progress and hasattr(progress, 'start_time'):
-                optimization_duration = int(datetime.now().timestamp() - progress.start_time)
-            
+            if progress and hasattr(progress, "start_time"):
+                optimization_duration = int(
+                    datetime.now().timestamp() - progress.start_time
+                )
+
             # Obtener datos del torrent
             torrent = None
-            torrent_id = pending.get('torrent_id')
+            torrent_id = pending.get("torrent_id")
             if torrent_id and self.transmission_client:
                 try:
                     torrent = self.transmission_client.get_torrent(torrent_id)
                 except Exception as e:
-                    logger.warning(f"[TorrentOptimizer] No se pudo obtener torrent {torrent_id}: {e}")
-            
+                    logger.warning(
+                        f"[TorrentOptimizer] No se pudo obtener torrent {torrent_id}: {e}"
+                    )
+
             # Calcular duración de descarga
             download_duration = None
-            if torrent and hasattr(torrent, 'added_date') and hasattr(torrent, 'done_date'):
+            if (
+                torrent
+                and hasattr(torrent, "added_date")
+                and hasattr(torrent, "done_date")
+            ):
                 download_duration = int(torrent.done_date - torrent.added_date)
-            
+
             # Obtener tamaños
             original_size = None
-            if source_path := pending.get('source_path'):
+            if source_path := pending.get("source_path"):
                 if os.path.exists(source_path):
                     original_size = os.path.getsize(source_path)
-            
+
             optimized_size = None
             if os.path.exists(final_path):
                 optimized_size = os.path.getsize(final_path)
-            
+
             # Calcular ratio de compresión
             compression_ratio = None
             if original_size and optimized_size:
                 compression_ratio = round((1 - optimized_size / original_size) * 100, 2)
-            
+
             # Datos para el historial
+            # Convertir timestamps a objetos datetime para SQLAlchemy
+            opt_start = (
+                datetime.fromtimestamp(progress.start_time)
+                if progress and hasattr(progress, "start_time")
+                else datetime.now()
+            )
+            opt_end = datetime.now() if status == "completed" else None
+
             history_data = {
-                'process_id': process_id,
-                'torrent_id': torrent_id,
-                'torrent_name': torrent.name if torrent else pending.get('original_filename'),
-                'category': pending.get('category'),
-                'input_file': pending.get('source_path', ''),
-                'output_file': final_path,
-                'output_filename': pending.get('final_filename'),
-                'optimization_start': datetime.fromtimestamp(progress.start_time).isoformat() if progress and hasattr(progress, 'start_time') else datetime.now().isoformat(),
-                'optimization_end': datetime.now().isoformat() if status == 'completed' else None,
-                'download_duration_seconds': download_duration,
-                'optimization_duration_seconds': optimization_duration,
-                'status': status,
-                'error_message': error_message,
-                'file_size_bytes': optimized_size,
-                'original_size_bytes': original_size,
-                'compression_ratio': compression_ratio,
-                'app_user_id': user_id,
+                "process_id": process_id,
+                "torrent_id": torrent_id,
+                "torrent_name": torrent.name
+                if torrent
+                else pending.get("original_filename"),
+                "category": pending.get("category"),
+                "input_file": pending.get("source_path", ""),
+                "output_file": final_path,
+                "output_filename": pending.get("final_filename"),
+                "optimization_start": opt_start,
+                "optimization_end": opt_end,
+                "download_duration_seconds": download_duration,
+                "optimization_duration_seconds": optimization_duration,
+                "status": status,
+                "error_message": error_message,
+                "file_size_bytes": optimized_size,
+                "original_size_bytes": original_size,
+                "compression_ratio": compression_ratio,
+                "app_user_id": user_id,
             }
 
-            # Obtener la URL base desde la configuración
-            history_url = f"{settings.CINE_PLATFORM_URL}/api/optimization-history/add"            
-            logger.info(f"[TorrentOptimizer] Llamando a endpoint de historial: {history_url}")
-                    
-            try:
-                response = requests.post(history_url, json=history_data, timeout=10)
-                response.raise_for_status()
-                logger.info(f"[TorrentOptimizer] ✅ Entrada añadida al historial: {process_id}")
-            except requests.exceptions.ConnectionError:
-                logger.warning(f"[TorrentOptimizer] ⚠️ No se pudo conectar al servicio de historial")
-            except requests.exceptions.Timeout:
-                logger.warning(f"[TorrentOptimizer] ⚠️ Timeout al conectar con historial")
-                
+            # Guardar directamente en la base de datos (evita problemas de autenticación con HTTP)
+            logger.info(
+                f"[TorrentOptimizer] Guardando en optimización_history directamente en BD"
+            )
+            logger.debug(f"[TorrentOptimizer] Payload: {history_data}")
+
+            SessionLocal = get_session_maker()
+            db = SessionLocal()
+
+            entry = OptimizationHistory(
+                process_id=history_data["process_id"],
+                torrent_id=history_data["torrent_id"],
+                torrent_name=history_data["torrent_name"],
+                category=history_data["category"],
+                input_file=history_data["input_file"],
+                output_file=history_data["output_file"],
+                output_filename=history_data["output_filename"],
+                optimization_start=history_data["optimization_start"],
+                optimization_end=history_data["optimization_end"],
+                download_duration_seconds=history_data["download_duration_seconds"],
+                optimization_duration_seconds=history_data[
+                    "optimization_duration_seconds"
+                ],
+                status=history_data["status"],
+                error_message=history_data["error_message"],
+                file_size_bytes=history_data["file_size_bytes"],
+                original_size_bytes=history_data["original_size_bytes"],
+                compression_ratio=history_data["compression_ratio"],
+                app_user_id=history_data["app_user_id"],
+            )
+
+            db.add(entry)
+            db.commit()
+
+            logger.info(
+                f"[TorrentOptimizer] ✅ Entrada añadida al historial (id={entry.id}, process_id={process_id}, user_id={user_id})"
+            )
+
         except Exception as e:
-            logger.error(f"[TorrentOptimizer] ❌ Error añadiendo al historial: {e}")
+            logger.error(
+                f"[TorrentOptimizer] ❌ Error añadiendo al historial: {type(e).__name__}: {e}"
+            )
+            import traceback
+
+            logger.error(f"[TorrentOptimizer] Traceback: {traceback.format_exc()}")
+            if db:
+                try:
+                    db.rollback()
+                except Exception as rollback_err:
+                    logger.error(
+                        f"[TorrentOptimizer] Error en rollback: {rollback_err}"
+                    )
+        finally:
+            if db:
+                try:
+                    db.close()
+                except Exception:
+                    pass
 
     def _get_cleanup_service(self):
         """Obtiene el servicio de limpieza (inyección de dependencia)"""
@@ -235,7 +306,9 @@ class TorrentOptimizer:
 
         return FileCleanupService()
 
-    def _find_torrent_file_fallback(self, filename: str, torrent_id: Optional[int] = None) -> Optional[str]:
+    def _find_torrent_file_fallback(
+        self, filename: str, torrent_id: Optional[int] = None
+    ) -> Optional[str]:
         """
         Busca el archivo en las carpetas tradicionales de Transmission (fallback).
         Este método solo se usa si el método principal con TransmissionClient falla.
@@ -253,7 +326,11 @@ class TorrentOptimizer:
         if torrent_id and self.transmission_client:
             try:
                 torrent = self.transmission_client.get_torrent(torrent_id)
-                if torrent and torrent.download_dir and os.path.exists(torrent.download_dir):
+                if (
+                    torrent
+                    and torrent.download_dir
+                    and os.path.exists(torrent.download_dir)
+                ):
                     logger.info(
                         f"[TorrentOptimizer] Fallback: buscando en downloadDir del torrent: {torrent.download_dir}"
                     )
@@ -261,15 +338,34 @@ class TorrentOptimizer:
                     for f in torrent.files:
                         file_name = f.get("name", "")
                         # Buscar archivos de video
-                        if file_name.lower().endswith(('.mkv', '.mp4', '.avi', '.mov', '.webm', '.m4v', '.wmv', '.flv', '.ts', '.m2ts')):
+                        if file_name.lower().endswith(
+                            (
+                                ".mkv",
+                                ".mp4",
+                                ".avi",
+                                ".mov",
+                                ".webm",
+                                ".m4v",
+                                ".wmv",
+                                ".flv",
+                                ".ts",
+                                ".m2ts",
+                            )
+                        ):
                             full_path = os.path.join(torrent.download_dir, file_name)
                             if os.path.exists(full_path):
-                                logger.info(f"[TorrentOptimizer] ✓ Archivo encontrado en downloadDir: {full_path}")
+                                logger.info(
+                                    f"[TorrentOptimizer] ✓ Archivo encontrado en downloadDir: {full_path}"
+                                )
                                 return full_path
             except Exception as e:
                 if "torrent not found" in str(e).lower():
-                    logger.error(f"[TorrentOptimizer] ❌ Torrent {torrent_id} no existe en Transmission")
-                    logger.info("[TorrentOptimizer] 📋 Torrents activos en Transmission:")
+                    logger.error(
+                        f"[TorrentOptimizer] ❌ Torrent {torrent_id} no existe en Transmission"
+                    )
+                    logger.info(
+                        "[TorrentOptimizer] 📋 Torrents activos en Transmission:"
+                    )
                     # Listar torrents disponibles para ayudar al usuario
                     active_torrents = self.transmission_client.get_torrents()
                     for t in active_torrents[:5]:  # Mostrar primeros 5
@@ -284,9 +380,11 @@ class TorrentOptimizer:
                 return candidate
 
         # Si no se encuentra, probar con extensiones comunes
-        logger.warning(f"[TorrentOptimizer] Archivo no encontrado con nombre exacto: {filename}")
+        logger.warning(
+            f"[TorrentOptimizer] Archivo no encontrado con nombre exacto: {filename}"
+        )
 
-        common_extensions = ['.mkv', '.mp4', '.avi', '.mov', '.webm', '.m4v']
+        common_extensions = [".mkv", ".mp4", ".avi", ".mov", ".webm", ".m4v"]
         for base in search_paths:
             for ext in common_extensions:
                 # Si el filename ya termina con la extensión, no añadir
@@ -294,16 +392,22 @@ class TorrentOptimizer:
                     continue
                 candidate = os.path.join(base, filename + ext)
                 if os.path.exists(candidate):
-                    logger.debug(f"[TorrentOptimizer] ✓ Archivo encontrado con extensión añadida: {candidate}")
+                    logger.debug(
+                        f"[TorrentOptimizer] ✓ Archivo encontrado con extensión añadida: {candidate}"
+                    )
                     return candidate
 
         # Si aún no se encuentra, listar archivos en las carpetas para debug
-        logger.error(f"[TorrentOptimizer] ✗ Archivo no encontrado después de probar extensiones")
+        logger.error(
+            f"[TorrentOptimizer] ✗ Archivo no encontrado después de probar extensiones"
+        )
         for base in search_paths:
             if os.path.exists(base):
                 try:
                     files = os.listdir(base)
-                    logger.debug(f"[TorrentOptimizer] Archivos en {base}: {files[:10]}...")  # Primeros 10
+                    logger.debug(
+                        f"[TorrentOptimizer] Archivos en {base}: {files[:10]}..."
+                    )  # Primeros 10
                 except Exception as e:
                     logger.warning(f"[TorrentOptimizer] Error listando {base}: {e}")
 
@@ -366,11 +470,15 @@ class TorrentOptimizer:
         # Si no se proporciona filename, intentamos obtenerlo de Transmission
         if not filename:
             if not self.transmission_client:
-                raise Exception("Se requiere transmission_client para obtener el nombre del archivo")
+                raise Exception(
+                    "Se requiere transmission_client para obtener el nombre del archivo"
+                )
 
             torrent = self.transmission_client.get_torrent(torrent_id_int)
             if not torrent:
-                raise FileNotFoundError(f"Torrent {torrent_id_int} no encontrado en Transmission")
+                raise FileNotFoundError(
+                    f"Torrent {torrent_id_int} no encontrado en Transmission"
+                )
 
             logger.info(
                 f"[TorrentOptimizer] Torrent: {torrent.name}, progress={torrent.progress}%"
@@ -413,7 +521,9 @@ class TorrentOptimizer:
                         f"[Transmission] ❌ No se encontró archivo de video para torrent {torrent_id_int}"
                     )
                     # Debug: mostrar información del torrent para diagnosticar
-                    debug_info = self.transmission_client.debug_torrent_files(torrent_id_int)
+                    debug_info = self.transmission_client.debug_torrent_files(
+                        torrent_id_int
+                    )
                     logger.warning(
                         f"[Transmission] Debug: download_dir={debug_info.get('download_dir')}, files_count={debug_info.get('files_count')}"
                     )
@@ -434,7 +544,9 @@ class TorrentOptimizer:
 
         # Verificar que source_path es un archivo, no un directorio
         if os.path.isdir(source_path):
-            raise FileNotFoundError(f"El path encontrado es un directorio, no un archivo: {source_path}")
+            raise FileNotFoundError(
+                f"El path encontrado es un directorio, no un archivo: {source_path}"
+            )
 
         # Usar el nombre del archivo real del source_path para generar el nombre de salida
         actual_filename = os.path.basename(source_path)
@@ -455,13 +567,21 @@ class TorrentOptimizer:
         # Convertir la ruta del host (/downloads/...) a la ruta del contenedor ffmpeg-api (/shared/input/)
         # porque /downloads/ está mapeado a /shared/input/ en el contenedor ffmpeg-api
         shared_input = source_path.replace("/downloads/", "/shared/input/")
-        logger.info(f"[TorrentOptimizer] Usando archivo original directamente: {shared_input}")
-        logger.info(f"[TorrentOptimizer] SOURCE es archivo? {os.path.isfile(source_path)}")
+        logger.info(
+            f"[TorrentOptimizer] Usando archivo original directamente: {shared_input}"
+        )
+        logger.info(
+            f"[TorrentOptimizer] SOURCE es archivo? {os.path.isfile(source_path)}"
+        )
         logger.info(f"[TorrentOptimizer] SOURCE existe? {os.path.exists(source_path)}")
-        logger.info(f"[TorrentOptimizer] SOURCE tamaño: {os.path.getsize(source_path) if os.path.exists(source_path) else 'N/A'}")
+        logger.info(
+            f"[TorrentOptimizer] SOURCE tamaño: {os.path.getsize(source_path) if os.path.exists(source_path) else 'N/A'}"
+        )
 
         shared_output = os.path.join(SHARED_OUTPUT, output_filename)
-        logger.info(f"[TorrentOptimizer] Usando archivo de entrada: {shared_input} -> salida: {shared_output}")
+        logger.info(
+            f"[TorrentOptimizer] Usando archivo de entrada: {shared_input} -> salida: {shared_output}"
+        )
 
         os.makedirs(SHARED_OUTPUT, exist_ok=True)
 
@@ -510,7 +630,9 @@ class TorrentOptimizer:
             "torrent_id": torrent_id,
             "source_path": source_path,
             "api_process_id": None,  # Se llenará cuando la API responda
-            "params": payload["params"],  # Guardar params para reintento si es necesario
+            "params": payload[
+                "params"
+            ],  # Guardar params para reintento si es necesario
             "user_id": user_id,  # ID del usuario que inició la optimización
         }
 
@@ -518,7 +640,11 @@ class TorrentOptimizer:
         # El monitoreoará el estado y esperará hasta que haya un api_process_id
         thread = threading.Thread(
             target=self._monitor_optimization,
-            args=(process_id, None, progress_callback),  # api_process_id puede ser None al inicio
+            args=(
+                process_id,
+                None,
+                progress_callback,
+            ),  # api_process_id puede ser None al inicio
         )
         thread.daemon = True
         thread.start()
@@ -549,7 +675,7 @@ class TorrentOptimizer:
         """
         try:
             api_client = self._get_api_client()
-            
+
             # Esta llamada puede tardar mucho o quedarse colgada si la API no responde bien
             api_process_id = api_client.start_optimization(
                 shared_input, shared_output, params
@@ -560,7 +686,9 @@ class TorrentOptimizer:
                 pending = self._pending.get(process_id)
                 if pending:
                     pending["api_process_id"] = api_process_id
-                    logger.info(f"[TorrentOptimizer] API process_id recibido: {api_process_id}")
+                    logger.info(
+                        f"[TorrentOptimizer] API process_id recibido: {api_process_id}"
+                    )
 
         except Exception as e:
             logger.error(f"[TorrentOptimizer] Error al llamar a la API: {e}")
@@ -596,12 +724,16 @@ class TorrentOptimizer:
             if pending:
                 current_api_process_id = pending.get("api_process_id")
                 if current_api_process_id:
-                    logger.info(f"[TorrentOptimizer] API process_id obtenido: {current_api_process_id}")
+                    logger.info(
+                        f"[TorrentOptimizer] API process_id obtenido: {current_api_process_id}"
+                    )
                     break
-            
+
             # Verificar si hay un error
             if progress.status == "error":
-                logger.warning(f"[TorrentOptimizer] Optimización marcada como error antes de iniciar")
+                logger.warning(
+                    f"[TorrentOptimizer] Optimización marcada como error antes de iniciar"
+                )
                 return
 
             # Timeout esperando el api_process_id
@@ -619,34 +751,46 @@ class TorrentOptimizer:
         with self._lock:
             if progress.status == "pending":
                 progress.status = "running"
-                logger.info(f"[TorrentOptimizer] Estado cambiado a 'running' para {local_process_id}")
+                logger.info(
+                    f"[TorrentOptimizer] Estado cambiado a 'running' para {local_process_id}"
+                )
 
-        logger.info(f"[TorrentOptimizer] Monitoreando proceso: {current_api_process_id}")
+        logger.info(
+            f"[TorrentOptimizer] Monitoreando proceso: {current_api_process_id}"
+        )
 
         while True:
             try:
                 api_status = api_client.get_status(current_api_process_id)
 
-                logger.info(f"[TorrentOptimizer] Estado API para {current_api_process_id}: {api_status}")
+                logger.info(
+                    f"[TorrentOptimizer] Estado API para {current_api_process_id}: {api_status}"
+                )
 
                 if api_status:
                     # ACTUALIZAR PROGRESO con lock para thread-safety
                     new_progress = api_status.get("progress", 0)
                     new_status = api_status.get("status", "running")
-                    
+
                     with self._lock:
                         # Actualizar solo si hay cambios
                         if new_progress != progress.progress:
-                            logger.info(f"[TorrentOptimizer] Progreso actualizado: {progress.progress:.1f}% -> {new_progress:.1f}%")
+                            logger.info(
+                                f"[TorrentOptimizer] Progreso actualizado: {progress.progress:.1f}% -> {new_progress:.1f}%"
+                            )
                             progress.progress = new_progress
-                        
+
                         if new_status != progress.status:
-                            logger.info(f"[TorrentOptimizer] Estado cambiado: {progress.status} -> {new_status}")
+                            logger.info(
+                                f"[TorrentOptimizer] Estado cambiado: {progress.status} -> {new_status}"
+                            )
                             progress.status = new_status
 
                     # Capturar mensaje de error si existe
                     if progress.status == "error":
-                        error_msg = api_status.get("error", "Error desconocido en FFmpeg")
+                        error_msg = api_status.get(
+                            "error", "Error desconocido en FFmpeg"
+                        )
                         with self._lock:
                             progress.error_message = error_msg
                             progress.end_time = time.time()
@@ -679,20 +823,40 @@ class TorrentOptimizer:
 
     def _finalize_optimization(self, process_id: str):
         """Mueve el archivo optimizado a su destino final y limpia archivos temporales"""
+        logger.info(
+            f"[TorrentOptimizer] ===== _finalize_optimization() INICIADO para process_id={process_id} ====="
+        )
+
         pending = self._pending.get(process_id)
         if not pending:
             logger.error(
-                f"[TorrentOptimizer] No se encontró metadata para proceso {process_id}"
+                f"[TorrentOptimizer] ❌ No se encontró metadata para proceso {process_id}"
             )
             return
 
         try:
             output_path = pending["output_path"]
-            category = pending["category"]
+            category = pending.get("category")
             original_filename = pending["original_filename"]
             shared_input = pending["shared_input"]
             source_path = pending.get("source_path")
             torrent_id = pending.get("torrent_id")
+            final_filename = pending.get("final_filename")
+
+            logger.info(f"[TorrentOptimizer] 📋 pending process_id={process_id}:")
+            logger.info(f"  - output_path (origen): {output_path}")
+            logger.info(f"  - category: {category}")
+            logger.info(f"  - original_filename: {original_filename}")
+            logger.info(f"  - final_filename: {final_filename}")
+            logger.info(f"  - source_path: {source_path}")
+            logger.info(f"  - torrent_id: {torrent_id}")
+            logger.info(f"  - self.output_folder: {self.output_folder}")
+
+            if not category:
+                logger.error(
+                    f"[TorrentOptimizer] ❌ Categoría no encontrada en pending para process_id={process_id}"
+                )
+                return
 
             # Verificar que el archivo de salida existe antes de proceder
             if not os.path.exists(output_path):
@@ -703,19 +867,64 @@ class TorrentOptimizer:
                 return
 
             logger.info(
-                f"[TorrentOptimizer] ✓ Archivo de salida verificado: {output_path}"
+                f"[TorrentOptimizer] ✅ Archivo de salida verificado: {output_path}"
             )
 
-            final_path = os.path.join(
-                self.output_folder, category, pending["final_filename"]
-            )
+            # Verificar tamaño del archivo
+            try:
+                file_size = os.path.getsize(output_path)
+                logger.info(
+                    f"[TorrentOptimizer] 📄 Tamaño del archivo de salida: {file_size} bytes"
+                )
+            except Exception as e:
+                logger.warning(
+                    f"[TorrentOptimizer] No se pudo obtener tamaño del archivo: {e}"
+                )
 
-            os.makedirs(os.path.dirname(final_path), exist_ok=True)
+            # Construir ruta destino
+            category_folder = os.path.join(self.output_folder, category)
+            final_path = os.path.join(category_folder, final_filename)
+
+            logger.info(
+                f"[TorrentOptimizer] 📁 Carpeta de categoría: {category_folder}"
+            )
+            logger.info(f"[TorrentOptimizer] 📁 Ruta destino final: {final_path}")
+
+            # Verificar si la carpeta de categoría existe, si no crearla
+            if not os.path.exists(category_folder):
+                logger.info(
+                    f"[TorrentOptimizer] 📂 Creando carpeta de categoría: {category_folder}"
+                )
+                try:
+                    os.makedirs(category_folder, exist_ok=True)
+                    logger.info(
+                        f"[TorrentOptimizer] ✅ Carpeta de categoría creada: {category_folder}"
+                    )
+                except Exception as e:
+                    logger.error(
+                        f"[TorrentOptimizer] ❌ No se pudo crear carpeta de categoría: {e}"
+                    )
+                    return
+            else:
+                logger.info(
+                    f"[TorrentOptimizer] ✅ Carpeta de categoría ya existe: {category_folder}"
+                )
 
             # Mover el archivo optimizado al catálogo
-            shutil.move(output_path, final_path)
-            logger.info(f"[TorrentOptimizer] ✅ Archivo movido a catálogo: {final_path}")
-            
+            try:
+                shutil.move(output_path, final_path)
+                logger.info(
+                    f"[TorrentOptimizer] ✅ Archivo movido a catálogo: {final_path}"
+                )
+            except PermissionError as e:
+                logger.error(
+                    f"[TorrentOptimizer] ❌ Error de permisos al mover archivo: {e}"
+                )
+                return
+            except Exception as e:
+                logger.error(f"[TorrentOptimizer] ❌ Error al mover archivo: {e}")
+                return
+
             # Añadir al historial de optimizaciones
             self._add_to_history(process_id, final_path, pending, "completed")
 
@@ -740,12 +949,15 @@ class TorrentOptimizer:
             )
 
         except Exception as e:
-            logger.error(f"[TorrentOptimizer] Error finalizando optimización: {e}")
+            logger.error(
+                f"[TorrentOptimizer] ❌ Error finalizando optimización: {e}",
+                exc_info=True,
+            )
 
     def _update_catalog_db(self, file_path: str, category: str, metadata: dict):
         """
         Actualiza la base de datos del catálogo con la nueva película optimizada.
-        
+
         Args:
             file_path: Ruta completa del archivo en el catálogo
             category: Categoría de la película (action, horror, sci_fi, etc.)
@@ -755,24 +967,31 @@ class TorrentOptimizer:
             from src.adapters.outgoing.repositories.postgresql.catalog_repository import (
                 get_catalog_repository,
             )
-            
+
             repo = get_catalog_repository()
-            
+
             # Extraer título del nombre del archivo
             filename = metadata.get("final_filename", "")
-            title = filename.replace("-optimized", "").replace(".mkv", "").replace("-", " ").title()
-            
+            title = (
+                filename.replace("-optimized", "")
+                .replace(".mkv", "")
+                .replace("-", " ")
+                .title()
+            )
+
             # Obtener tamaño del archivo
             file_size = 0
             if os.path.exists(file_path):
                 file_size = os.path.getsize(file_path)
-            
+
             # Buscar si ya existe contenido con esta ruta
             existing = repo.get_local_content_by_file_path(file_path)
-            
+
             if existing:
                 # Actualizar registro existente
-                logger.info(f"[TorrentOptimizer] Actualizando registro existente en catálogo: {existing.id}")
+                logger.info(
+                    f"[TorrentOptimizer] Actualizando registro existente en catálogo: {existing.id}"
+                )
             else:
                 # Crear nuevo registro
                 content_data = {
@@ -785,14 +1004,18 @@ class TorrentOptimizer:
                     "quality": "optimized",
                     "format": "mkv",
                 }
-                
+
                 try:
                     new_content = repo.create_local_content(content_data)
-                    logger.info(f"[TorrentOptimizer] ✅ Nuevo contenido registrado en catálogo: {new_content.id} - {title}")
+                    logger.info(
+                        f"[TorrentOptimizer] ✅ Nuevo contenido registrado en catálogo: {new_content.id} - {title}"
+                    )
                 except Exception as create_error:
-                    logger.warning(f"[TorrentOptimizer] ⚠️ Error creando contenido en catálogo: {create_error}")
+                    logger.warning(
+                        f"[TorrentOptimizer] ⚠️ Error creando contenido en catálogo: {create_error}"
+                    )
                     # No fallar la optimización si el catálogo no se puede actualizar
-                    
+
         except Exception as e:
             logger.warning(f"[TorrentOptimizer] ⚠️ Error en _update_catalog_db: {e}")
             # No propagar el error para no afectar el flujo de optimización
@@ -800,7 +1023,7 @@ class TorrentOptimizer:
     def _handle_error(self, process_id: str, error_message: str):
         """
         Maneja el error de optimización: limpia archivos temporales y registra el error.
-        
+
         Args:
             process_id: ID del proceso de optimización
             error_message: Mensaje de error detallado
@@ -822,22 +1045,30 @@ class TorrentOptimizer:
             if shared_input and os.path.exists(shared_input):
                 try:
                     os.remove(shared_input)
-                    logger.info(f"[TorrentOptimizer] Limpiado archivo temporal: {shared_input}")
+                    logger.info(
+                        f"[TorrentOptimizer] Limpiado archivo temporal: {shared_input}"
+                    )
                 except Exception as e:
-                    logger.warning(f"[TorrentOptimizer] Error limpiando {shared_input}: {e}")
+                    logger.warning(
+                        f"[TorrentOptimizer] Error limpiando {shared_input}: {e}"
+                    )
 
             # Limpiar archivo de salida si existe (puede estar parcialmente creado)
             output_path = pending.get("output_path")
             if output_path and os.path.exists(output_path):
                 try:
                     os.remove(output_path)
-                    logger.info(f"[TorrentOptimizer] Limpiado archivo de salida: {output_path}")
+                    logger.info(
+                        f"[TorrentOptimizer] Limpiado archivo de salida: {output_path}"
+                    )
                 except Exception as e:
-                    logger.warning(f"[TorrentOptimizer] Error limpiando {output_path}: {e}")
+                    logger.warning(
+                        f"[TorrentOptimizer] Error limpiando {output_path}: {e}"
+                    )
 
             # Eliminar el proceso del diccionario de pendientes
             del self._pending[process_id]
-            
+
             # Añadir al historial como error
             self._add_to_history(process_id, "", pending, "error", error_message)
 
@@ -847,7 +1078,9 @@ class TorrentOptimizer:
             )
 
         except Exception as e:
-            logger.error(f"[TorrentOptimizer] Error manejando fallo de optimización: {e}")
+            logger.error(
+                f"[TorrentOptimizer] Error manejando fallo de optimización: {e}"
+            )
 
     def get_progress(self, process_id: str) -> Optional[OptimizationProgress]:
         """Obtiene el progreso de una optimización (datos locales)"""
@@ -860,11 +1093,17 @@ class TorrentOptimizer:
                 if pending:
                     progress.torrent_id = pending.get("torrent_id", progress.torrent_id)
                     progress.category = pending.get("category", progress.category)
-                    progress.original_filename = pending.get("original_filename", progress.original_filename)
-                
-                logger.info(f"[TorrentOptimizer] get_progress({process_id}): status={progress.status}, progress={progress.progress:.1f}%")
+                    progress.original_filename = pending.get(
+                        "original_filename", progress.original_filename
+                    )
+
+                logger.info(
+                    f"[TorrentOptimizer] get_progress({process_id}): status={progress.status}, progress={progress.progress:.1f}%"
+                )
             else:
-                logger.warning(f"[TorrentOptimizer] get_progress - Proceso NO encontrado en _processes")
+                logger.warning(
+                    f"[TorrentOptimizer] get_progress - Proceso NO encontrado en _processes"
+                )
             return progress
 
     def get_api_progress(self, process_id: str) -> Optional[Dict]:
@@ -926,22 +1165,32 @@ class TorrentOptimizer:
     def list_active(self) -> List[OptimizationProgress]:
         """Lista todas las optimizaciones activas (running, pending, o recientemente completadas)"""
         # Incluir todos los estados activos
-        active_statuses = ['pending', 'running', 'starting', 'copying']
-        
-        logger.info(f"[TorrentOptimizer] list_active - Buscando optimizaciones activas (status: {active_statuses})...")
+        active_statuses = ["pending", "running", "starting", "copying"]
+
+        logger.info(
+            f"[TorrentOptimizer] list_active - Buscando optimizaciones activas (status: {active_statuses})..."
+        )
         with self._lock:
             # Debug: mostrar todos los procesos
-            logger.info(f"[TorrentOptimizer] list_active - Procesos en _processes: {len(self._processes)}")
-            logger.info(f"[TorrentOptimizer] list_active - Procesos keys: {list(self._processes.keys())}")
+            logger.info(
+                f"[TorrentOptimizer] list_active - Procesos en _processes: {len(self._processes)}"
+            )
+            logger.info(
+                f"[TorrentOptimizer] list_active - Procesos keys: {list(self._processes.keys())}"
+            )
             for pid, p in self._processes.items():
-                logger.info(f"[TorrentOptimizer] list_active - Proceso {pid}: status='{p.status}'")
-            
+                logger.info(
+                    f"[TorrentOptimizer] list_active - Proceso {pid}: status='{p.status}'"
+                )
+
             active = []
             for p in self._processes.values():
                 # Incluir procesos con status activo
                 if p.status in active_statuses:
-                    logger.info(f"[TorrentOptimizer] list_active - Incluyendo proceso {p.process_id}: status={p.status}")
-                    
+                    logger.info(
+                        f"[TorrentOptimizer] list_active - Incluyendo proceso {p.process_id}: status={p.status}"
+                    )
+
                     # Enrich with metadata from _pending if available
                     pending = self._pending.get(p.process_id)
                     if pending:
@@ -951,9 +1200,13 @@ class TorrentOptimizer:
                         p.category = pending.get("category")
                         p.original_filename = pending.get("original_filename")
                     # Si no hay pending, el torrent_id ya debería estar en p (establecido en start_optimization)
-                    
-                    logger.info(f"[TorrentOptimizer] list_active - proceso {p.process_id}: status={p.status}, torrent_id={getattr(p, 'torrent_id', None)}, category={getattr(p, 'category', None)}")
+
+                    logger.info(
+                        f"[TorrentOptimizer] list_active - proceso {p.process_id}: status={p.status}, torrent_id={getattr(p, 'torrent_id', None)}, category={getattr(p, 'category', None)}"
+                    )
                     active.append(p)
-            
-            logger.info(f"[TorrentOptimizer] list_active - total activos: {len(active)}")
+
+            logger.info(
+                f"[TorrentOptimizer] list_active - total activos: {len(active)}"
+            )
             return active

@@ -114,12 +114,20 @@ class UserSyncService:
         Obtiene perfil de usuario por ID interno
 
         Args:
-            app_user_id: ID del usuario en cine_app_db
+            app_user_id: ID del usuario en cine_app_db (acepta string o int)
 
         Returns:
             Dict con datos del perfil o None si no existe
         """
         try:
+            # Convertir a int si es necesario
+            if isinstance(app_user_id, str):
+                try:
+                    app_user_id = int(app_user_id)
+                except ValueError:
+                    logger.error(f"[UserSyncService] user_id inválido: {app_user_id}")
+                    return None
+
             return self.repo.get_by_id(app_user_id)
         except Exception as e:
             logger.error(

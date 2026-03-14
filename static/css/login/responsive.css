@@ -6,75 +6,90 @@
     }
     
     .login-box {
-        padding: 45px 30px;
+        padding: 24px 16px;
         max-width: 100%;
-        border-radius: 28px;
+        border-radius: 16px;
     }
     
+    .menu-title-full,
     .login-box h2 {
-        font-size: 2.6rem;
-        margin-bottom: 40px;
+        font-size: 1.4rem !important;
+        margin-bottom: 20px;
     }
     
     .login-box input {
-        padding: 20px;
-        font-size: 1.4rem;
-        margin-bottom: 22px;
-        border-radius: 20px;
+        padding: 12px;
+        font-size: 1rem;
+        margin-bottom: 14px;
+        border-radius: 10px;
     }
     
-    .login-box button {
-        padding: 20px;
-        font-size: 1.6rem;
-        border-radius: 20px;
-        margin-top: 15px;
+    .login-box button,
+    .oauth-btn {
+        padding: 14px;
+        font-size: 1rem;
+        border-radius: 10px;
+        margin-top: 10px;
     }
     
     .error-msg {
-        font-size: 1.2rem;
-        margin-bottom: 25px;
+        font-size: 0.9rem;
+        margin-bottom: 14px;
+    }
+    
+    .info-text {
+        font-size: 0.85rem;
+        line-height: 1.4;
     }
 }
 
 /* Para móviles muy pequeños */
 @media (max-width: 380px) {
     .login-box {
-        padding: 35px 25px;
+        padding: 20px 14px;
     }
     
+    .menu-title-full,
     .login-box h2 {
-        font-size: 2.2rem;
+        font-size: 1.2rem !important;
     }
     
     .login-box input {
-        padding: 16px;
-        font-size: 1.2rem;
+        padding: 10px;
+        font-size: 0.95rem;
     }
     
-    .login-box button {
-        padding: 16px;
-        font-size: 1.4rem;
+    .login-box button,
+    .oauth-btn {
+        padding: 12px;
+        font-size: 0.95rem;
+    }
+    
+    .info-text {
+        font-size: 0.8rem;
     }
 }
 
 /* Para tablets en vertical */
 @media (min-width: 769px) and (max-width: 1024px) {
     .login-box {
-        max-width: 600px;
-        padding: 50px 40px;
+        max-width: 500px;
+        padding: 32px 24px;
     }
     
+    .menu-title-full,
     .login-box h2 {
-        font-size: 2.8rem;
+        font-size: 1.8rem;
     }
     
     .login-box input {
-        padding: 22px;
-        font-size: 1.5rem;
+        padding: 14px;
+        font-size: 1.1rem;
     }
     
-    .login-box button {
-        padding: 22px;
-        font-size: 1.7rem;
+    .login-box button,
+    .oauth-btn {
+        padding: 14px;
+        font-size: 1.15rem;
     }
 }

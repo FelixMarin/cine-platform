@@ -1,27 +1,13 @@
-// Caché de pósters de series (en memoria)
+// Caché de pósters de series (en memoria - solo sesión actual)
 let seriePosterCache = {};
 
-// Inicializar caché de localStorage al cargar
-(function initSeriePosterCache() {
-    try {
-        const cached = localStorage.getItem('cine_serie_posters');
-        if (cached) {
-            seriePosterCache = JSON.parse(cached);
-            console.log('📺 Caché de pósters de series cargado:', Object.keys(seriePosterCache).length, 'series');
-        }
-    } catch (e) {
-        console.warn('No se pudo cargar el caché de pósters:', e);
-    }
-})();
-
-// Función para guardar pósters en localStorage
-function saveSeriePosterCache() {
-    try {
-        localStorage.setItem('cine_serie_posters', JSON.stringify(seriePosterCache));
-    } catch (e) {
-        console.warn('No se pudo guardar el caché de pósters:', e);
-    }
+// Función para limpiar pósters en memoria (para uso manual si es necesario)
+function clearSeriePosterCache() {
+    seriePosterCache = {};
+    console.log('🧹 Caché de pósters de series en memoria limpiado');
 }
+
+window.clearSeriePosterCache = clearSeriePosterCache;
 
 // Función para desplazar el carrusel
 function scrollCarousel(button, direction) {
@@ -118,29 +104,6 @@ async function renderMoviesByCategory(categoriasLista) {
     }
 }
 
-// Caché global para pósters de series (una sola llamada a OMDB por serie)
-// Ahora persistente con localStorage
-(function initSeriePosterCache() {
-    try {
-        const cached = localStorage.getItem('cine_serie_posters');
-        if (cached) {
-            seriePosterCache = JSON.parse(cached);
-            console.log('📺 Caché de pósters de series cargado:', Object.keys(seriePosterCache).length, 'series');
-        }
-    } catch (e) {
-        console.warn('No se pudo cargar el caché de pósters:', e);
-    }
-})();
-
-// Función para guardar pósters en localStorage
-function saveSeriePosterCache() {
-    try {
-        localStorage.setItem('cine_serie_posters', JSON.stringify(seriePosterCache));
-    } catch (e) {
-        console.warn('No se pudo guardar el caché de pósters:', e);
-    }
-}
-
 // Función para limpiar nombre de serie
 function cleanSerieName(name) {
     let cleaned = name;
@@ -224,7 +187,6 @@ async function preloadSeriesPosters(series) {
 
             if (posterUrl) {
                 seriePosterCache[cleanName] = posterUrl;
-                saveSeriePosterCache(); // Guardar en localStorage
                 console.debug(`📺 Póster precargado para: ${cleanName}`);
             }
         }
@@ -320,3 +282,35 @@ async function renderSeries(series) {
 window.scrollCarousel = scrollCarousel;
 window.renderMoviesByCategory = renderMoviesByCategory;
 window.renderSeries = renderSeries;
+
+// ============================================
+// LEGACY: Limpiar localStorage antiguo (compatibilidad hacia atrás)
+// ============================================
+(function cleanLegacyLocalStorage() {
+    const LEGACY_KEYS = [
+        'cine_serie_posters',
+        'cine_movies_cache',
+        'cine_movies_timestamp',
+        'cine_series_posts',
+        'cime_movies_cache',
+        'cime_series_posts'
+    ];
+
+    try {
+        LEGACY_KEYS.forEach(key => {
+            if (localStorage.getItem(key)) {
+                localStorage.removeItem(key);
+                console.log(`🧹 Limpiado legacy localStorage: ${key}`);
+            }
+        });
+
+        // Limpiar también las claves de thumbnails legacy
+        Object.keys(localStorage).forEach(key => {
+            if (key.startsWith('thumb_') || key.startsWith('serie_poster_')) {
+                localStorage.removeItem(key);
+            }
+        });
+    } catch (e) {
+        console.warn('⚠️ Error limpiando legacy localStorage:', e);
+    }
+})();

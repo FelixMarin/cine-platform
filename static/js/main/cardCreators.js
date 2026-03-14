@@ -1,7 +1,10 @@
 // Depende de categoryUtils.js
 
-// Caché para thumbnails (24 horas) - Ahora usa Cache API
+// Caché para thumbnails - Ahora solo usa CacheManager (Cache API)
 const THUMBNAIL_CACHE_TTL = 24 * 60 * 60 * 1000;
+
+// Caché en memoria para thumbnails (complementa CacheManager)
+const thumbnailMemoryCache = new Map();
 
 // Importar el gestor de caché dinámicamente
 let cacheManager = null;
@@ -156,44 +159,20 @@ async function loadMovieThumbnail(imgElement, title, year, filename, imdbId) {
             if (cachedUrl !== url) {
                 console.debug(`📦 Thumbnail desde Cache API para: ${searchTitle}`);
                 imgElement.src = cachedUrl;
-
-                // También guardar en localStorage para compatibilidad
-                localStorage.setItem(cacheKey, JSON.stringify({
-                    url: cachedUrl,
-                    timestamp: Date.now()
-                }));
                 return;
             }
         }
-    } catch (e) {
-        // Fallback a localStorage si CacheManager falla
-    }
 
-    // Fallback: Intentar cargar de localStorage (compatibilidad)
-    const cached = localStorage.getItem(cacheKey);
-    if (cached) {
-        try {
-            const cachedData = JSON.parse(cached);
+        // También verificar caché en memoria
+        if (thumbnailMemoryCache.has(cacheKey)) {
+            const cachedData = thumbnailMemoryCache.get(cacheKey);
             if (Date.now() - cachedData.timestamp < THUMBNAIL_CACHE_TTL) {
-                console.log(`📦 Thumbnail en localStorage para: ${searchTitle}`);
+                console.debug(`📦 Thumbnail desde memoria para: ${searchTitle}`);
                 imgElement.src = cachedData.url;
                 return;
             } else {
-                localStorage.removeItem(cacheKey);
+                thumbnailMemoryCache.delete(cacheKey);
             }
-        } catch (e) {
-            localStorage.removeItem(cacheKey);
-        }
-    }
-
-    try {
-        // Construir URL base
-        let url = `/api/movie-thumbnail?title=${encodeURIComponent(searchTitle)}`;
-        if (year) url += `&year=${year}`;
-
-        // Añadir filename SOLO si existe (para fallback local)
-        if (filename) {
-            url += `&filename=${encodeURIComponent(filename)}`;
         }
 
         console.log(`🔍 Solicitando thumbnail: ${url}`);
@@ -211,11 +190,11 @@ async function loadMovieThumbnail(imgElement, title, year, filename, imdbId) {
         const data = await response.json();
 
         if (data.thumbnail) {
-            // Guardar en caché (localStorage para compatibilidad)
-            localStorage.setItem(cacheKey, JSON.stringify({
+            // Guardar en caché en memoria
+            thumbnailMemoryCache.set(cacheKey, {
                 url: data.thumbnail,
                 timestamp: Date.now()
-            }));
+            });
 
             // Cargar imagen
             imgElement.src = data.thumbnail;
@@ -299,34 +278,19 @@ async function loadSeriePoster(imgElement, serieName, firstEpisodeFilename) {
             if (cachedUrl !== omdbUrl) {
                 console.log(`📦 Póster desde Cache API para: ${serieName}`);
                 imgElement.src = cachedUrl;
-
-                // También guardar en localStorage para compatibilidad
-                localStorage.setItem(cacheKey, JSON.stringify({
-                    url: cachedUrl,
-                    timestamp: Date.now()
-                }));
                 return;
             }
         } catch (e) {
-            // Fallback a localStorage
+            // Continuar con otras opciones
         }
     }
 
-    // Fallback: Intentar cargar de localStorage
-    const cached = localStorage.getItem(cacheKey);
-    if (cached) {
-        try {
-            const cachedData = JSON.parse(cached);
-            if (Date.now() - cachedData.timestamp < THUMBNAIL_CACHE_TTL) {
-                console.log(`📦 Póster de serie en caché para: ${serieName}`);
-                imgElement.src = cachedData.url;
-                return;
-            } else {
-                localStorage.removeItem(cacheKey);
-            }
-        } catch (e) {
-            localStorage.removeItem(cacheKey);
-        }
+    // Verificar caché en memoria
+    const memoryCached = thumbnailMemoryCache.get(cacheKey);
+    if (memoryCached && (Date.now() - memoryCached.timestamp) < THUMBNAIL_CACHE_TTL) {
+        console.log(`📦 Póster de serie en memoria para: ${serieName}`);
+        imgElement.src = memoryCached.url;
+        return;
     }
 
     try {
@@ -337,10 +301,11 @@ async function loadSeriePoster(imgElement, serieName, firstEpisodeFilename) {
         if (response.ok) {
             const data = await response.json();
             if (data.poster) {
-                localStorage.setItem(cacheKey, JSON.stringify({
+                // Guardar en caché en memoria
+                thumbnailMemoryCache.set(cacheKey, {
                     url: data.poster,
                     timestamp: Date.now()
-                }));
+                });
                 imgElement.src = data.poster;
                 console.log(`✅ Póster de serie cargado desde OMDB para: ${serieName}`);
                 return;
@@ -376,11 +341,11 @@ async function loadSeriePoster(imgElement, serieName, firstEpisodeFilename) {
             console.log(`🖼️ Intentando thumbnail local WEBP: ${localWebp}`);
             // === FIN LOGS ===
 
-            // Guardar en caché
-            localStorage.setItem(cacheKey, JSON.stringify({
+            // Guardar en caché en memoria
+            thumbnailMemoryCache.set(cacheKey, {
                 url: localJpg,
                 timestamp: Date.now()
-            }));
+            });
 
             imgElement.src = localJpg;
             console.log(`🖼️ Estableciendo src a: ${localJpg}`);
@@ -408,46 +373,14 @@ async function loadSeriePoster(imgElement, serieName, firstEpisodeFilename) {
     }
 }
 
-// Función para limpiar caché antiguo (llamar al inicio)
-function cleanThumbnailCache() {
-    const now = Date.now();
-    let removed = 0;
-
-    for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
-        if (key && key.startsWith('thumb_')) {
-            try {
-                const data = JSON.parse(localStorage.getItem(key));
-                if (now - data.timestamp > THUMBNAIL_CACHE_TTL) {
-                    localStorage.removeItem(key);
-                    removed++;
-                }
-            } catch (e) {
-                // Si no se puede parsear, eliminar
-                localStorage.removeItem(key);
-                removed++;
-            }
-        }
-    }
-
-    if (removed > 0) {
-        console.log(`🧹 Limpiados ${removed} thumbnails antiguos de caché`);
-    }
+// Función para limpiar caché de thumbnails en memoria (para uso manual si es necesario)
+function clearThumbnailMemoryCache() {
+    thumbnailMemoryCache.clear();
+    console.log('🧹 Caché de thumbnails en memoria limpiado');
 }
 
-// Función para limpiar el caché de thumbnails manualmente
-function clearThumbnailCache() {
-    let count = 0;
-    for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
-        if (key && key.startsWith('thumb_')) {
-            localStorage.removeItem(key);
-            count++;
-        }
-    }
-    console.log(`🧹 Caché de thumbnails limpiado: ${count} entradas eliminadas`);
-    return count;
-}
+// Exponer función para uso externo
+window.clearThumbnailMemoryCache = clearThumbnailMemoryCache;
 
 // CSS para los placeholders y animaciones
 const style = document.createElement('style');
@@ -587,12 +520,6 @@ if (!document.getElementById('movie-card-styles')) {
     document.head.appendChild(style);
 }
 
-
-// Limpiar caché al inicio
-cleanThumbnailCache();
-
 // Exportar funciones
 window.createMovieCard = createMovieCard;
 window.createSerieCard = createSerieCard;
-window.cleanThumbnailCache = cleanThumbnailCache;
-window.clearThumbnailCache = clearThumbnailCache;

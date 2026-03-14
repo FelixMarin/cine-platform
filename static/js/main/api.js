@@ -1,8 +1,10 @@
 // Depende de carousel.js
 
-// Legacy cache (mantenido para compatibilidad)
-const CACHE_KEY = 'cine_movies_cache';
-const CACHE_TIMESTAMP_KEY = 'cine_movies_timestamp';
+// Caché en memoria para el contenido del catálogo (solo sesión actual)
+let contentMemoryCache = {
+    data: null,
+    timestamp: 0
+};
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutos en milisegundos
 
 // Obtener referencia al CacheManager
@@ -20,8 +22,17 @@ async function loadContent(forceRefresh = false) {
 
     const catalogService = getCatalogService();
 
-    // Intentar obtener datos del catálogo de la base de datos
-    if (catalogService && !forceRefresh) {
+    // Verificar caché en memoria primero
+    const now = Date.now();
+    if (!forceRefresh && contentMemoryCache.data && 
+        (now - contentMemoryCache.timestamp) < CACHE_TTL) {
+        console.debug('📦 Contenido desde caché en memoria');
+        renderContent(contentMemoryCache.data);
+        return;
+    }
+
+    // Obtener datos del catálogo de la base de datos
+    if (catalogService) {
         try {
             console.debug('🔍 CatalogService: Buscando en BBDD...');
             const dbMovies = await catalogService.getMovies(100, 0);
@@ -33,26 +44,20 @@ async function loadContent(forceRefresh = false) {
                 
                 // Transformar datos de BBDD al formato esperado
                 const data = transformCatalogToApiFormat(dbMovies.movies || [], dbSeries.series || []);
+                
+                // Guardar en caché en memoria
+                contentMemoryCache.data = data;
+                contentMemoryCache.timestamp = now;
+                
                 renderContent(data);
                 return;
             }
         } catch (e) {
-            console.warn('⚠️ CatalogService: Error obteniendo datos de BBDD, usando fallback:', e);
+            console.warn('⚠️ CatalogService: Error obteniendo datos de BBDD:', e);
         }
     }
 
-    // Si NO se fuerza refresco, intentar usar el caché legacy
-    if (!forceRefresh) {
-        const cachedData = loadFromCache();
-        if (cachedData) {
-            console.debug('📦 CatalogService: Usando datos cacheados (localStorage)');
-            renderContent(cachedData);
-            return;
-        }
-        console.debug('ℹ️ CatalogService: No hay datos en caché, cargando del servidor...');
-    }
-
-    // No hay caché, expiró o se fuerza refresco → cargar del servidor
+    // Si no hay datos, cargar del servidor
     fetchFromServer(forceRefresh);
 }
 
@@ -109,41 +114,7 @@ function transformCatalogToApiFormat(movies, series) {
     };
 }
 
-function loadFromCache() {
-    try {
-        const cached = localStorage.getItem(CACHE_KEY);
-        const timestamp = localStorage.getItem(CACHE_TIMESTAMP_KEY);
-
-        if (!cached || !timestamp) return null;
-
-        // Verificar si el caché ha expirado
-        const now = Date.now();
-        if (now - parseInt(timestamp) > CACHE_TTL) {
-            console.log('🗑️ Caché expirado');
-            localStorage.removeItem(CACHE_KEY);
-            localStorage.removeItem(CACHE_TIMESTAMP_KEY);
-            return null;
-        }
-
-        return JSON.parse(cached);
-    } catch (e) {
-        console.error('Error leyendo caché:', e);
-        return null;
-    }
-}
-
-function saveToCache(data) {
-    try {
-        // Guardar tal cual, sin modificar el orden
-        localStorage.setItem(CACHE_KEY, JSON.stringify(data));
-        localStorage.setItem(CACHE_TIMESTAMP_KEY, Date.now().toString());
-        console.log('💾 Datos guardados en caché:', data);
-        console.log('💾 Estructura de categorías en caché:', data && data.categorias ? `${data.categorias.length} categorías` : 'SIN categorías');
-    } catch (e) {
-        console.error('Error guardando en caché:', e);
-    }
-}
-
+// Función para cargar desde el servidor
 function fetchFromServer(forceRefresh = false) {
     console.log('🌐 Cargando del servidor...');
 
@@ -164,8 +135,9 @@ function fetchFromServer(forceRefresh = false) {
         .then(async data => {
             console.log('Datos recibidos:', data);
 
-            // Guardar en caché
-            saveToCache(data);
+            // Guardar en caché en memoria
+            contentMemoryCache.data = data;
+            contentMemoryCache.timestamp = Date.now();
 
             // Renderizar
             await renderContent(data);
@@ -216,10 +188,10 @@ function refreshInBackground() {
         fetch("/api/movies?refresh=true")
             .then(r => r.json())
             .then(data => {
-                // Solo actualizar caché si los datos son diferentes
-                const currentCache = localStorage.getItem(CACHE_KEY);
-                if (currentCache !== JSON.stringify(data)) {
-                    saveToCache(data);
+                // Solo actualizar caché en memoria si los datos son diferentes
+                if (JSON.stringify(contentMemoryCache.data) !== JSON.stringify(data)) {
+                    contentMemoryCache.data = data;
+                    contentMemoryCache.timestamp = Date.now();
                     console.log('✅ Caché actualizado con nuevos datos');
                 } else {
                     console.log('📦 Caché ya está actualizado');
@@ -232,9 +204,15 @@ function refreshInBackground() {
 function refreshContent(forceReload = false) {
     console.log('🔄 Refrescando contenido...');
 
-    // Invalidar caché del frontend
-    localStorage.removeItem(CACHE_KEY);
-    localStorage.removeItem(CACHE_TIMESTAMP_KEY);
+    // Invalidar caché en memoria
+    contentMemoryCache.data = null;
+    contentMemoryCache.timestamp = 0;
+
+    // También invalidar en CatalogService
+    const catalogService = getCatalogService();
+    if (catalogService && catalogService.invalidateCache) {
+        catalogService.invalidateCache();
+    }
 
     if (forceReload) {
         // Recargar la página completamente (útil si hay cambios estructurales)
@@ -246,9 +224,9 @@ function refreshContent(forceReload = false) {
 }
 
 function invalidateCache() {
-    // Forzar invalidación del caché (localStorage legacy)
-    localStorage.removeItem(CACHE_KEY);
-    localStorage.removeItem(CACHE_TIMESTAMP_KEY);
+    // Invalidar caché en memoria
+    contentMemoryCache.data = null;
+    contentMemoryCache.timestamp = 0;
 
     // También invalidar en CacheManager si está disponible
     const cm = getCacheManager();
@@ -256,7 +234,13 @@ function invalidateCache() {
         cm.invalidateApiCache('/api/movies');
     }
 
-    console.log('🗑️ Caché invalidado manualmente (localStorage + Cache API)');
+    // Y en CatalogService
+    const catalogService = getCatalogService();
+    if (catalogService && catalogService.invalidateCache) {
+        catalogService.invalidateCache();
+    }
+
+    console.log('🗑️ Caché invalidado manualmente (memoria + Cache API + CatalogService)');
 }
 
 // Nueva función: Precargar thumbnails en segundo plano usando CacheManager

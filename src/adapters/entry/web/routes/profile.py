@@ -64,12 +64,18 @@ def require_app_user(f):
 def get_my_profile():
     """Obtiene el perfil del usuario actual desde la base de datos"""
     try:
-        # Obtener ID de usuario de la sesión (cualquiera de los dos)
-        app_user_id = session.get("app_user_id") or session.get("user_id")
-        
-        logger.info(f"[Profile] get_my_profile - app_user_id from session: {app_user_id}")
-        logger.info(f"[Profile] get_my_profile - session keys: {list(session.keys())}")
-        
+        app_user_id = session.get("app_user_id")
+        user_id = session.get("user_id")
+
+        logger.info(
+            f"[Profile] get_my_profile - app_user_id from session: {app_user_id} (type: {type(app_user_id)})"
+        )
+        logger.info(
+            f"[Profile] get_my_profile - user_id from session: {user_id} (type: {type(user_id)})"
+        )
+
+        app_user_id = app_user_id or user_id
+
         if not app_user_id:
             # Fallback: intentar obtener datos básicos de la sesión
             logger.warning("[Profile] No app_user_id in session, using session data")
@@ -86,12 +92,14 @@ def get_my_profile():
                     },
                 }
             )
-        
+
         # Obtener servicio y perfil desde BD
         service = get_user_sync_service()
         if not service:
             # Fallback: usar datos de sesión si el servicio no está disponible
-            logger.warning("[Profile] UserSyncService not available, using session data")
+            logger.warning(
+                "[Profile] UserSyncService not available, using session data"
+            )
             return jsonify(
                 {
                     "success": True,
@@ -105,14 +113,30 @@ def get_my_profile():
                     },
                 }
             )
-        
-        profile = service.get_user_profile(app_user_id)
-        
+
+        # Convertir a int si es string
+        lookup_id: int = app_user_id
+        if isinstance(app_user_id, str):
+            try:
+                lookup_id = int(app_user_id)
+                logger.info(
+                    f"[Profile] Converted app_user_id string to int: {lookup_id}"
+                )
+            except (ValueError, TypeError):
+                logger.warning(
+                    f"[Profile] Could not convert app_user_id to int: {app_user_id}"
+                )
+                # Dejar como string si no se puede convertir
+
+        profile = service.get_user_profile(lookup_id)
+
         logger.info(f"[Profile] get_user_profile result: {profile}")
-        
+
         if not profile:
             # Fallback: usar datos de sesión si el perfil no existe en BD
-            logger.warning(f"[Profile] Profile not found for app_user_id: {app_user_id}")
+            logger.warning(
+                f"[Profile] Profile not found for app_user_id: {app_user_id}"
+            )
             return jsonify(
                 {
                     "success": True,
@@ -126,24 +150,32 @@ def get_my_profile():
                     },
                 }
             )
-        
+
         # Log para depuración
-        logger.info(f"[Profile] Perfil obtenido: id={profile.get('id')}, username={profile.get('username')}, email={profile.get('email')}")
-        
-        return jsonify({
-            "success": True,
-            "profile": {
-                "id": profile.get("id"),
-                "username": profile.get("username"),
-                "email": profile.get("email"),  # ← VIENE DE BD
-                "display_name": profile.get("display_name"),
-                "avatar_url": profile.get("avatar_url"),
-                "bio": profile.get("bio"),
-                "privacy_level": profile.get("privacy_level", "public"),
-                "created_at": str(profile.get("created_at")) if profile.get("created_at") else None,
-                "last_active": str(profile.get("last_active")) if profile.get("last_active") else None,
+        logger.info(
+            f"[Profile] Perfil obtenido: id={profile.get('id')}, username={profile.get('username')}, email={profile.get('email')}"
+        )
+
+        return jsonify(
+            {
+                "success": True,
+                "profile": {
+                    "id": profile.get("id"),
+                    "username": profile.get("username"),
+                    "email": profile.get("email"),  # ← VIENE DE BD
+                    "display_name": profile.get("display_name"),
+                    "avatar_url": profile.get("avatar_url"),
+                    "bio": profile.get("bio"),
+                    "privacy_level": profile.get("privacy_level", "public"),
+                    "created_at": str(profile.get("created_at"))
+                    if profile.get("created_at")
+                    else None,
+                    "last_active": str(profile.get("last_active"))
+                    if profile.get("last_active")
+                    else None,
+                },
             }
-        })
+        )
     except Exception as e:
         logger.error(f"[Profile] Error obteniendo perfil: {e}", exc_info=True)
         # Fallback: usar datos de sesión en caso de error
@@ -201,28 +233,34 @@ def upload_avatar():
     """Sube una nueva imagen de avatar"""
     import os
     from flask import current_app
-    
+
     app_user_id = session.get("app_user_id") or session.get("user_id")
-    
+
     # LOG 1: Información de la sesión
     logger.info(f"[Avatar] ===== INICIO SUBIDA AVATAR =====")
     logger.info(f"[Avatar] app_user_id: {app_user_id}")
     logger.info(f"[Avatar] session keys: {list(session.keys())}")
-    
+
     # LOG 2: Información del directorio
     logger.info(f"[Avatar] current_app.root_path: {current_app.root_path}")
     logger.info(f"[Avatar] Directorio actual: {os.getcwd()}")
     logger.info(f"[Avatar] AVATAR_UPLOAD_FOLDER definido como: {AVATAR_UPLOAD_FOLDER}")
-    
+
     # LOG 3: Verificar si el directorio existe
-    abs_folder = os.path.abspath(os.path.join(current_app.root_path, 'static', 'uploads', 'avatars'))
+    abs_folder = os.path.abspath(
+        os.path.join(current_app.root_path, "static", "uploads", "avatars")
+    )
     logger.info(f"[Avatar] Ruta absoluta del folder: {abs_folder}")
     logger.info(f"[Avatar] ¿Existe el folder? {os.path.exists(abs_folder)}")
-    
+
     if os.path.exists(abs_folder):
-        logger.info(f"[Avatar] Permisos del folder: {oct(os.stat(abs_folder).st_mode)[-3:]}")
-        logger.info(f"[Avatar] Contenido del folder: {os.listdir(abs_folder) if os.path.exists(abs_folder) else []}")
-    
+        logger.info(
+            f"[Avatar] Permisos del folder: {oct(os.stat(abs_folder).st_mode)[-3:]}"
+        )
+        logger.info(
+            f"[Avatar] Contenido del folder: {os.listdir(abs_folder) if os.path.exists(abs_folder) else []}"
+        )
+
     if not app_user_id:
         logger.warning(f"[Avatar] Usuario no autenticado")
         return jsonify({"success": False, "error": "Usuario no autenticado"}), 401
@@ -253,7 +291,7 @@ def upload_avatar():
     base_dir = os.path.abspath(current_app.root_path)
     upload_folder = os.path.join(base_dir, "static", "uploads", "avatars")
     os.makedirs(upload_folder, exist_ok=True)
-    
+
     logger.info(f"[Profile] Directorio de uploads: {upload_folder}")
 
     filename_orig = file.filename
@@ -264,7 +302,7 @@ def upload_avatar():
     ext = parts[1].lower() if len(parts) == 2 else "jpg"
     filename = f"avatar_{app_user_id}_{uuid.uuid4().hex[:8]}.{ext}"
     filepath = os.path.join(upload_folder, filename)
-    
+
     # LOG 4: Antes de guardar
     logger.info(f"[Avatar] Nombre archivo original: {filename_orig}")
     logger.info(f"[Avatar] Nombre archivo generado: {filename}")
@@ -276,16 +314,24 @@ def upload_avatar():
         logger.info(f"[Avatar] Avatar guardado exitosamente")
     except Exception as e:
         logger.error(f"[Avatar] Error guardando archivo: {e}")
-        return jsonify({"success": False, "error": f"Error al guardar archivo: {str(e)}"}), 500
-    
+        return jsonify(
+            {"success": False, "error": f"Error al guardar archivo: {str(e)}"}
+        ), 500
+
     # LOG 5: Después de guardar
-    logger.info(f"[Avatar] Archivo guardado. ¿Existe? {os.path.exists(os.path.abspath(filepath))}")
+    logger.info(
+        f"[Avatar] Archivo guardado. ¿Existe? {os.path.exists(os.path.abspath(filepath))}"
+    )
     if os.path.exists(os.path.abspath(filepath)):
-        logger.info(f"[Avatar] Tamaño del archivo: {os.path.getsize(os.path.abspath(filepath))} bytes")
-        logger.info(f"[Avatar] Permisos del archivo: {oct(os.stat(os.path.abspath(filepath)).st_mode)[-3:]}")
+        logger.info(
+            f"[Avatar] Tamaño del archivo: {os.path.getsize(os.path.abspath(filepath))} bytes"
+        )
+        logger.info(
+            f"[Avatar] Permisos del archivo: {oct(os.stat(os.path.abspath(filepath)).st_mode)[-3:]}"
+        )
     else:
         logger.error(f"[Avatar] ❌ El archivo NO se guardó correctamente")
-    
+
     # LOG 6: URL generada
     avatar_url = f"/static/uploads/avatars/{filename}"
     logger.info(f"[Avatar] URL generada: {avatar_url}")
@@ -313,33 +359,45 @@ def upload_avatar():
 def test_upload():
     """Endpoint para probar escritura"""
     import tempfile
-    
+
     test_content = b"test"
     test_filename = f"test_{uuid.uuid4().hex}.txt"
-    
+
     # Usar la misma ruta que upload_avatar
     base_dir = os.path.abspath(current_app.root_path)
     test_folder = os.path.join(base_dir, "static", "uploads", "avatars")
     test_path = os.path.join(test_folder, test_filename)
-    
+
     logger.info(f"[TestUpload] Intentando escribir en: {test_path}")
     logger.info(f"[TestUpload] Carpeta existe: {os.path.exists(test_folder)}")
-    
+
     try:
         os.makedirs(test_folder, exist_ok=True)
-        
-        with open(test_path, 'wb') as f:
+
+        with open(test_path, "wb") as f:
             f.write(test_content)
-        
-        return jsonify({
-            "success": True,
-            "path": test_path,
-            "absolute_path": os.path.abspath(test_path),
-            "exists": os.path.exists(test_path),
-            "folder_exists": os.path.exists(test_folder),
-            "folder_writable": os.access(test_folder, os.W_OK),
-            "folder_perms": oct(os.stat(test_folder).st_mode)[-3:] if os.path.exists(test_folder) else None
-        })
+
+        return jsonify(
+            {
+                "success": True,
+                "path": test_path,
+                "absolute_path": os.path.abspath(test_path),
+                "exists": os.path.exists(test_path),
+                "folder_exists": os.path.exists(test_folder),
+                "folder_writable": os.access(test_folder, os.W_OK),
+                "folder_perms": oct(os.stat(test_folder).st_mode)[-3:]
+                if os.path.exists(test_folder)
+                else None,
+            }
+        )
     except Exception as e:
         logger.error(f"[TestUpload] Error: {e}")
         return jsonify({"success": False, "error": str(e)}), 500
+
+
+@profile_bp.route("/debug-session", methods=["GET"])
+def debug_session():
+    """Endpoint para depurar lo que hay en sesión"""
+    session_data = {k: str(v) for k, v in session.items()}
+    logger.info(f"[Profile] Session data: {session_data}")
+    return jsonify({"success": True, "session": session_data})
