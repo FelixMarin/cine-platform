@@ -6,6 +6,38 @@ const THUMBNAIL_CACHE_TTL = 24 * 60 * 60 * 1000;
 // Caché en memoria para thumbnails (complementa CacheManager)
 const thumbnailMemoryCache = new Map();
 
+// === LIMITADOR DE CONCURRENCIA PARA PETICIONES DE THUMBNAILS ===
+const thumbnailQueue = [];
+let activeThumbnailRequests = 0;
+const MAX_CONCURRENT_THUMBNAIL_REQUESTS = 5;
+
+// Procesar la cola de thumbnails
+async function processThumbnailQueue() {
+    if (activeThumbnailRequests >= MAX_CONCURRENT_THUMBNAIL_REQUESTS || thumbnailQueue.length === 0) {
+        return;
+    }
+    
+    const { imgElement, title, year, filename, imdbId, resolve } = thumbnailQueue.shift();
+    activeThumbnailRequests++;
+    
+    try {
+        await loadMovieThumbnailInternal(imgElement, title, year, filename, imdbId);
+    } finally {
+        activeThumbnailRequests--;
+        resolve();
+        // Procesar siguiente en la cola
+        processThumbnailQueue();
+    }
+}
+
+// Función wrapper que añade a la cola
+function enqueueThumbnailLoad(imgElement, title, year, filename, imdbId) {
+    return new Promise((resolve) => {
+        thumbnailQueue.push({ imgElement, title, year, filename, imdbId, resolve });
+        processThumbnailQueue();
+    });
+}
+
 // Importar el gestor de caché dinámicamente
 let cacheManager = null;
 async function getCacheManager() {
@@ -104,6 +136,11 @@ function createMovieCard(movie) {
 }
 
 async function loadMovieThumbnail(imgElement, title, year, filename, imdbId) {
+    // Usar la cola para limitar concurrencia
+    return enqueueThumbnailLoad(imgElement, title, year, filename, imdbId);
+}
+
+async function loadMovieThumbnailInternal(imgElement, title, year, filename, imdbId) {
     // Limpiar título: eliminar año, sufijos como -optimized, (2024), etc.
     let searchTitle = title;
     // Eliminar año entre paréntesis o al final
@@ -187,6 +224,26 @@ async function loadMovieThumbnail(imgElement, title, year, filename, imdbId) {
             return;
         }
 
+        // Verificar si la respuesta es una imagen o JSON
+        const contentType = response.headers.get('content-type') || '';
+        
+        if (contentType.startsWith('image/')) {
+            // La respuesta es una imagen directamente (desde BD u OMDB)
+            const blob = await response.blob();
+            const imageUrl = URL.createObjectURL(blob);
+            
+            // Guardar en caché en memoria
+            thumbnailMemoryCache.set(cacheKey, {
+                url: imageUrl,
+                timestamp: Date.now()
+            });
+            
+            imgElement.src = imageUrl;
+            console.log(`✅ Thumbnail cargado (imagen directa) para: ${searchTitle}`);
+            return;
+        }
+
+        // La respuesta es JSON (thumbnail local)
         const data = await response.json();
 
         if (data.thumbnail) {

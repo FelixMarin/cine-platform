@@ -13,6 +13,7 @@ from src.adapters.outgoing.services.omdb.client import OMDBMetadataService
 from src.adapters.outgoing.repositories.postgresql.catalog_repository import (
     CatalogRepository,
     get_catalog_repository,
+    get_catalog_repository_session,
 )
 
 
@@ -24,12 +25,9 @@ class OMDBMetadataServiceCached(OMDBMetadataService):
 
     def __init__(self, api_key: str = None, language: str = "es"):
         super().__init__(api_key, language)
-        self._catalog_repo = None
+        # Ya no guardamos el repo como atributo - cada operación usa su propia sesión
 
-    def _get_catalog_repo(self) -> CatalogRepository:
-        if self._catalog_repo is None:
-            self._catalog_repo = get_catalog_repository()
-        return self._catalog_repo
+    # Este método ya no se necesita - los métodos usan get_catalog_repository_session() directamente
 
     def _download_poster(self, poster_url: str) -> Optional[bytes]:
         """Descarga la imagen del póster"""
@@ -64,30 +62,32 @@ class OMDBMetadataServiceCached(OMDBMetadataService):
         Returns:
             Diccionario con metadatos o None
         """
-        repo = self._get_catalog_repo()
+        # Usar context manager para garantizar cierre de sesión
+        with get_catalog_repository_session() as db:
+            repo = get_catalog_repository(db)
+            
+            existing = repo.get_omdb_entry_by_imdb_id(imdb_id)
 
-        existing = repo.get_omdb_entry_by_imdb_id(imdb_id)
+            if existing and not force_refresh:
+                if not self._is_cache_expired(existing):
+                    repo.update_last_accessed(existing)
+                    return existing.to_dict(include_image=True)
 
-        if existing and not force_refresh:
-            if not self._is_cache_expired(existing):
-                repo.update_last_accessed(existing)
-                return existing.to_dict(include_image=True)
+            omdb_data = self._make_request({"i": imdb_id, "plot": "full", "r": "json"})
 
-        omdb_data = self._make_request({"i": imdb_id, "plot": "full", "r": "json"})
+            if not omdb_data or omdb_data.get("Response") == "False":
+                if existing:
+                    return existing.to_dict(include_image=True)
+                return None
 
-        if not omdb_data or omdb_data.get("Response") == "False":
-            if existing:
-                return existing.to_dict(include_image=True)
-            return None
+            poster_bytes = None
+            poster_url = omdb_data.get("Poster")
+            if poster_url and poster_url != "N/A":
+                poster_bytes = self._download_poster(poster_url)
 
-        poster_bytes = None
-        poster_url = omdb_data.get("Poster")
-        if poster_url and poster_url != "N/A":
-            poster_bytes = self._download_poster(poster_url)
+            entry = repo.create_or_update_omdb_entry(omdb_data, poster_bytes)
 
-        entry = repo.create_or_update_omdb_entry(omdb_data, poster_bytes)
-
-        return entry.to_dict(include_image=True)
+            return entry.to_dict(include_image=True)
 
     def search_movies_cached(self, query: str, limit: int = 10) -> List[Dict]:
         """
@@ -95,27 +95,30 @@ class OMDBMetadataServiceCached(OMDBMetadataService):
 
         Primero busca en la BBDD local, luego en OMDB si no hay suficientes resultados
         """
-        repo = self._get_catalog_repo()
+        # Usar context manager para garantizar cierre de sesión
+        with get_catalog_repository_session() as db:
+            repo = get_catalog_repository(db)
 
-        local_results = repo.search_omdb_entries(query, limit=limit)
+            local_results = repo.search_omdb_entries(query, limit=limit)
 
-        if len(local_results) >= limit:
-            return [r.to_dict() for r in local_results]
+            if len(local_results) >= limit:
+                return [r.to_dict() for r in local_results]
 
-        omdb_results = self.search_movies(query)
+            omdb_results = self.search_movies(query)
 
-        for result in omdb_results:
-            imdb_id = result.get("imdbID")
-            if imdb_id:
-                existing = repo.get_omdb_entry_by_imdb_id(imdb_id)
-                if not existing:
-                    try:
-                        self.get_movie_by_imdb_id(imdb_id)
-                    except Exception:
-                        pass
+            for result in omdb_results:
+                imdb_id = result.get("imdbID")
+                if imdb_id:
+                    existing = repo.get_omdb_entry_by_imdb_id(imdb_id)
+                    if not existing:
+                        try:
+                            # Hacer la búsqueda internamente para no abrir otra sesión
+                            self.get_movie_by_imdb_id(imdb_id)
+                        except Exception:
+                            pass
 
-        all_results = repo.search_omdb_entries(query, limit=limit)
-        return [r.to_dict() for r in all_results]
+            all_results = repo.search_omdb_entries(query, limit=limit)
+            return [r.to_dict() for r in all_results]
 
     def get_serie_by_imdb_id(
         self, imdb_id: str, force_refresh: bool = False
@@ -125,8 +128,9 @@ class OMDBMetadataServiceCached(OMDBMetadataService):
 
     def get_poster_image(self, imdb_id: str) -> Optional[bytes]:
         """Obtiene la imagen del póster desde la BBDD"""
-        repo = self._get_catalog_repo()
-        return repo.get_poster_image(imdb_id)
+        with get_catalog_repository_session() as db:
+            repo = get_catalog_repository(db)
+            return repo.get_poster_image(imdb_id)
 
     def save_poster_for_content(self, imdb_id: str, content_id: int) -> bool:
         """Guarda el póster de OMDB para contenido local"""
@@ -135,15 +139,16 @@ class OMDBMetadataServiceCached(OMDBMetadataService):
         if not movie_data:
             return False
 
-        repo = self._get_catalog_repo()
-        poster_bytes = self.get_poster_image(imdb_id)
+        with get_catalog_repository_session() as db:
+            repo = get_catalog_repository(db)
+            poster_bytes = repo.get_poster_image(imdb_id)
 
-        if poster_bytes:
-            content = repo.get_local_content_by_id(content_id)
-            if content:
-                content.poster_image = poster_bytes
-                repo._get_db().commit()
-                return True
+            if poster_bytes:
+                content = repo.get_local_content_by_id(content_id)
+                if content:
+                    content.poster_image = poster_bytes
+                    db.commit()
+                    return True
 
         return False
 

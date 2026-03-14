@@ -1,47 +1,93 @@
 """
 Repositorio para el catálogo de cine (omdb_entries y local_content)
 Implementación con SQLAlchemy
+
+PATRÓN: Cada operación crea su propia sesión - NO usa singleton
+Usa context manager para garantizar cierre de sesiones
 """
 
 from datetime import datetime, timedelta
 from typing import List, Optional, Dict
 from io import BytesIO
 import logging
+import re
+from contextlib import contextmanager
+
 import requests
 
 from sqlalchemy.orm import Session
-from sqlalchemy import and_, or_
+from sqlalchemy import and_, or_, func
 
 from src.infrastructure.models.catalog import OmdbEntry, LocalContent
-from src.infrastructure.database.connection import get_db_session
+from src.infrastructure.database.connection import get_session_maker
 
 
 logger = logging.getLogger(__name__)
 CACHE_EXPIRY_DAYS = 7
 
 
+@contextmanager
+def get_catalog_repository_session():
+    """
+    Context manager para obtener una sesión de base de datos.
+    Garantiza que la sesión se cierre correctamente.
+    """
+    SessionMaker = get_session_maker()
+    session = SessionMaker()
+    try:
+        yield session
+        session.commit()
+    except Exception:
+        session.rollback()
+        raise
+    finally:
+        session.close()
+
+
 class CatalogRepository:
-    """Repositorio para el catálogo de cine"""
+    """
+    Repositorio para el catálogo de cine.
+    
+    IMPORTANTE: Ahora acepta una sesión en el constructor.
+    Para usar correctamente, emplea get_catalog_repository_session() como context manager.
+    """
 
     def __init__(self, db_session: Session = None):
         self._db = db_session
         self._owns_session = db_session is None
+        self._session_maker = None
 
     def _get_db(self) -> Session:
         if self._db is None:
-            self._db = get_db_session()
+            # Crear nueva sesión para esta operación
+            SessionMaker = get_session_maker()
+            self._db = SessionMaker()
+            self._owns_session = True
         return self._db
 
     def close(self):
-        """Cierra la sesión de base de datos"""
+        """Cierra la sesión de base de datos si es-owned"""
         if self._db and self._owns_session:
-            self._db.close()
+            try:
+                self._db.close()
+            except Exception:
+                pass
             self._db = None
+            self._owns_session = False
 
     def rollback(self):
         """Hace rollback de la transacción actual"""
         if self._db:
             self._db.rollback()
+
+    def __enter__(self):
+        """Soporte para context manager"""
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Cierra la sesión al salir del context manager"""
+        self.close()
+        return False
 
     def is_cache_expired(self, entry: OmdbEntry) -> bool:
         """Verifica si la entrada ha expirado"""
@@ -61,7 +107,7 @@ class CatalogRepository:
         return db.query(OmdbEntry).filter(OmdbEntry.id == entry_id).first()
 
     def search_omdb_entries(self, query: str, limit: int = 10) -> List[OmdbEntry]:
-        """Busca entradas de OMDB por título"""
+        """Busca entradas de OMDB por título (búsqueda parcial - ILIKE)"""
         db = self._get_db()
         return (
             db.query(OmdbEntry)
@@ -70,11 +116,98 @@ class CatalogRepository:
             .all()
         )
 
+    def get_exact_match(self, title: str, year: Optional[int]) -> Optional[OmdbEntry]:
+        """
+        Busca una entrada que coincida EXACTAMENTE con el título y año (como OMDB).
+        
+        Args:
+            title: Título exacto (sin comodines)
+            year: Año exacto (opcional)
+        
+        Returns:
+            OmdbEntry o None
+        """
+        db = self._get_db()
+        query = db.query(OmdbEntry).filter(
+            func.lower(OmdbEntry.title) == func.lower(title.strip())
+        )
+        
+        if year:
+            query = query.filter(OmdbEntry.year == str(year))
+        
+        return query.first()
+
+    def get_exact_match_by_cleaned_title(self, raw_title: str, year: Optional[int]) -> Optional[OmdbEntry]:
+        """
+        Extrae el título limpio (sin años entre paréntesis) y busca coincidencia exacta.
+        
+        Args:
+            raw_title: Título que puede incluir (2025) al final
+            year: Año opcional
+        
+        Returns:
+            OmdbEntry o None
+        """
+        # Extraer año del título si está entre paréntesis
+        year_match = re.search(r'\((\d{4})\)', raw_title)
+        if year_match and not year:
+            year = int(year_match.group(1))
+        
+        # Limpiar título: quitar (año) y limpiar espacios
+        clean_title = re.sub(r'\s*\(\d{4}\)\s*$', '', raw_title).strip()
+        
+        return self.get_exact_match(clean_title, year)
+
+    # ELIMINADO: Búsqueda de fallback con ILIKE que causaba thumbnails incorrectos
+    # Este método ya no se usa - el servicio de thumbnails ahora solo usa búsqueda exacta
+    # def search_omdb_entries_fallback(self, title: str, limit: int = 10) -> List[OmdbEntry]:
+    #     """
+    #     BÚSQUEDA DE FALLBACK: solo usar ILIKE cuando no hay coincidencia exacta.
+    #     Útil para depuración y para encontrar entradas cuando no hay coincidencia exacta.
+    #     
+    #     Args:
+    #         title: Título a buscar
+    #         limit: Límite de resultados
+    #     
+    #     Returns:
+    #         Lista de OmdbEntry que coinciden parcialmente
+    #     """
+    #     logger.warning(f"⚠️ Usando búsqueda fallback ILIKE para: {title}")
+    #     db = self._get_db()
+    #     return (
+    #         db.query(OmdbEntry)
+    #         .filter(OmdbEntry.title.ilike(f"%{title}%"))
+    #         .limit(limit)
+    #         .all()
+    #     )
+
     def create_or_update_omdb_entry(
         self, data: dict, poster_bytes: bytes = None
     ) -> OmdbEntry:
         """Crea o actualiza una entrada de OMDB"""
         db = self._get_db()
+        
+        # Campos que deben ser convertidos a entero
+        integer_fields = {'metascore', 'totalseasons'}
+        # Campos que deben ser convertidos a float
+        float_fields = {'imdbrating'}
+
+        def convert_value(key, value):
+            """Convierte valores de OMDB handles 'N/A' correctly"""
+            if value is None or value == '' or value == 'N/A':
+                return None
+            key_lower = key.lower()
+            if key_lower in integer_fields:
+                try:
+                    return int(value)
+                except (ValueError, TypeError):
+                    return None
+            elif key_lower in float_fields:
+                try:
+                    return float(value)
+                except (ValueError, TypeError):
+                    return None
+            return value
 
         try:
             imdb_id = data.get("imdbID")
@@ -86,7 +219,9 @@ class CatalogRepository:
             if existing:
                 for key, value in data.items():
                     if hasattr(existing, key.lower()) and key not in ["id", "created_at"]:
-                        setattr(existing, key.lower(), value)
+                        # Convertir valores para campos numéricos
+                        converted_value = convert_value(key, value)
+                        setattr(existing, key.lower(), converted_value)
                 if poster_bytes:
                     existing.poster_image = poster_bytes
                 existing.updated_at = datetime.utcnow()
@@ -368,6 +503,48 @@ class CatalogRepository:
             raise
 
 
-def get_catalog_repository() -> CatalogRepository:
-    """Factory para obtener el repositorio"""
-    return CatalogRepository()
+@contextmanager
+def get_catalog_repository_session():
+    """
+    Context manager para obtener una sesión de base de datos.
+    Garantiza que la sesión se cierre correctamente.
+    
+    Uso:
+    ```python
+    with get_catalog_repository_session() as db:
+        repo = CatalogRepository(db)
+        entry = repo.get_exact_match(title, year)
+    # Sesión se cierra automáticamente
+    ```
+    """
+    SessionMaker = get_session_maker()
+    session = SessionMaker()
+    try:
+        yield session
+        session.commit()
+    except Exception:
+        session.rollback()
+        raise
+    finally:
+        session.close()
+
+
+def get_catalog_repository(db_session: Session = None) -> CatalogRepository:
+    """
+    Factory para obtener el repositorio.
+    
+    Args:
+        db_session: Sesión existente (opcional). Si no se provee, 
+                   el repositorio creará su propia sesión.
+    
+    Returns:
+        CatalogRepository: Instancia del repositorio
+    
+    Uso recomendado con context manager:
+    ```python
+    with get_catalog_repository() as repo:
+        entry = repo.get_exact_match(title, year)
+    # Sesión se cierra automáticamente
+    ```
+    """
+    return CatalogRepository(db_session)

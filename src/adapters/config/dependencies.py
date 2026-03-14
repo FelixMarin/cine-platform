@@ -39,6 +39,7 @@ from src.adapters.outgoing.repositories.filesystem.serie_repository import Files
 
 # Servicios externos
 from src.adapters.outgoing.services.omdb.client import OMDBMetadataService
+from src.adapters.outgoing.services.omdb.cached_client import OMDBMetadataServiceCached
 from src.adapters.outgoing.services.ffmpeg.encoder import FFmpegEncoderService
 from src.adapters.outgoing.services.oauth.client import OAuth2Client
 from src.adapters.outgoing.services.auth.auth_service import AuthService
@@ -88,6 +89,11 @@ _metadata_service = None
 _encoder_service = None
 _oauth_service = None
 _auth_service = None
+
+# Servicios de thumbnails
+_db_thumbnail_service = None
+_omdb_thumbnail_provider = None
+_local_thumbnail_search = None
 
 # Casos de uso
 _list_movies_use_case = None
@@ -156,8 +162,9 @@ def init_services():
     """Inicializa los servicios externos"""
     global _metadata_service, _encoder_service, _oauth_service, _auth_service
     
-    # OMDB Metadata Service
-    _metadata_service = OMDBMetadataService()
+    # OMDB Metadata Service (con caché en BBDD)
+    # Este servicio guarda los resultados de OMDB en la tabla omdb_entries
+    _metadata_service = OMDBMetadataServiceCached()
     
     # FFmpeg Encoder Service
     _encoder_service = FFmpegEncoderService()
@@ -323,3 +330,67 @@ def get_oauth_service():
 def get_auth_service():
     """Obtiene el servicio de autenticación"""
     return _auth_service
+
+
+# === SERVICIOS DE THUMBNAILS ===
+
+def get_thumbnail_cache_service():
+    """
+    Obtiene el servicio de caché de thumbnails.
+    
+    Returns:
+        Instancia de ThumbnailCacheService
+    """
+    from src.adapters.outgoing.services.thumbnails.cache_service import get_thumbnail_cache_service as _get_service
+    return _get_service()
+
+
+def get_omdb_thumbnail_provider():
+    """
+    Obtiene el proveedor de thumbnails de OMDB (singleton).
+    
+    Returns:
+        Instancia de OMDBThumbnailProvider
+    """
+    global _omdb_thumbnail_provider
+    
+    if _omdb_thumbnail_provider is None:
+        from src.adapters.outgoing.services.omdb.thumbnail_provider import OMDBThumbnailProvider
+        _omdb_thumbnail_provider = OMDBThumbnailProvider()
+    
+    return _omdb_thumbnail_provider
+
+
+def get_local_thumbnail_search():
+    """
+    Obtiene el servicio de búsqueda local de thumbnails (singleton).
+    
+    Returns:
+        Instancia de LocalThumbnailSearch
+    """
+    global _local_thumbnail_search
+    
+    if _local_thumbnail_search is None:
+        from src.adapters.outgoing.services.thumbnails.local_search import LocalThumbnailSearch
+        _local_thumbnail_search = LocalThumbnailSearch()
+    
+    return _local_thumbnail_search
+
+
+def get_database_thumbnail_service():
+    """
+    Obtiene el servicio de thumbnails de base de datos (singleton).
+    
+    Returns:
+        Instancia de DatabaseThumbnailService
+    
+    Nota: El servicio ahora usa context manager internamente.
+    """
+    global _db_thumbnail_service
+    
+    if _db_thumbnail_service is None:
+        from src.adapters.outgoing.services.thumbnails.database_service import DatabaseThumbnailService
+        # Ya no necesitamos crear el repo aquí - se crea una nueva sesión por operación
+        _db_thumbnail_service = DatabaseThumbnailService(None)
+    
+    return _db_thumbnail_service

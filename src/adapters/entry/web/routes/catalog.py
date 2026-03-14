@@ -311,91 +311,76 @@ def get_movie_thumbnail(filename):
 
 @catalog_bp.route('/api/movie-thumbnail', methods=['GET'])
 def get_movie_thumbnail_by_title():
-    """Obtiene el thumbnail de una película por título (query param)"""
-    from src.adapters.config.dependencies import get_metadata_service
+    """
+    Obtiene el thumbnail de una película por título (query param).
+    
+    Flujo (prioridad de fuentes):
+        1. Base de datos (poster_image de omdb_entries) - FUENTE PRIMARIA
+        2. OMDB API + guardar en BD (si no hay en BD)
+        3. Sistema de archivos local (thumbnails manuales) - FALLBACK
+        
+    El servicio DatabaseThumbnailService es la fuente primaria que busca
+    directamente en el campo poster_image de la tabla omdb_entries.
+    """
     import logging
-    import os
-    import re
+    import io
     from flask import send_file
     
     logger = logging.getLogger(__name__)
     
+    # Importar servicios de thumbnails
+    from src.adapters.config.dependencies import get_database_thumbnail_service
+    from src.adapters.outgoing.services.omdb.thumbnail_provider import get_omdb_thumbnail_provider
+    from src.adapters.outgoing.services.thumbnails.local_search import get_local_thumbnail_search
+    
+    # Obtener servicios
+    db_thumbnail_service = get_database_thumbnail_service()
+    omdb_provider = get_omdb_thumbnail_provider()
+    local_search = get_local_thumbnail_search()
+    
+    # === 1. Validar parámetros ===
     title = request.args.get('title')
     year = request.args.get('year')
     filename = request.args.get('filename')
     
     if not title:
-        return jsonify({'error': 'Título no proporcionado'}), 400
+        return jsonify({'error': 'Titulo no proporcionado'}), 400
     
-    # 1. PRIMERO: Intentar obtener de OMDB
-    metadata_service = get_metadata_service()
-    if metadata_service:
-        try:
-            year_int = int(year) if year else None
-            thumbnail_url = metadata_service.get_movie_thumbnail(title, year_int)
-            
-            if thumbnail_url:
-                # Si encontramos en OMDB, devolver la URL
-                logger.info(f"🌐 OMDB OK: encontró póster para [{title}]")
-                return jsonify({'thumbnail': thumbnail_url})
-        except Exception as e:
-            # Log del error pero continuar con búsqueda local
-            logger.error(f"⚠️ Error en OMDB para [{title}]: {e}")
+    logger.info(f"Buscando thumbnail para: [{title}] año=[{year}]")
     
-    # 2. SEGUNDO: Si no hay en OMDB, buscar thumbnail local
-    # Extraer nombre base del filename o del título
-    if filename:
-        # El filename ya tiene el nombre completo (ej: Red-One-(2023)-optimized.mkv)
-        # Usar tal cual pero sin extensión - NO hacer limpieza
-        base_name = os.path.splitext(filename)[0]
-    else:
-        # Limpiar el título para crear nombre de archivo
-        base_name = title
-        # Eliminar año entre paréntesis o al final
-        base_name = re.sub(r'\s*\(?\d{4}\)?\s*$', '', base_name)
-        # Eliminar sufijos comunes PERO mantener -optimized si es parte del nombre
-        base_name = re.sub(r'[-_](optimized|hd|bluray|webrip|web-dl)$', '', base_name, flags=re.IGNORECASE)
-        # Eliminar patrones restantes de (año)
-        base_name = re.sub(r'\s*\([^)]*\)\s*', ' ', base_name)
-        # Limpiar espacios
-        base_name = re.sub(r'\s+', ' ', base_name).strip()
+    # === 2. FUENTE PRIMARIA: Buscar en base de datos (poster_image) ===
+    thumbnail_data = db_thumbnail_service.get_thumbnail_from_db(title, year)
     
-    # Buscar en carpeta de thumbnails local
-    from src.infrastructure.config.settings import Settings
-    settings = Settings()
-    thumbnail_folder = settings.THUMBNAIL_FOLDER
+    if thumbnail_data:
+        return send_file(
+            io.BytesIO(thumbnail_data),
+            mimetype='image/jpeg',
+            as_attachment=False,
+            max_age=86400  # Cache 24h en navegador
+        )
     
-    logger.info(f"⚠️ OMDB 404, buscando thumbnail local para [{title}]")
+    # === 3. Si no hay en BD, intentar obtener de OMDB (y guardar en BD) ===
+    logger.info(f"DB: No se encontró en BD, intentando OMDB para [{title}]")
+    thumbnail_data = omdb_provider.fetch_thumbnail_data(title, year)
     
-    # Construir nombres de archivo a buscar
-    # Si base_name ya termina en -optimized, no agregar otro
-    search_names = []
-    if not base_name.lower().endswith('optimized'):
-        search_names.extend([
-            f"{base_name}-optimized.jpg",
-            f"{base_name}-optimized.webp"
-        ])
-    search_names.extend([
-        f"{base_name}.jpg",
-        f"{base_name}.webp"
-    ])
+    if thumbnail_data:
+        logger.info(f"OMDB: Poster obtenido para [{title}] y guardado en BD")
+        return send_file(
+            io.BytesIO(thumbnail_data),
+            mimetype='image/jpeg',
+            as_attachment=False,
+            max_age=86400  # Cache 24h en navegador
+        )
     
-    local_thumbnail_path = None
-    found_filename = None
+    # === 4. FALLBACK FINAL: Buscar en sistema de archivos local ===
+    logger.info(f"OMDB: No se encontró, buscando thumbnail local para [{title}]")
+    local_thumbnail = local_search.search_local_thumbnail(title, filename)
     
-    for search_name in search_names:
-        local_path = os.path.join(thumbnail_folder, search_name)
-        if os.path.exists(local_path):
-            local_thumbnail_path = local_path
-            found_filename = search_name
-            break
+    if local_thumbnail:
+        return jsonify({'thumbnail': local_thumbnail})
     
-    if local_thumbnail_path and found_filename:
-        logger.info(f"✅ Thumbnail local encontrado: [{found_filename}]")
-        return jsonify({'thumbnail': '/thumbnails/' + found_filename})
-    
-    # 3. Si no se encontró en ningún lado, devolver 404
-    logger.info(f"❌ Sin datos: usando default.jpg para [{title}]")
+    # === 5. Si no se encontró en ningún lado, devolver 404 ===
+    logger.info(f"❌ Sin datos: thumbnail no encontrado para [{title}]")
     return jsonify({'error': 'Thumbnail no encontrado'}), 404
 
 

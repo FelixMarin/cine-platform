@@ -966,55 +966,58 @@ class TorrentOptimizer:
         try:
             from src.adapters.outgoing.repositories.postgresql.catalog_repository import (
                 get_catalog_repository,
+                get_catalog_repository_session,
             )
 
-            repo = get_catalog_repository()
+            # Usar context manager para garantizar cierre de sesión
+            with get_catalog_repository_session() as db:
+                repo = get_catalog_repository(db)
 
-            # Extraer título del nombre del archivo
-            filename = metadata.get("final_filename", "")
-            title = (
-                filename.replace("-optimized", "")
-                .replace(".mkv", "")
-                .replace("-", " ")
-                .title()
-            )
-
-            # Obtener tamaño del archivo
-            file_size = 0
-            if os.path.exists(file_path):
-                file_size = os.path.getsize(file_path)
-
-            # Buscar si ya existe contenido con esta ruta
-            existing = repo.get_local_content_by_file_path(file_path)
-
-            if existing:
-                # Actualizar registro existente
-                logger.info(
-                    f"[TorrentOptimizer] Actualizando registro existente en catálogo: {existing.id}"
+                # Extraer título del nombre del archivo
+                filename = metadata.get("final_filename", "")
+                title = (
+                    filename.replace("-optimized", "")
+                    .replace(".mkv", "")
+                    .replace("-", " ")
+                    .title()
                 )
-            else:
-                # Crear nuevo registro
-                content_data = {
-                    "title": title,
-                    "file_path": file_path,
-                    "file_size": file_size,
-                    "type": "movie",
-                    "genre": category,
-                    "is_optimized": True,
-                    "quality": "optimized",
-                    "format": "mkv",
-                }
 
-                try:
-                    new_content = repo.create_local_content(content_data)
+                # Obtener tamaño del archivo
+                file_size = 0
+                if os.path.exists(file_path):
+                    file_size = os.path.getsize(file_path)
+
+                # Buscar si ya existe contenido con esta ruta
+                existing = repo.get_local_content_by_file_path(file_path)
+
+                if existing:
+                    # Actualizar registro existente
                     logger.info(
-                        f"[TorrentOptimizer] ✅ Nuevo contenido registrado en catálogo: {new_content.id} - {title}"
+                        f"[TorrentOptimizer] Actualizando registro existente en catálogo: {existing.id}"
                     )
-                except Exception as create_error:
-                    logger.warning(
-                        f"[TorrentOptimizer] ⚠️ Error creando contenido en catálogo: {create_error}"
-                    )
-                    # No fallar la optimización si el catálogo no se puede actualizar
+                else:
+                    # Crear nuevo registro
+                    content_data = {
+                        "title": title,
+                        "file_path": file_path,
+                        "file_size": file_size,
+                        "type": "movie",
+                        "genre": category,
+                        "is_optimized": True,
+                        "quality": "optimized",
+                        "format": "mkv",
+                    }
+
+                    try:
+                        new_content = repo.create_local_content(content_data)
+                        logger.info(
+                            f"[TorrentOptimizer] ✅ Nuevo contenido registrado en catálogo: {new_content.id} - {title}"
+                        )
+                    except Exception as create_error:
+                        logger.warning(
+                            f"[TorrentOptimizer] ⚠️ Error creando contenido en catálogo: {create_error}"
+                        )
+                        # No fallar la optimización si el catálogo no se puede actualizar
 
         except Exception as e:
             logger.warning(f"[TorrentOptimizer] ⚠️ Error en _update_catalog_db: {e}")

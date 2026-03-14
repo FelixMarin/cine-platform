@@ -118,6 +118,25 @@ class OmdbEntry(Base):
     @classmethod
     def from_omdb_response(cls, data: dict, poster_bytes: bytes = None):
         """Crea una instancia desde la respuesta de OMDB"""
+        
+        def safe_int(value, default=None):
+            """Convierte un valor a entero de forma segura, manejando 'N/A' y otros valores"""
+            if value is None or value == '' or value == 'N/A':
+                return default
+            try:
+                return int(value)
+            except (ValueError, TypeError):
+                return default
+        
+        def safe_float(value, default=None):
+            """Convierte un valor a float de forma segura, manejando 'N/A' y otros valores"""
+            if value is None or value == '' or value == 'N/A':
+                return default
+            try:
+                return float(value)
+            except (ValueError, TypeError):
+                return default
+        
         return cls(
             imdb_id=data.get("imdbID"),
             title=data.get("Title"),
@@ -135,20 +154,14 @@ class OmdbEntry(Base):
             awards=data.get("Awards"),
             poster_url=data.get("Poster"),
             poster_image=poster_bytes,
-            metascore=int(data.get("Metascore"))
-            if data.get("Metascore", "").isdigit()
-            else None,
-            imdb_rating=float(data.get("imdbRating"))
-            if data.get("imdbRating")
-            else None,
+            metascore=safe_int(data.get("Metascore")),
+            imdb_rating=safe_float(data.get("imdbRating")),
             imdb_votes=data.get("imdbVotes"),
             type=data.get("Type"),
             box_office=data.get("BoxOffice"),
             production=data.get("Production"),
             website=data.get("Website"),
-            total_seasons=int(data.get("totalSeasons"))
-            if data.get("totalSeasons", "").isdigit()
-            else None,
+            total_seasons=safe_int(data.get("totalSeasons")),
             ratings=data.get("Ratings"),
             full_response=data,
         )

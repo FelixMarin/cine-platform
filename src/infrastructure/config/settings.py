@@ -53,9 +53,9 @@ class Settings:
     CINE_DB_PASSWORD: str = os.environ.get("CINE_DB_PASSWORD", "cine_app_dev_password")
     CINE_DB_SCHEMA: str = os.environ.get("CINE_DB_SCHEMA", "public")
 
-    # Pool de conexiones
-    CINE_DB_POOL_SIZE: int = int(os.environ.get("CINE_DB_POOL_SIZE", "10"))
-    CINE_DB_MAX_OVERFLOW: int = int(os.environ.get("CINE_DB_MAX_OVERFLOW", "20"))
+    # Pool de conexiones (aumentado para mayor concurrencia)
+    CINE_DB_POOL_SIZE: int = int(os.environ.get("CINE_DB_POOL_SIZE", "30"))
+    CINE_DB_MAX_OVERFLOW: int = int(os.environ.get("CINE_DB_MAX_OVERFLOW", "60"))
     CINE_DB_POOL_TIMEOUT: int = int(os.environ.get("CINE_DB_POOL_TIMEOUT", "30"))
 
     # ============================
