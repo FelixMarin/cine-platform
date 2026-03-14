@@ -83,6 +83,84 @@ function refreshWithAnimation(button) {
     }, 1000);
 }
 
+// Función para sincronizar el catálogo con el sistema de archivos
+async function syncCatalog(button) {
+    // Añadir clase de carga
+    button.classList.add('loading');
+
+    // Cambiar texto
+    const textSpan = button.querySelector('.refresh-text');
+    const originalText = textSpan.textContent;
+    textSpan.textContent = 'Sincronizando...';
+    button.disabled = true;
+
+    try {
+        const response = await fetch('/api/catalog/sync', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Error al sincronizar');
+        }
+
+        const result = await response.json();
+        console.log('✅ Sincronización completada:', result);
+
+        // Mostrar notificación de éxito
+        showNotification('Sincronización completada', 'success');
+
+        // Invalidar caché
+        window.invalidateCache();
+
+        // Recargar contenido
+        window.refreshContent();
+
+    } catch (error) {
+        console.error('❌ Error en sincronización:', error);
+        showNotification('Error: ' + error.message, 'error');
+    } finally {
+        // Restaurar estado del botón
+        button.classList.remove('loading');
+        textSpan.textContent = originalText;
+        button.disabled = false;
+    }
+}
+
+// Función para mostrar notificaciones
+function showNotification(message, type = 'info') {
+    // Intentar usar el sistema de notificaciones existente
+    if (window.showNotification) {
+        window.showNotification(message, type);
+        return;
+    }
+
+    // Fallback: crear notificación manualmente
+    const notification = document.createElement('div');
+    notification.className = `notification notification-${type}`;
+    notification.textContent = message;
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 15px 20px;
+        border-radius: 5px;
+        z-index: 10000;
+        background: ${type === 'success' ? '#4CAF50' : type === 'error' ? '#f44336' : '#2196F3'};
+        color: white;
+    `;
+    document.body.appendChild(notification);
+
+    setTimeout(() => {
+        notification.remove();
+    }, 5000);
+}
+
 window.toggleMenu = toggleMenu;
 window.toggleCollapse = toggleCollapse;
 window.loadSavedPreferences = loadSavedPreferences;
+window.refreshWithAnimation = refreshWithAnimation;
+window.syncCatalog = syncCatalog;
