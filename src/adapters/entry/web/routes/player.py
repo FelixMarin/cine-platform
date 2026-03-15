@@ -68,7 +68,8 @@ def play_page(media_path):
                            media_path=media_path,
                            clean_title=clean_title,
                            year=year,
-                           is_admin=is_admin)
+                           is_admin=is_admin,
+                           use_direct_path=True)
 
 
 @player_page_bp.route('/play/id/<movie_id>')
@@ -107,7 +108,8 @@ def play_page_by_id(movie_id):
                                clean_title=clean_title,
                                year=year,
                                movie_id=movie_id,
-                               is_admin=is_admin)
+                               is_admin=is_admin,
+                               use_direct_path=True)
     
     except Exception as e:
         logger.error(f"❌ Error en play_page_by_id: {e}")
@@ -178,7 +180,7 @@ def get_movie_metadata():
                 # Si hay traducción cacheada, la retorna inmediatamente
                 # Si no, retorna el plot original y traduce en background
                 original_plot = omdb_data.get('Plot')
-                translated_plot, was_translated = translate_plot_async(original_plot, omdb_data.get('Title'))
+                translated_plot, was_translated, _ = translate_plot_async(original_plot, omdb_data.get('Title'))
                 
                 movie_info = {
                     'title': omdb_data.get('Title'),
@@ -261,7 +263,7 @@ def get_serie_metadata():
                 # Si hay traducción cacheada, la retorna inmediatamente
                 # Si no, retorna el plot original y traduce en background
                 original_plot = omdb_data.get('Plot')
-                translated_plot, was_translated = translate_plot_async(original_plot, omdb_data.get('Title'))
+                translated_plot, was_translated, _ = translate_plot_async(original_plot, omdb_data.get('Title'))
                 
                 serie_info = {
                     'title': omdb_data.get('Title'),

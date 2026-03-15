@@ -19,14 +19,15 @@
             <div class="video-wrapper">
                 <!-- Usar media_id para streaming (soporta películas y episodios) -->
                 <video controls preload="auto" id="videoPlayer">
-                    {% if media_type == 'serie' %}
-                    <source src="/api/streaming/episode/{{ media_path }}" type="video/mp4">
-                    {% elif media_path and (media_path.startswith('mov_') or media_path.startswith('ep_') or media_path.startswith('ser_')) %}
-                    <source src="/api/streaming/id/{{ media_path }}" type="video/mp4">
+                    {% if use_direct_path and filename %}
+                        <source src="/api/streaming/path/{{ filename }}">
+                    {% elif media_id %}
+                        <source src="/api/streaming/id/{{ movie_id }}">
+                    {% elif media_type == 'serie' %}
+                        <source src="/api/streaming/episode/{{ media_path }}">
                     {% else %}
-                    <source src="/stream/{{ filename }}" type="video/mp4">
+                        <source src="/stream/{{ filename }}">
                     {% endif %}
-                    Tu navegador no soporta este formato.
                 </video>
                 
                 <div class="video-controls">

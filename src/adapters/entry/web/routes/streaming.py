@@ -132,6 +132,128 @@ def video_info(filename):
     )
 
 
+@streaming_bp.route("/path/<path:file_path>")
+def stream_video_by_path(file_path):
+    """
+    Streaming directo por ruta, SIN pasar por el repositorio.
+    
+    Evita completamente el escaneo de archivos del repositorio.
+    
+    Args:
+        file_path: Ruta relativa o absoluta al archivo de video
+    """
+    import time
+    import logging
+    import urllib.parse
+    from flask import send_file, request, Response
+    
+    logger = logging.getLogger(__name__)
+    start_total = time.time()
+    
+    logger.info(f"🎬 Streaming directo por ruta: {file_path}")
+    
+    # Buffer grande para mejor rendimiento en NAS/HDD
+    BUFFER_SIZE = 1024 * 1024  # 1MB buffer
+    
+    # Obtener la carpeta base de películas
+    movies_folder = os.environ.get("MOVIES_FOLDER", "/mnt/DATA_2TB/audiovisual")
+    
+    # URL decode del path
+    file_path = urllib.parse.unquote(file_path)
+    
+    # === SEGURIDAD: Prevenir path traversal ===
+    # Verificar que no contiene ".." para evitar acceder a archivos fuera del directorio
+    if ".." in file_path or file_path.startswith("/"):
+        logger.warning(f"⚠️ Intento de path traversal detectado: {file_path}")
+        return "Invalid path", 400
+    
+    # Intentar varias rutas posibles
+    possible_paths = [
+        file_path,  # Ruta absoluta si se proporcionó
+        os.path.join(movies_folder, file_path),  # Relativo a movies_folder
+    ]
+    
+    # Si hay una ruta alternativa configurada (Docker)
+    if movies_folder != "/data/movies":
+        possible_paths.append(os.path.join("/data/movies", file_path))
+    
+    # Buscar la ruta válida
+    actual_path = None
+    for test_path in possible_paths:
+        if os.path.exists(test_path) and os.path.isfile(test_path):
+            actual_path = test_path
+            break
+    
+    if not actual_path:
+        logger.warning(f"⚠️ Archivo no encontrado: {file_path}")
+        return "File not found", 404
+    
+    logger.info(f"✅ Archivo encontrado: {actual_path}")
+    
+    # Obtener tamaño del archivo
+    start_size = time.time()
+    file_size = os.path.getsize(actual_path)
+    size_time = time.time() - start_size
+    logger.debug(f"⏱️ File size: {size_time:.3f}s - {file_size / 1024 / 1024:.2f}MB")
+    
+    # Obtener rango de bytes si existe
+    range_header = request.headers.get("Range")
+    
+    if range_header:
+        # Parsear rango
+        range_match = range_header.replace("bytes=", "").split("-")
+        start = int(range_match[0]) if range_match[0] else 0
+        end = int(range_match[1]) if range_match[1] else file_size - 1
+        
+        # Limitar el rango
+        if end >= file_size:
+            end = file_size - 1
+        
+        # Calcular tamaño del chunk
+        chunk_size = end - start + 1
+        
+        logger.debug(
+            f"📡 Range: {start}-{end} ({chunk_size / 1024 / 1024:.1f}MB) - Buffer: {BUFFER_SIZE / 1024}KB"
+        )
+        
+        # Generador con buffer grande para streaming eficiente
+        def generate_large_chunks():
+            with open(actual_path, "rb") as f:
+                f.seek(start)
+                remaining = chunk_size
+                while remaining > 0:
+                    read_size = min(BUFFER_SIZE, remaining)
+                    chunk = f.read(read_size)
+                    if not chunk:
+                        break
+                    yield chunk
+                    remaining -= len(chunk)
+        
+        # Headers de respuesta
+        headers = {
+            "Content-Range": f"bytes {start}-{end}/{file_size}",
+            "Accept-Ranges": "bytes",
+            "Content-Length": str(chunk_size),
+            "Content-Type": "video/mp4",
+        }
+        
+        total_time = time.time() - start_total
+        logger.info(f"⏱️ Range request TOTAL: {total_time:.3f}s")
+        
+        return Response(generate_large_chunks(), status=206, headers=headers)
+    else:
+        total_time = time.time() - start_total
+        logger.info(f"⏱️ Full request TOTAL: {total_time:.3f}s")
+        
+        # Enviar archivo completo
+        return send_file(
+            actual_path,
+            mimetype="video/mp4",
+            as_attachment=False,
+            download_name=os.path.basename(actual_path),
+        )
+
+
 @streaming_bp.route("/id/<movie_id>")
 def stream_video_by_id(movie_id):
     """Streaming de video usando ID de película (desde caché) - Optimizado para NAS"""
@@ -139,10 +261,10 @@ def stream_video_by_id(movie_id):
     import logging
     import urllib.parse
     from flask import send_file, request, Response
-
+    
     logger = logging.getLogger(__name__)
     start_total = time.time()
-
+    
     logger.info(f"🎬 Streaming por ID: {movie_id}")
 
     # Buffer grande para mejor rendimiento en NAS/HDD

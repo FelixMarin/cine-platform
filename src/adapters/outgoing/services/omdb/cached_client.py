@@ -45,15 +45,20 @@ class OMDBMetadataServiceCached(OMDBMetadataService):
 
     def _is_cache_expired(self, entry) -> bool:
         """Verifica si la entrada ha expirado"""
-        if not entry or not entry.cached_at:
-            # Si no tiene cached_at, verificar updated_at (compatibilidad)
-            if not entry or not entry.updated_at:
-                return True
+        if not entry:
+            return True
+        
+        # Verificar cached_at primero
+        if hasattr(entry, 'cached_at') and entry.cached_at is not None:
+            expiry_date = entry.cached_at + timedelta(days=CACHE_EXPIRY_DAYS)
+            return datetime.utcnow() > expiry_date
+        
+        # Fallback: usar updated_at si cached_at no existe o es None
+        if entry.updated_at is not None:
             expiry_date = entry.updated_at + timedelta(days=CACHE_EXPIRY_DAYS)
             return datetime.utcnow() > expiry_date
         
-        expiry_date = entry.cached_at + timedelta(days=CACHE_EXPIRY_DAYS)
-        return datetime.utcnow() > expiry_date
+        return True
 
     def get_movie_metadata(
         self, title: str, year: Optional[int] = None, force_refresh: bool = False
@@ -114,10 +119,13 @@ class OMDBMetadataServiceCached(OMDBMetadataService):
             # Guardar en la BD
             entry = repo.create_or_update_omdb_entry(omdb_data, poster_bytes)
             
-            # Actualizar cached_at
-            if entry:
-                entry.cached_at = datetime.utcnow()
-                db.commit()
+            # Actualizar cached_at (si la columna existe)
+            try:
+                if entry and hasattr(entry, 'cached_at'):
+                    entry.cached_at = datetime.utcnow()
+                    db.commit()
+            except Exception as e:
+                logger.warning(f"⚠️ No se pudo actualizar cached_at: {e}")
             
             elapsed = (time.time() - start_time) * 1000
             logger.info(f"🎬 [OMDB CACHE] SAVED para '{title}' ({year}) - {elapsed:.0f}ms")
@@ -182,10 +190,13 @@ class OMDBMetadataServiceCached(OMDBMetadataService):
             # Guardar en la BD
             entry = repo.create_or_update_omdb_entry(omdb_data, poster_bytes)
             
-            # Actualizar cached_at
-            if entry:
-                entry.cached_at = datetime.utcnow()
-                db.commit()
+            # Actualizar cached_at (si la columna existe)
+            try:
+                if entry and hasattr(entry, 'cached_at'):
+                    entry.cached_at = datetime.utcnow()
+                    db.commit()
+            except Exception as e:
+                logger.warning(f"⚠️ No se pudo actualizar cached_at: {e}")
             
             elapsed = (time.time() - start_time) * 1000
             logger.info(f"📺 [OMDB CACHE] SAVED para '{serie_name}' - {elapsed:.0f}ms")
