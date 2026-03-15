@@ -95,6 +95,20 @@ class OMDBMetadataService(IMetadataService):
             return data['Search']
         return []
     
+    def search_series(self, query: str) -> List[Dict]:
+        """Busca series por título"""
+        params = {
+            's': query,
+            'type': 'series',
+            'r': 'json'
+        }
+        
+        data = self._make_request(params)
+        
+        if data and data.get('Search'):
+            return data['Search']
+        return []
+    
     def get_poster_url(self, title: str, year: Optional[int] = None) -> Optional[str]:
         """Obtiene la URL del póster de una película"""
         movie_data = self.get_movie_metadata(title, year)

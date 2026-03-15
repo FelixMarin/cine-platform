@@ -299,6 +299,11 @@ function invalidateCache() {
     if (catalogService && catalogService.invalidateCache) {
         catalogService.invalidateCache();
     }
+    
+    // Invalidar caché de series_view.js
+    if (window.invalidateSeriesCache) {
+        window.invalidateSeriesCache();
+    }
 
     console.log('🗑️ Caché invalidado manualmente (memoria + Cache API + CatalogService)');
 }

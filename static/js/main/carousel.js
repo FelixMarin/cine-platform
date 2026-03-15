@@ -84,7 +84,7 @@ async function renderMoviesByCategory(categoriasLista) {
         track.id = `carousel-${categoria.replace(/\s+/g, '-')}`;
 
         // Crear todas las tarjetas de forma asíncrona
-        const cardPromises = peliculas.map(movie => window.createMovieCard(movie));
+        const cardPromises = peliculas.map(movie => window.createMediaCard(movie));
         const cards = await Promise.all(cardPromises);
 
         cards.forEach(card => {

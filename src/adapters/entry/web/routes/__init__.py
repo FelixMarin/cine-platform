@@ -54,6 +54,7 @@ from src.adapters.entry.web.routes.catalog_db import (
     init_catalog_db_routes,
 )
 from src.adapters.entry.web.routes.catalog_sync import sync_bp
+from src.adapters.entry.web.routes.series import series_bp
 from src.adapters.entry.web.routes.optimization_history import (
     history_bp,
     init_history_routes,
@@ -91,6 +92,7 @@ def register_all_blueprints(
     app.register_blueprint(profile_bp)  # Rutas de perfil de usuario
     app.register_blueprint(history_bp)  # Historial de optimizaciones
     app.register_blueprint(sync_bp)  # Sincronización del catálogo
+    app.register_blueprint(series_bp)  # Rutas de series
 
     # Log de todas las rutas registradas
     logger.info("=== Rutas registradas ===")

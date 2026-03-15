@@ -56,14 +56,14 @@ async function getCatalogService() {
     return catalogService;
 }
 
-function createMovieCard(movie) {
+function createMediaCard(media) {
     const card = document.createElement("div");
-    card.classList.add("movie-card");
+    card.classList.add("media-card");
 
-    const title = movie.name || movie.title || 'Sin título';
+    const title = media.name || media.title || 'Sin título';
 
-    // Si es una película nueva, añadir clase especial
-    if (movie.is_new) {
+    // Si es nuevo, añadir clase especial
+    if (media.is_new) {
         card.classList.add("new-movie");
     }
 
@@ -73,11 +73,11 @@ function createMovieCard(movie) {
     img.alt = title;
     img.src = '/static/images/default.jpg'; // Placeholder inicial
     img.dataset.movieTitle = title;
-    if (movie.year) {
-        img.dataset.movieYear = movie.year;
+    if (media.year) {
+        img.dataset.movieYear = media.year;
     }
-    if (movie.filename) {
-        img.dataset.movieFilename = movie.filename;
+    if (media.filename) {
+        img.dataset.movieFilename = media.filename;
     }
 
     // Manejar error de carga
@@ -95,19 +95,19 @@ function createMovieCard(movie) {
     card.appendChild(titleDiv);
 
     // Añadir badge de novedad si corresponde
-    if (movie.is_new) {
+    if (media.is_new) {
         const badge = document.createElement('span');
         badge.className = 'new-badge';
 
         // Texto dinámico según antigüedad
-        if (movie.days_ago === 0) {
+        if (media.days_ago === 0) {
             badge.textContent = 'HOY';
             badge.classList.add('hoy');
-        } else if (movie.days_ago === 1) {
+        } else if (media.days_ago === 1) {
             badge.textContent = 'AYER';
             badge.classList.add('ayer');
-        } else if (movie.days_ago <= 7) {
-            badge.textContent = `HACE ${movie.days_ago} DÍAS`;
+        } else if (media.days_ago <= 7) {
+            badge.textContent = `HACE ${media.days_ago} DÍAS`;
             badge.classList.add('semana');
         } else {
             badge.textContent = 'NUEVO';
@@ -116,8 +116,8 @@ function createMovieCard(movie) {
         card.appendChild(badge);
 
         // Añadir fecha exacta como tooltip
-        if (movie.date_added) {
-            card.setAttribute('title', `Añadida: ${movie.date_added}`);
+        if (media.date_added) {
+            card.setAttribute('title', `Añadida: ${media.date_added}`);
         }
 
         // Añadir indicador visual de novedad
@@ -126,11 +126,18 @@ function createMovieCard(movie) {
         card.appendChild(newIndicator);
     }
 
-    const playPath = movie.file_path || movie.path || movie.id || movie.file;
-    card.onclick = () => window.playMovie(playPath);
+    // DECISIÓN CRÍTICA SEGÚN EL TIPO
+    if (media.type === 'series') {
+        // Si es serie, va a la vista de temporadas
+        card.onclick = () => window.location = `/series/${media.id}`;
+    } else {
+        // Si es película (o cualquier otro), va al reproductor
+        const playPath = media.file_path || media.path || media.id || media.file;
+        card.onclick = () => window.playMovie(playPath);
+    }
 
     // Cargar thumbnail en segundo plano - pasar imdb_id si está disponible
-    loadMovieThumbnail(img, title, movie.year, movie.filename, movie.imdb_id);
+    loadMovieThumbnail(img, title, media.year, media.filename, media.imdb_id);
 
     return card;
 }
@@ -337,7 +344,15 @@ async function createSerieCard(episodio, preloadedPoster = null) {
     }
 
     const playPath = episodio.file_path || episodio.path || episodio.id || episodio.file;
-    card.onclick = () => window.playMovie(playPath);
+    
+    // DECISIÓN CRÍTICA SEGÚN EL TIPO
+    if (episodio.type === 'series') {
+        // Si es serie completa, ir a la vista de temporadas
+        card.onclick = () => window.location = `/series/${episodio.id}`;
+    } else {
+        // Si es episodio individual, ir al reproductor
+        card.onclick = () => window.playMovie(playPath);
+    }
 
     // Si tenemos póster pre-cargado, usarlo directamente
     if (preloadedPoster) {
@@ -612,3 +627,4 @@ if (!document.getElementById('movie-card-styles')) {
 // Exportar funciones
 window.createMovieCard = createMovieCard;
 window.createSerieCard = createSerieCard;
+window.createMediaCard = createMediaCard;

@@ -207,8 +207,11 @@ class OMDBMetadataServiceCached(OMDBMetadataService):
         self, imdb_id: str, force_refresh: bool = False
     ) -> Optional[Dict]:
         """
-        Obtiene metadatos de una película por IMDB ID con caché
-
+        Obtiene metadatos de una película por IMDB ID con caché.
+        
+        Devuelve datos formateados (claves en minúsculas) para compatibilidad
+        con el frontend.
+        
         Args:
             imdb_id: ID de IMDb (ej: tt1234567)
             force_refresh: Si True, fuerza actualización desde OMDB
@@ -216,10 +219,9 @@ class OMDBMetadataServiceCached(OMDBMetadataService):
         Returns:
             Diccionario con metadatos o None
         """
-        # Usar context manager para garantizar cierre de sesión
+        # Buscar en caché primero
         with get_catalog_repository_session() as db:
             repo = get_catalog_repository(db)
-            
             existing = repo.get_omdb_entry_by_imdb_id(imdb_id)
 
             if existing and not force_refresh:
@@ -227,21 +229,86 @@ class OMDBMetadataServiceCached(OMDBMetadataService):
                     repo.update_last_accessed(existing)
                     return existing.to_dict(include_image=True)
 
-            omdb_data = self._make_request({"i": imdb_id, "plot": "full", "r": "json"})
+        # Cache miss o forzado - llamar a OMDB
+        omdb_data = self._make_request({"i": imdb_id, "plot": "full", "r": "json"})
 
-            if not omdb_data or omdb_data.get("Response") == "False":
+        if not omdb_data or omdb_data.get("Response") == "False":
+            # Buscar en caché como fallback
+            with get_catalog_repository_session() as db:
+                repo = get_catalog_repository(db)
+                existing = repo.get_omdb_entry_by_imdb_id(imdb_id)
                 if existing:
                     return existing.to_dict(include_image=True)
-                return None
+            return None
 
-            poster_bytes = None
-            poster_url = omdb_data.get("Poster")
-            if poster_url and poster_url != "N/A":
-                poster_bytes = self._download_poster(poster_url)
+        # Guardar en caché
+        poster_bytes = None
+        poster_url = omdb_data.get("Poster")
+        if poster_url and poster_url != "N/A":
+            poster_bytes = self._download_poster(poster_url)
 
+        with get_catalog_repository_session() as db:
+            repo = get_catalog_repository(db)
             entry = repo.create_or_update_omdb_entry(omdb_data, poster_bytes)
 
-            return entry.to_dict(include_image=True)
+        return entry.to_dict(include_image=True)
+
+    def get_movie_by_imdb_id_raw(
+        self, imdb_id: str, force_refresh: bool = False
+    ) -> Optional[Dict]:
+        """
+        Obtiene metadatos de una película por IMDB ID (datos crudos).
+        
+        Devuelve los datos crudos de OMDB (con claves en mayúsculas) para uso
+        interno en sincronización.
+        
+        Args:
+            imdb_id: ID de IMDb (ej: tt1234567)
+            force_refresh: Si True, fuerza actualización desde OMDB
+
+        Returns:
+            Diccionario con metadatos o None
+        """
+        # Buscar en caché primero
+        with get_catalog_repository_session() as db:
+            repo = get_catalog_repository(db)
+            existing = repo.get_omdb_entry_by_imdb_id(imdb_id)
+
+            if existing and not force_refresh:
+                if not self._is_cache_expired(existing):
+                    repo.update_last_accessed(existing)
+                    # Devolver full_response que tiene las claves originales de OMDB
+                    if existing.full_response:
+                        return existing.full_response
+                    # Fallback al to_dict si full_response no existe
+                    return existing.to_dict(include_image=True)
+
+        # Cache miss o forzado - llamar a OMDB
+        omdb_data = self._make_request({"i": imdb_id, "plot": "full", "r": "json"})
+
+        if not omdb_data or omdb_data.get("Response") == "False":
+            # Buscar en caché como fallback
+            with get_catalog_repository_session() as db:
+                repo = get_catalog_repository(db)
+                existing = repo.get_omdb_entry_by_imdb_id(imdb_id)
+                if existing and existing.full_response:
+                    return existing.full_response
+                if existing:
+                    return existing.to_dict(include_image=True)
+            return None
+
+        # Guardar en caché
+        poster_bytes = None
+        poster_url = omdb_data.get("Poster")
+        if poster_url and poster_url != "N/A":
+            poster_bytes = self._download_poster(poster_url)
+
+        with get_catalog_repository_session() as db:
+            repo = get_catalog_repository(db)
+            entry = repo.create_or_update_omdb_entry(omdb_data, poster_bytes)
+
+        # Devolver los datos crudos de OMDB (claves en mayúsculas)
+        return omdb_data
 
     def search_movies_cached(self, query: str, limit: int = 10) -> List[Dict]:
         """
@@ -274,11 +341,82 @@ class OMDBMetadataServiceCached(OMDBMetadataService):
             all_results = repo.search_omdb_entries(query, limit=limit)
             return [r.to_dict() for r in all_results]
 
-    def get_serie_by_imdb_id(
+    def search_series_cached(self, query: str, limit: int = 10) -> List[Dict]:
+        """
+        Busca series con caché
+
+        Primero busca en la BBDD local (filtrando por type='series'), luego en OMDB si no hay resultados
+        """
+        from src.infrastructure.models.catalog import OmdbEntry
+        
+        with get_catalog_repository_session() as db:
+            # Buscar localmente entradas que sean series
+            local_results = (
+                db.query(OmdbEntry)
+                .filter(OmdbEntry.title.ilike(f"%{query}%"))
+                .limit(limit)
+                .all()
+            )
+
+            # Filtrar localmente solo series
+            series_results = [r for r in local_results if r.type == 'series']
+            
+            if len(series_results) >= limit:
+                return [r.to_dict() for r in series_results]
+
+            # OMDB search
+            omdb_results = self.search_series(query)
+
+            for result in omdb_results:
+                imdb_id = result.get("imdbID")
+                if imdb_id:
+                    existing = db.query(OmdbEntry).filter(OmdbEntry.imdb_id == imdb_id).first()
+                    if not existing:
+                        try:
+                            self.get_serie_by_imdb_id_raw(imdb_id)
+                        except Exception:
+                            pass
+
+            # Re-buscar en BD después de cachear
+            all_results = (
+                db.query(OmdbEntry)
+                .filter(OmdbEntry.title.ilike(f"%{query}%"))
+                .limit(limit)
+                .all()
+            )
+            series_results = [r for r in all_results if r.type == 'series']
+            return [r.to_dict() for r in series_results]
+
+    def get_serie_by_imdb_id_raw(
         self, imdb_id: str, force_refresh: bool = False
     ) -> Optional[Dict]:
-        """Obtiene metadatos de una serie por IMDB ID"""
-        return self.get_movie_by_imdb_id(imdb_id, force_refresh)
+        """
+        Obtiene metadatos de una serie por IMDB ID (datos crudos).
+        
+        Devuelve los datos crudos de OMDB (con claves en mayúsculas) para uso
+        interno en sincronización.
+        
+        Args:
+            imdb_id: ID de IMDb (ej: tt1234567)
+            force_refresh: Si True, fuerza actualización desde OMDB
+
+        Returns:
+            Diccionario con metadatos o None
+        """
+        # Siempre devolver datos crudos de OMDB (con claves en mayúsculas)
+        # para mantener compatibilidad con el mapeo en catalog_sync.py
+        omdb_data = self._make_request({"i": imdb_id, "plot": "full", "r": "json"})
+
+        if not omdb_data or omdb_data.get("Response") == "False":
+            # Buscar en caché como fallback
+            with get_catalog_repository_session() as db:
+                repo = get_catalog_repository(db)
+                existing = repo.get_omdb_entry_by_imdb_id(imdb_id)
+                if existing and existing.full_response:
+                    return existing.full_response
+            return None
+
+        return omdb_data
 
     def get_poster_image(self, imdb_id: str) -> Optional[bytes]:
         """Obtiene la imagen del póster desde la BBDD"""

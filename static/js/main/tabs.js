@@ -19,7 +19,12 @@ function showTab(tabName) {
         seriesDiv.style.display = tabName === 'series' ? 'block' : 'none';
     }
 
-    document.title = tabName === 'movies' ? 'Películas - Cine Platform' : 'Series - Cine Platform';
+    // Cargar vista de series cuando se muestra la pestana
+    if (tabName === 'series' && window.renderSeriesView) {
+        window.renderSeriesView();
+    }
+
+    document.title = tabName === 'movies' ? 'Peliculas - Cine Platform' : 'Series - Cine Platform';
 
     if (window.innerWidth <= 768) {
         const menu = document.getElementById('sideMenu');

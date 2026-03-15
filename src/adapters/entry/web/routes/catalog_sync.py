@@ -4,6 +4,7 @@ Funciones de sincronización del catálogo con el sistema de archivos
 import os
 import re
 import logging
+from typing import Optional, Dict, List
 from flask import Blueprint, jsonify, request
 from src.adapters.entry.web.middleware.auth_middleware import require_auth
 from src.adapters.outgoing.repositories.postgresql.catalog_repository import (
@@ -21,6 +22,47 @@ MOVIES_BASE_PATH = getattr(settings, 'MOVIES_BASE_PATH', '/mnt/DATA_2TB/audiovis
 SERIES_FOLDER = getattr(settings, 'SERIES_FOLDER', '/mnt/DATA_2TB/audiovisual/series')
 
 _omdb_service = None
+
+
+def _clean_omdb_value(value, field_type='string'):
+    """
+    Convierte valores 'N/A' de OMDB a None para evitar errores de tipo en la BD.
+    
+    Args:
+        value: El valor recibido de OMDB
+        field_type: Tipo de campo ('string', 'integer', 'float')
+    
+    Returns:
+        El valor limpio o None si es 'N/A' o no es convertible
+    """
+    # Normalizar el valor
+    if value is None:
+        return None
+    
+    # Convertir a string para comparar
+    value_str = str(value).strip()
+    
+    # Si es 'N/A', devolver None
+    if value_str.upper() in ('N/A', 'NA', ''):
+        return None
+    
+    # Convertir según el tipo de campo
+    if field_type == 'integer':
+        try:
+            return int(value_str)
+        except (ValueError, TypeError):
+            return None
+    
+    if field_type == 'float':
+        try:
+            # Limpiar el valor (algunos ratings vienen como "8.5/10")
+            clean_value = value_str.split('/')[0]
+            return float(clean_value)
+        except (ValueError, TypeError):
+            return None
+    
+    # Para strings, devolver el valor original si no es 'N/A'
+    return value
 
 
 def _get_omdb_service():
@@ -75,9 +117,42 @@ def _scan_movies_from_filesystem():
 
 
 def _scan_series_from_filesystem():
-    """Escanea series del sistema de archivos"""
+    """
+    Escanea series del sistema de archivos de forma eficiente.
+    
+    Modelo eficiente: UNA entrada por serie, NO por episodio.
+    La ruta del episodio se construye en tiempo de reproducción.
+    
+    Estructura esperada:
+    SERIES_FOLDER/
+        Serie Name/
+            S01/
+                Serie-S01E01.mkv
+                Serie-S01E02.mkv
+            S02/
+                Serie-S02E01.mkv
+    
+    Returns:
+        dict: Diccionario con estructura por serie:
+        {
+            "Serie Name": {
+                "title": "Serie Name",
+                "path": "/path/to/Serie Name",
+                "seasons_found": 3,
+                "episodes_found": 24,
+                "has_valid_structure": True
+            }
+        }
+    """
     series = {}
     valid_extensions = {".mp4", ".mkv", ".avi", ".mov", ".flv", ".wmv"}
+    
+    # Patrones para detectar carpetas de temporada
+    season_patterns = [
+        re.compile(r'^S(\d+)$', re.IGNORECASE),           # S01, S02
+        re.compile(r'^Season[_ ]?(\d+)$', re.IGNORECASE), # Season 1, Season_1
+        re.compile(r'^Temporada[_ ]?(\d+)$', re.IGNORECASE),  # Temporada 1
+    ]
     
     series_path = SERIES_FOLDER if os.path.exists(SERIES_FOLDER) else os.path.join(MOVIES_FOLDER, 'series')
     
@@ -85,44 +160,94 @@ def _scan_series_from_filesystem():
         logger.warning(f"Carpeta de series no existe: {series_path}")
         return series
     
+    def get_season_number(folder_name: str) -> Optional[int]:
+        """Extrae el número de temporada del nombre de la carpeta"""
+        for pattern in season_patterns:
+            match = pattern.match(folder_name)
+            if match:
+                return int(match.group(1))
+        return None
+    
+    def clean_title(title: str) -> str:
+        """Limpia el título de la serie"""
+        return title.replace('.', ' ').replace('_', ' ').strip()
+    
+    def has_valid_episodes(folder_path: str) -> bool:
+        """Verifica si la carpeta contiene archivos de video válidos"""
+        try:
+            for f in os.listdir(folder_path):
+                if os.path.isfile(os.path.join(folder_path, f)):
+                    ext = os.path.splitext(f)[1].lower()
+                    if ext in valid_extensions:
+                        return True
+        except Exception:
+            pass
+        return False
+    
     try:
+        # Primer nivel: carpetas de series
         for item in os.listdir(series_path):
             item_path = os.path.join(series_path, item)
             if not os.path.isdir(item_path):
                 continue
             
-            if item.lower() in ['mkv', 'optimized', 'processed', 'thumbnails', 'pipeline']:
+            # Ignorar carpetas especiales
+            if item.lower() in ['mkv', 'optimized', 'processed', 'thumbnails', 'pipeline', 'downloads']:
                 continue
             
-            if re.search(r'\.S\d+', item, re.IGNORECASE):
-                serie_name = _parse_season_folder(item)
-            else:
-                serie_name = item.replace('.', ' ').strip()
+            serie_name = clean_title(item)
+            
+            # Si la carpeta parece ser una temporada (contiene S01, Season 1, etc.)
+            season_num = get_season_number(item)
+            if season_num:
+                # El nombre de la serie está en el padre
+                parent_path = os.path.dirname(item_path)
+                parent_name = os.path.basename(parent_path)
+                if parent_name and parent_name.lower() not in ['series', 'mkv', 'optimized', 'processed']:
+                    serie_name = clean_title(parent_name)
             
             if serie_name not in series:
                 series[serie_name] = {
                     'title': serie_name,
                     'path': item_path,
-                    'files': []
+                    'seasons_found': 0,
+                    'episodes_found': 0,
+                    'has_valid_structure': False
                 }
             
-            for filename in os.listdir(item_path):
-                file_path = os.path.join(item_path, filename)
-                if not os.path.isfile(file_path):
-                    continue
+            # Segundo nivel: carpetas de temporadas
+            seasons_count = 0
+            episodes_count = 0
+            
+            for subitem in os.listdir(item_path):
+                subitem_path = os.path.join(item_path, subitem)
                 
-                ext = os.path.splitext(filename)[1].lower()
-                if ext not in valid_extensions:
-                    continue
-                
-                series[serie_name]['files'].append({
-                    'filename': filename,
-                    'file_path': file_path
-                })
+                if os.path.isdir(subitem_path):
+                    season_num = get_season_number(subitem)
+                    if season_num is not None:
+                        seasons_count += 1
+                        # Contar episodios en esta temporada
+                        if has_valid_episodes(subitem_path):
+                            try:
+                                for f in os.listdir(subitem_path):
+                                    if os.path.isfile(os.path.join(subitem_path, f)):
+                                        ext = os.path.splitext(f)[1].lower()
+                                        if ext in valid_extensions:
+                                            episodes_count += 1
+                            except Exception:
+                                pass
+            
+            series[serie_name]['seasons_found'] += seasons_count
+            series[serie_name]['episodes_found'] += episodes_count
+            series[serie_name]['has_valid_structure'] = seasons_count > 0 and episodes_count > 0
+    
     except Exception as e:
         logger.error(f"Error escaneando series: {e}")
     
-    logger.info(f"Escaneadas {len(series)} series del sistema de archivos")
+    # Contar episodios totales
+    total_episodes = sum(s['episodes_found'] for s in series.values())
+    
+    logger.info(f"Escaneadas {len(series)} series con {total_episodes} episodios del sistema de archivos")
     return series
 
 
@@ -157,15 +282,6 @@ def _parse_filename(filename):
     return title, year
 
 
-def _parse_season_folder(folder_name):
-    """Parsea nombre de carpeta de temporada"""
-    season_match = re.search(r'\.S(\d+)', folder_name, re.IGNORECASE)
-    if season_match:
-        serie_name = folder_name[:season_match.start()]
-        return serie_name.replace('.', ' ').strip()
-    return folder_name.replace('.', ' ').strip()
-
-
 # Blueprint para las rutas de sincronización
 sync_bp = Blueprint("catalog_sync", __name__, url_prefix="/api")
 
@@ -189,8 +305,12 @@ def sync_catalog():
             db_movies_by_path = {m.file_path: m for m in db_movies if m.file_path}
             db_series_by_title = {s.title: s for s in db_series if s.title}
             
+            # Contador de episodios totales en disco
+            total_episodes_on_disk = sum(s['episodes_found'] for s in series_on_disk.values())
+            
             logger.info(f"Películas BBDD: {len(db_movies_by_path)}, disco: {len(movies_on_disk)}")
             logger.info(f"Series BBDD: {len(db_series_by_title)}, disco: {len(series_on_disk)}")
+            logger.info(f"Episodios (calculados): {total_episodes_on_disk}")
             
             # Eliminar películas que ya no existen
             deleted_movies = 0
@@ -244,21 +364,21 @@ def sync_catalog():
                         imdb_id = search_results[0].get('imdb_id') or search_results[0].get('imdbID')
                     
                     if imdb_id:
-                        omdb_data = omdb_service.get_movie_by_imdb_id(imdb_id)
+                        omdb_data = omdb_service.get_movie_by_imdb_id_raw(imdb_id)
                         if omdb_data:
                             content_data = {
-                                'imdb_id': imdb_id,
-                                'title': omdb_data.get('title') or title,
-                                'year': omdb_data.get('year') or (str(year) if year else None),
-                                'genre': omdb_data.get('genre'),
-                                'plot': omdb_data.get('plot'),
-                                'poster_url': omdb_data.get('poster'),
-                                'imdb_rating': omdb_data.get('imdb_rating'),
+                                'imdb_id': omdb_data.get('imdbID'),
+                                'title': omdb_data.get('Title') or title,
+                                'year': omdb_data.get('Year') or (str(year) if year else None),
+                                'genre': _clean_omdb_value(omdb_data.get('Genre')),
+                                'plot': _clean_omdb_value(omdb_data.get('Plot')),
+                                'poster_url': _clean_omdb_value(omdb_data.get('Poster')),
+                                'imdb_rating': _clean_omdb_value(omdb_data.get('imdbRating'), 'float'),
                                 'type': 'movie',
                                 'file_path': file_path,
-                                'runtime': omdb_data.get('runtime'),
-                                'director': omdb_data.get('director'),
-                                'actors': omdb_data.get('actors'),
+                                'runtime': _clean_omdb_value(omdb_data.get('Runtime')),
+                                'director': _clean_omdb_value(omdb_data.get('Director')),
+                                'actors': _clean_omdb_value(omdb_data.get('Actors')),
                             }
                             repo.create_local_content(content_data)
                             added_movies += 1
@@ -266,14 +386,26 @@ def sync_catalog():
                 except Exception as e:
                     logger.error(f"Error añadiendo película {title}: {e}")
             
-            # Añadir nuevas series
+            # Añadir nuevas series (UNA entrada por serie, NO por episodio)
             added_series = 0
+            
             for serie_name, serie_data in series_on_disk.items():
                 if serie_name in db_series_by_title:
+                    # La serie ya existe, actualizar total_seasons si ha cambiado
+                    serie_record = db_series_by_title[serie_name]
+                    if serie_record.total_seasons != serie_data['seasons_found']:
+                        try:
+                            repo.update_local_content(serie_record.id, {
+                                'total_seasons': serie_data['seasons_found']
+                            })
+                            logger.info(f"Actualizada serie {serie_name}: {serie_data['seasons_found']} temporadas")
+                        except Exception as e:
+                            logger.error(f"Error actualizando serie {serie_name}: {e}")
                     continue
                 
+                # Buscar en OMDB (UNA SOLA VEZ por serie)
                 try:
-                    search_results = omdb_service.search_movies_cached(serie_name, limit=5)
+                    search_results = omdb_service.search_series_cached(serie_name, limit=5)
                     imdb_id = None
                     
                     for result in search_results:
@@ -286,23 +418,77 @@ def sync_catalog():
                         imdb_id = search_results[0].get('imdb_id') or search_results[0].get('imdbID')
                     
                     if imdb_id:
-                        omdb_data = omdb_service.get_movie_by_imdb_id(imdb_id)
+                        omdb_data = omdb_service.get_serie_by_imdb_id_raw(imdb_id)
                         if omdb_data:
+                            # Usar el campo total_seasons de OMDB o el detectado en disco
+                            total_seasons_raw = omdb_data.get('totalSeasons') or serie_data['seasons_found']
+                            total_seasons = _clean_omdb_value(total_seasons_raw, 'integer')
+                            
+                            # Guardar datos locales del escaneo en un campo separado
+                            local_metadata = {
+                                'seasons_found': serie_data['seasons_found'],
+                                'episodes_found': serie_data['episodes_found'],
+                                'has_valid_structure': serie_data['has_valid_structure']
+                            }
+                            
+                            # Descargar póster si hay URL
+                            poster_bytes = None
+                            poster_url = omdb_data.get('Poster')
+                            if poster_url and poster_url != 'N/A':
+                                try:
+                                    import requests
+                                    poster_response = requests.get(poster_url, timeout=10)
+                                    if poster_response.status_code == 200:
+                                        poster_bytes = poster_response.content
+                                except Exception as e:
+                                    logger.warning(f"Error descargando póster: {e}")
+                            
+                            # Mapear todos los campos de OMDB (usar claves en mayúsculas como devuelve OMDB)
+                            # IMPORTANTE: Limpiar valores 'N/A' para campos numéricos
                             content_data = {
-                                'imdb_id': imdb_id,
-                                'title': omdb_data.get('title') or serie_name,
-                                'year': omdb_data.get('year'),
-                                'genre': omdb_data.get('genre'),
-                                'plot': omdb_data.get('plot'),
-                                'poster_url': omdb_data.get('poster'),
-                                'imdb_rating': omdb_data.get('imdb_rating'),
+                                'imdb_id': _clean_omdb_value(omdb_data.get('imdbID')),
+                                'title': _clean_omdb_value(omdb_data.get('Title')) or serie_name,
+                                'year': _clean_omdb_value(omdb_data.get('Year')),
+                                'rated': _clean_omdb_value(omdb_data.get('Rated')),
+                                'released': _clean_omdb_value(omdb_data.get('Released')),
+                                'runtime': _clean_omdb_value(omdb_data.get('Runtime')),
+                                'genre': _clean_omdb_value(omdb_data.get('Genre')),
+                                'director': _clean_omdb_value(omdb_data.get('Director')),
+                                'writer': _clean_omdb_value(omdb_data.get('Writer')),
+                                'actors': _clean_omdb_value(omdb_data.get('Actors')),
+                                'plot': _clean_omdb_value(omdb_data.get('Plot')),
+                                'language': _clean_omdb_value(omdb_data.get('Language')),
+                                'country': _clean_omdb_value(omdb_data.get('Country')),
+                                'awards': _clean_omdb_value(omdb_data.get('Awards')),
+                                'poster_url': _clean_omdb_value(poster_url),
+                                'poster_image': poster_bytes,
+                                'metascore': _clean_omdb_value(omdb_data.get('Metascore'), 'integer'),  # INTEGER en BD
+                                'imdb_rating': _clean_omdb_value(omdb_data.get('imdbRating'), 'float'),  # FLOAT en BD
+                                'imdb_votes': _clean_omdb_value(omdb_data.get('imdbVotes')),
                                 'type': 'series',
-                                'total_seasons': omdb_data.get('total_seasons'),
+                                'total_seasons': total_seasons,  # INTEGER en BD
+                                'box_office': _clean_omdb_value(omdb_data.get('BoxOffice')),
+                                'production': _clean_omdb_value(omdb_data.get('Production')),
+                                'website': _clean_omdb_value(omdb_data.get('Website')),
+                                'dvd_release': _clean_omdb_value(omdb_data.get('DVD')),
+                                'ratings': _clean_omdb_value(omdb_data.get('Ratings')),
                                 'file_path': serie_data['path'],
+                                'full_response': omdb_data,  # Guardar respuesta completa de OMDB
                             }
                             repo.create_local_content(content_data)
                             added_series += 1
-                            logger.info(f"Añadida serie: {content_data['title']}")
+                            logger.info(f"Añadida serie: {content_data['title']} ({total_seasons} temporadas, {serie_data['episodes_found']} episodios)")
+                    else:
+                        # Serie sin IMDB, crear con datos básicos
+                        content_data = {
+                            'title': serie_name,
+                            'type': 'series',
+                            'total_seasons': serie_data['seasons_found'],
+                            'file_path': serie_data['path'],
+                        }
+                        repo.create_local_content(content_data)
+                        added_series += 1
+                        logger.info(f"Añadida serie sin IMDB: {serie_name} ({serie_data['seasons_found']} temporadas)")
                 except Exception as e:
                     logger.error(f"Error añadiendo serie {serie_name}: {e}")
         
@@ -311,6 +497,7 @@ def sync_catalog():
             "message": "Sincronización completada",
             "movies_on_disk": len(movies_on_disk),
             "series_on_disk": len(series_on_disk),
+            "episodes_on_disk": total_episodes_on_disk,
             "deleted_movies": deleted_movies,
             "deleted_series": deleted_series,
             "added_movies": added_movies,
