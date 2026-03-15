@@ -5,6 +5,7 @@ Extiende el cliente OMDB básico con caché en PostgreSQL
 
 import io
 import os
+import logging
 import requests
 from typing import Optional, Dict, List
 from datetime import datetime, timedelta
@@ -16,7 +17,7 @@ from src.adapters.outgoing.repositories.postgresql.catalog_repository import (
     get_catalog_repository_session,
 )
 
-
+logger = logging.getLogger(__name__)
 CACHE_EXPIRY_DAYS = 7
 
 
@@ -44,10 +45,152 @@ class OMDBMetadataServiceCached(OMDBMetadataService):
 
     def _is_cache_expired(self, entry) -> bool:
         """Verifica si la entrada ha expirado"""
-        if not entry or not entry.updated_at:
-            return True
-        expiry_date = entry.updated_at + timedelta(days=CACHE_EXPIRY_DAYS)
+        if not entry or not entry.cached_at:
+            # Si no tiene cached_at, verificar updated_at (compatibilidad)
+            if not entry or not entry.updated_at:
+                return True
+            expiry_date = entry.updated_at + timedelta(days=CACHE_EXPIRY_DAYS)
+            return datetime.utcnow() > expiry_date
+        
+        expiry_date = entry.cached_at + timedelta(days=CACHE_EXPIRY_DAYS)
         return datetime.utcnow() > expiry_date
+
+    def get_movie_metadata(
+        self, title: str, year: Optional[int] = None, force_refresh: bool = False
+    ) -> Optional[Dict]:
+        """
+        Obtiene metadatos de una película por título y año con caché.
+        
+        Args:
+            title: Título de la película
+            year: Año de lanzamiento (opcional)
+            force_refresh: Si True, fuerza actualización desde OMDB
+        
+        Returns:
+            Diccionario con metadatos o None
+        """
+        import time
+        start_time = time.time()
+        cache_status = "MISS"
+        
+        # Usar context manager para garantizar cierre de sesión
+        with get_catalog_repository_session() as db:
+            repo = get_catalog_repository(db)
+            
+            # Buscar por título y año en la BD
+            existing = repo.get_exact_match(title, year)
+            
+            if existing and not force_refresh:
+                if not self._is_cache_expired(existing):
+                    cache_status = "HIT"
+                    repo.update_last_accessed(existing)
+                    elapsed = (time.time() - start_time) * 1000
+                    logger.info(f"🎬 [OMDB CACHE] {cache_status} para '{title}' ({year}) - {elapsed:.0f}ms")
+                    return existing.full_response
+            
+            # Cache MISS o expirado - llamar a OMDB
+            elapsed = (time.time() - start_time) * 1000
+            logger.info(f"🎬 [OMDB CACHE] {cache_status} para '{title}' ({year}) - {elapsed:.0f}ms - Consultando OMDB...")
+            
+            # Llamar al método del padre (no cacheado)
+            omdb_data = super().get_movie_metadata(title, year)
+            
+            if not omdb_data or omdb_data.get("Response") == "False":
+                if existing:
+                    # Devolver datos existentes aunque estén expirados
+                    elapsed = (time.time() - start_time) * 1000
+                    logger.info(f"🎬 [OMDB CACHE] EXPIRED_FALLBACK para '{title}' ({year}) - {elapsed:.0f}ms")
+                    return existing.full_response
+                elapsed = (time.time() - start_time) * 1000
+                logger.warning(f"🎬 [OMDB CACHE] No se encontraron datos para '{title}' ({year})")
+                return None
+            
+            # Descargar póster si está disponible
+            poster_bytes = None
+            poster_url = omdb_data.get("Poster")
+            if poster_url and poster_url != "N/A":
+                poster_bytes = self._download_poster(poster_url)
+            
+            # Guardar en la BD
+            entry = repo.create_or_update_omdb_entry(omdb_data, poster_bytes)
+            
+            # Actualizar cached_at
+            if entry:
+                entry.cached_at = datetime.utcnow()
+                db.commit()
+            
+            elapsed = (time.time() - start_time) * 1000
+            logger.info(f"🎬 [OMDB CACHE] SAVED para '{title}' ({year}) - {elapsed:.0f}ms")
+            
+            return omdb_data
+
+    def get_serie_metadata(
+        self, serie_name: str, force_refresh: bool = False
+    ) -> Optional[Dict]:
+        """
+        Obtiene metadatos de una serie por nombre con caché.
+        
+        Args:
+            serie_name: Nombre de la serie
+            force_refresh: Si True, fuerza actualización desde OMDB
+        
+        Returns:
+            Diccionario con metadatos o None
+        """
+        import time
+        start_time = time.time()
+        cache_status = "MISS"
+        
+        # Usar context manager para garantizar cierre de sesión
+        with get_catalog_repository_session() as db:
+            repo = get_catalog_repository(db)
+            
+            # Buscar por título en la BD (sin año para series)
+            existing = repo.get_exact_match(serie_name, None)
+            
+            if existing and not force_refresh:
+                if not self._is_cache_expired(existing):
+                    cache_status = "HIT"
+                    repo.update_last_accessed(existing)
+                    elapsed = (time.time() - start_time) * 1000
+                    logger.info(f"📺 [OMDB CACHE] {cache_status} para '{serie_name}' - {elapsed:.0f}ms")
+                    return existing.full_response
+            
+            # Cache MISS o expirado - llamar a OMDB
+            elapsed = (time.time() - start_time) * 1000
+            logger.info(f"📺 [OMDB CACHE] {cache_status} para '{serie_name}' - {elapsed:.0f}ms - Consultando OMDB...")
+            
+            # Llamar al método del padre (no cacheado)
+            omdb_data = super().get_serie_metadata(serie_name)
+            
+            if not omdb_data or omdb_data.get("Response") == "False":
+                if existing:
+                    # Devolver datos existentes aunque estén expirados
+                    elapsed = (time.time() - start_time) * 1000
+                    logger.info(f"📺 [OMDB CACHE] EXPIRED_FALLBACK para '{serie_name}' - {elapsed:.0f}ms")
+                    return existing.full_response
+                elapsed = (time.time() - start_time) * 1000
+                logger.warning(f"📺 [OMDB CACHE] No se encontraron datos para '{serie_name}'")
+                return None
+            
+            # Descargar póster si está disponible
+            poster_bytes = None
+            poster_url = omdb_data.get("Poster")
+            if poster_url and poster_url != "N/A":
+                poster_bytes = self._download_poster(poster_url)
+            
+            # Guardar en la BD
+            entry = repo.create_or_update_omdb_entry(omdb_data, poster_bytes)
+            
+            # Actualizar cached_at
+            if entry:
+                entry.cached_at = datetime.utcnow()
+                db.commit()
+            
+            elapsed = (time.time() - start_time) * 1000
+            logger.info(f"📺 [OMDB CACHE] SAVED para '{serie_name}' - {elapsed:.0f}ms")
+            
+            return omdb_data
 
     def get_movie_by_imdb_id(
         self, imdb_id: str, force_refresh: bool = False

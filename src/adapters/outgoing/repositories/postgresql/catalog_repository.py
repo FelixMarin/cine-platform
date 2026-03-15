@@ -250,6 +250,38 @@ class CatalogRepository:
             logger.error(f"Error en update_last_accessed: {e}")
             raise
 
+    def update_plot_es(self, imdb_id: str, plot_es: str):
+        """
+        Actualiza el campo plot_es (plot traducido al español) para una entrada de OMDB.
+        
+        Args:
+            imdb_id: ID de IMDB de la película/serie
+            plot_es: Plot traducido al español
+        
+        Returns:
+            True si se actualizó correctamente, False si no se encontró la entrada
+        """
+        db = self._get_db()
+        try:
+            entry = db.query(OmdbEntry).filter(OmdbEntry.imdb_id == imdb_id).first()
+            if entry:
+                # Verificar que la columna existe (migración puede no estar aplicada)
+                if hasattr(entry, 'plot_es'):
+                    entry.plot_es = plot_es
+                    db.commit()
+                    logger.info(f"✅ plot_es actualizado para '{entry.title}' (imdb_id: {imdb_id})")
+                    return True
+                else:
+                    logger.warning("⚠️ Columna plot_es no existe en la tabla (migración no aplicada)")
+                    return False
+            else:
+                logger.warning(f"⚠️ No se encontró entrada OMDB con imdb_id: {imdb_id}")
+                return False
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Error en update_plot_es: {e}")
+            raise
+
     def get_poster_image(self, imdb_id: str) -> Optional[bytes]:
         """Obtiene la imagen del póster"""
         entry = self.get_omdb_entry_by_imdb_id(imdb_id)

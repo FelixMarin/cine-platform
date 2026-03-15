@@ -7,7 +7,7 @@ import re
 import urllib.parse
 from flask import Blueprint, jsonify, request, session, Response, stream_with_context, render_template
 from src.adapters.entry.web.middleware.auth_middleware import require_auth
-from src.adapters.outgoing.services.translation import translate_plot
+from src.adapters.outgoing.services.translation import translate_plot_async
 
 # Importar casos de uso (se inicializan después)
 from src.core.use_cases.player import (
@@ -167,16 +167,18 @@ def get_movie_metadata():
     
     movie_info = None
     try:
-        from src.adapters.outgoing.services.omdb.client import OMDBMetadataService
-        omdb_service = OMDBMetadataService()
+        from src.adapters.outgoing.services.omdb.cached_client import OMDBMetadataServiceCached
+        omdb_service = OMDBMetadataServiceCached()
         
         if omdb_service.is_available():
             omdb_data = omdb_service.get_movie_metadata(title, year)
             
             if omdb_data:
-                # Traducir el plot al español
+                # Traducir el plot al español (ASÍNCRONO - respuesta inmediata)
+                # Si hay traducción cacheada, la retorna inmediatamente
+                # Si no, retorna el plot original y traduce en background
                 original_plot = omdb_data.get('Plot')
-                translated_plot, was_translated = translate_plot(original_plot, omdb_data.get('Title'))
+                translated_plot, was_translated = translate_plot_async(original_plot, omdb_data.get('Title'))
                 
                 movie_info = {
                     'title': omdb_data.get('Title'),
@@ -231,6 +233,7 @@ def get_movie_metadata():
             return jsonify({'error': 'No se encontraron metadatos'}), 404
             
     except Exception as e:
+        logger.error(f"Error en get_movie_metadata: {e}")
         return jsonify({'error': str(e)}), 500
 
 
@@ -243,8 +246,8 @@ def get_serie_metadata():
         return jsonify({'error': 'title es requerido'}), 400
     
     try:
-        from src.adapters.outgoing.services.omdb.client import OMDBMetadataService
-        omdb_service = OMDBMetadataService()
+        from src.adapters.outgoing.services.omdb.cached_client import OMDBMetadataServiceCached
+        omdb_service = OMDBMetadataServiceCached()
         
         if omdb_service.is_available():
             # Intentar primero con el título tal cual
@@ -254,9 +257,11 @@ def get_serie_metadata():
                 logger.warning(f"⚠️ No se encontraron metadatos para '{title}'. Si el título está en español, se requiere traducción manual.")
             
             if omdb_data:
-                # Traducir el plot al español
+                # Traducir el plot al español (ASÍNCRONO - respuesta inmediata)
+                # Si hay traducción cacheada, la retorna inmediatamente
+                # Si no, retorna el plot original y traduce en background
                 original_plot = omdb_data.get('Plot')
-                translated_plot, was_translated = translate_plot(original_plot, omdb_data.get('Title'))
+                translated_plot, was_translated = translate_plot_async(original_plot, omdb_data.get('Title'))
                 
                 serie_info = {
                     'title': omdb_data.get('Title'),

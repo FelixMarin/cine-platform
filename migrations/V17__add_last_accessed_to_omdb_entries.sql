@@ -1,1 +1,0 @@
-ALTER TABLE omdb_entries ADD COLUMN IF NOT EXISTS last_accessed TIMESTAMP;

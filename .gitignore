@@ -59,3 +59,5 @@ htmlcov/
 .movie_index_cache.json
 
 docker-compose.prod.yml
+
+migrations/

@@ -65,6 +65,8 @@ class OmdbEntry(Base):
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
     last_accessed = Column(DateTime)
+    plot_es = Column(Text)  # Plot traducido al español
+    cached_at = Column(DateTime)  # Timestamp de cuándo se cacheó la respuesta de OMDB
 
     local_contents = relationship(
         "LocalContent",
@@ -107,6 +109,7 @@ class OmdbEntry(Base):
                 "ratings": self.ratings,
                 "created_at": self.created_at.isoformat() if self.created_at else None,
                 "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+                "plot_es": self.plot_es,  # Plot traducido al español
             }
             if include_image and self.poster_image:
                 result["has_poster_image"] = True
