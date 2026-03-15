@@ -126,7 +126,7 @@ function createMovieCard(movie) {
         card.appendChild(newIndicator);
     }
 
-    const playPath = movie.id || movie.path || movie.file;
+    const playPath = movie.file_path || movie.path || movie.id || movie.file;
     card.onclick = () => window.playMovie(playPath);
 
     // Cargar thumbnail en segundo plano - pasar imdb_id si está disponible
@@ -269,6 +269,11 @@ async function createSerieCard(episodio, preloadedPoster = null) {
 
     const title = episodio.name || episodio.title || 'Sin título';
 
+    // Si es una serie nueva, añadir clase especial
+    if (episodio.is_new) {
+        card.classList.add("new-movie");
+    }
+
     // Extraer nombre de la serie y limpiar sufijos
     let serieName = episodio.serie_name || title;
     // Limpiar nombre de serie: eliminar patrones de episodio y sufijos
@@ -304,7 +309,34 @@ async function createSerieCard(episodio, preloadedPoster = null) {
     card.appendChild(img);
     card.appendChild(titleDiv);
 
-    const playPath = episodio.id || episodio.path || episodio.file;
+    // Añadir badge de novedad para series si corresponde
+    if (episodio.is_new) {
+        const badge = document.createElement('span');
+        badge.className = 'new-badge';
+
+        // Texto dinámico según antigüedad
+        if (episodio.days_ago === 0) {
+            badge.textContent = 'HOY';
+            badge.classList.add('hoy');
+        } else if (episodio.days_ago === 1) {
+            badge.textContent = 'AYER';
+            badge.classList.add('ayer');
+        } else if (episodio.days_ago <= 7) {
+            badge.textContent = `HACE ${episodio.days_ago} DÍAS`;
+            badge.classList.add('semana');
+        } else {
+            badge.textContent = 'NUEVO';
+        }
+
+        card.appendChild(badge);
+
+        // Añadir indicador visual de novedad
+        const newIndicator = document.createElement('div');
+        newIndicator.className = 'new-indicator';
+        card.appendChild(newIndicator);
+    }
+
+    const playPath = episodio.file_path || episodio.path || episodio.id || episodio.file;
     card.onclick = () => window.playMovie(playPath);
 
     // Si tenemos póster pre-cargado, usarlo directamente

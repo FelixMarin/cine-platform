@@ -4,6 +4,8 @@ Rutas web - Adaptadores de entrada
 
 import logging
 
+logger = logging.getLogger(__name__)
+
 from src.adapters.entry.web.routes.catalog import catalog_bp, init_catalog_routes
 from src.adapters.entry.web.routes.player import (
     player_bp,
@@ -89,11 +91,11 @@ def register_all_blueprints(
     app.register_blueprint(profile_bp)  # Rutas de perfil de usuario
     app.register_blueprint(history_bp)  # Historial de optimizaciones
     app.register_blueprint(sync_bp)  # Sincronización del catálogo
-    
+
     # Log de todas las rutas registradas
     logger.info("=== Rutas registradas ===")
     for rule in app.url_map.iter_rules():
-        if 'optimization-history' in str(rule):
+        if "optimization-history" in str(rule):
             logger.info(f"  RUTA ENCONTRADA: {rule} -> {rule.endpoint}")
     logger.info("===========================")
 

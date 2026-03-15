@@ -460,11 +460,32 @@
         display: none;
     }
     
+    .profile-header {
+        position: fixed;
+        top: 16px;
+        right: 70px;
+        padding: 0;
+        margin: 0;
+        background: transparent;
+        z-index: 1002;
+    }
+    
+    .profile-dropdown {
+        position: static;
+    }
+    
     .profile-button {
-        padding: 5px;
+        padding: 8px;
+        background: var(--bg-tertiary);
+        border: 1px solid var(--border-color);
+        border-radius: 30px;
     }
     
     .dropdown-menu {
         min-width: 200px;
+        position: fixed;
+        top: 66px;
+        right: 16px;
+        left: auto;
     }
 }

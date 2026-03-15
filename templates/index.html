@@ -77,53 +77,6 @@
     <!-- Contenido principal -->
     <main class="main-content" id="mainContent" role="main">
 
-        <!-- Header con icono de perfil -->
-        <div class="profile-header">
-            <div class="profile-dropdown" id="profileDropdown">
-                <button class="profile-button" onclick="toggleProfileMenu()">
-                    <img src="{{ session.get('avatar_url') or url_for('static', filename='images/default.jpg') }}" 
-                         alt="Perfil" 
-                         class="profile-avatar"
-                         id="avatar-img"
-                         onerror="this.src='/static/images/default.jpg'">
-                    <span class="profile-name">{{ session.get('display_name') or session.get('username') or 'Usuario' }}</span>
-                    <span class="profile-arrow">▼</span>
-                </button>
-                
-                <!-- Menú desplegable -->
-                <div class="dropdown-menu" id="profileMenu">
-                    <div class="dropdown-header">
-                        <strong>{{ session.get('display_name') or session.get('username') or 'Usuario' }}</strong>
-                        <span class="dropdown-email">{{ session.get('email') or '' }}</span>
-                    </div>
-                    
-                    <div class="dropdown-divider"></div>
-                    
-                    <button class="dropdown-item" onclick="showProfileModal(); return false;">
-                        <span class="dropdown-icon">👤</span>
-                        Mi Perfil
-                    </button>
-                    
-                    <button class="dropdown-item" onclick="showSettingsModal(); return false;">
-                        <span class="dropdown-icon">⚙️</span>
-                        Configuración
-                    </button>
-                    
-                    <button class="dropdown-item" onclick="showWatchlistModal(); return false;">
-                        <span class="dropdown-icon">📋</span>
-                        Mi Watchlist
-                    </button>
-                    
-                    <div class="dropdown-divider"></div>
-                    
-                    <a href="/logout" class="dropdown-item logout">
-                        <span class="dropdown-icon">🚪</span>
-                        Cerrar Sesión
-                    </a>
-                </div>
-            </div>
-        </div>
-
         <!-- Tabs ocultos (compatibilidad) -->
         <div class="tabs" style="display: none;">
             <a id="moviesTab" class="tab-link active" onclick="showTab('movies')">Películas</a>
@@ -144,6 +97,52 @@
                     <span class="refresh-text">Actualizar</span>
                 </button>
                 {% endif %}
+                <!-- Header con icono de perfil -->
+                <div class="profile-header">
+                    <div class="profile-dropdown" id="profileDropdown">
+                        <button class="profile-button" onclick="toggleProfileMenu()">
+                            <img src="{{ session.get('avatar_url') or url_for('static', filename='images/default.jpg') }}" 
+                                alt="Perfil" 
+                                class="profile-avatar"
+                                id="avatar-img"
+                                onerror="this.src='/static/images/default.jpg'">
+                            <span class="profile-name">{{ session.get('display_name') or session.get('username') or 'Usuario' }}</span>
+                            <span class="profile-arrow">▼</span>
+                        </button>
+                        
+                        <!-- Menú desplegable -->
+                        <div class="dropdown-menu" id="profileMenu">
+                            <div class="dropdown-header">
+                                <strong>{{ session.get('display_name') or session.get('username') or 'Usuario' }}</strong>
+                                <span class="dropdown-email">{{ session.get('email') or '' }}</span>
+                            </div>
+                            
+                            <div class="dropdown-divider"></div>
+                            
+                            <button class="dropdown-item" onclick="showProfileModal(); return false;">
+                                <span class="dropdown-icon">👤</span>
+                                Mi Perfil
+                            </button>
+                            
+                            <button class="dropdown-item" onclick="showSettingsModal(); return false;">
+                                <span class="dropdown-icon">⚙️</span>
+                                Configuración
+                            </button>
+                            
+                            <button class="dropdown-item" onclick="showWatchlistModal(); return false;">
+                                <span class="dropdown-icon">📋</span>
+                                Mi Watchlist
+                            </button>
+                            
+                            <div class="dropdown-divider"></div>
+                            
+                            <a href="/logout" class="dropdown-item logout">
+                                <span class="dropdown-icon">🚪</span>
+                                Cerrar Sesión
+                            </a>
+                        </div>
+                    </div>
+                </div>                
             </div>
 
             <!-- El JS insertará aquí las categorías en carruseles -->

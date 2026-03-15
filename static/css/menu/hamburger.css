@@ -4,7 +4,7 @@
     position: fixed;
     top: 16px;
     right: 16px;
-    z-index: 1001;
+    z-index: 2000;
     background: var(--accent-color);
     color: white;
     border: none;

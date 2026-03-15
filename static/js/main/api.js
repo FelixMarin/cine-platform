@@ -64,14 +64,35 @@ async function loadContent(forceRefresh = false) {
 // Transformar datos del catálogo de BBDD al formato de la API
 function transformCatalogToApiFormat(movies, series) {
     const categorias = {};
+    const novedades = [];
     
-    // Agrupar películas por categoría (usando genre o 'Otros')
+    // Agrupar películas por categoría (basado en la ruta del archivo)
     movies.forEach(movie => {
-        const genre = movie.genre ? movie.genre.split(',')[0].trim() : 'Otros';
-        if (!categorias[genre]) {
-            categorias[genre] = [];
+        // Determinar categoría desde la ruta del archivo (igual que el backend)
+        let categoria = 'Otros';
+        const filePath = movie.file_path;
+        if (filePath) {
+            const parts = filePath.split('/');
+            const mkvIndex = parts.indexOf('mkv');
+            if (mkvIndex !== -1 && mkvIndex + 1 < parts.length) {
+                categoria = parts[mkvIndex + 1];
+            }
         }
-        categorias[genre].push({
+        
+        if (!categorias[categoria]) {
+            categorias[categoria] = [];
+        }
+        // Calcular si es una película nueva (menos de 30 días desde created_at)
+        const now = new Date();
+        const createdAt = movie.created_at ? new Date(movie.created_at) : null;
+        let days_ago = -1;
+        let is_new = false;
+        if (createdAt) {
+            days_ago = Math.floor((now - createdAt) / (1000 * 60 * 60 * 24));
+            is_new = days_ago <= 30;
+        }
+        
+        const movieData = {
             id: movie.id,
             title: movie.title,
             year: movie.year,
@@ -82,13 +103,52 @@ function transformCatalogToApiFormat(movies, series) {
             rating: movie.imdb_rating,
             genre: movie.genre,
             type: 'movie',
-            file_path: movie.file_path
-        });
+            file_path: movie.file_path,
+            is_new: is_new,
+            days_ago: days_ago,
+            date_added: movie.created_at
+        };
+        
+        // Añadir a novedades si es nueva
+        if (is_new) {
+            novedades.push(movieData);
+        }
+        
+        categorias[categoria].push(movieData);
     });
+
+    // Ordenar novedades por fecha (más recientes primero)
+    novedades.sort((a, b) => {
+        if (!a.date_added || !b.date_added) return 0;
+        return new Date(b.date_added) - new Date(a.date_added);
+    });
+
+    // Crear lista de categorías con Novedades primero
+    const categoriasArray = [];
+    
+    // Primero, añadir Novedades si existe (limitado a 20)
+    if (novedades.length > 0) {
+        categoriasArray.push(["🆕 Novedades", novedades.slice(0, 20)]);
+    }
+    
+    // Añadir el resto de categorías ordenadas alfabéticamente
+    for (const cat of Object.keys(categorias).sort()) {
+        categoriasArray.push([cat, categorias[cat]]);
+    }
 
     // Agrupar series
     const seriesObj = {};
     series.forEach(serie => {
+        // Calcular si es una serie nueva
+        const now = new Date();
+        const createdAt = serie.created_at ? new Date(serie.created_at) : null;
+        let days_ago = -1;
+        let is_new = false;
+        if (createdAt) {
+            days_ago = Math.floor((now - createdAt) / (1000 * 60 * 60 * 24));
+            is_new = days_ago <= 30;
+        }
+        
         seriesObj[serie.title] = [{
             id: serie.id,
             name: serie.title,
@@ -101,12 +161,12 @@ function transformCatalogToApiFormat(movies, series) {
             genre: serie.genre,
             type: 'series',
             totalSeasons: serie.total_seasons,
-            file_path: serie.file_path
+            file_path: serie.file_path,
+            is_new: is_new,
+            days_ago: days_ago,
+            date_added: serie.created_at
         }];
     });
-
-    // Convertir categorías a formato de array
-    const categoriasArray = Object.entries(categorias).map(([name, items]) => [name, items]);
 
     return {
         categorias: categoriasArray,

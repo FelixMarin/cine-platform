@@ -3,13 +3,32 @@ function playMovie(path) {
         console.error('Ruta de reproducción no válida');
         return;
     }
+    
     // Si es un ID de película (formato mov_xxxx), usar ruta específica
     if (path.startsWith('mov_') || path.startsWith('ser_')) {
         window.location.href = `/play/id/${path}`;
-    } else {
-        // Es una ruta legacy, usar ruta original
-        window.location.href = `/play/${path}`;
+        return;
     }
+    
+    // Si es una ruta absoluta (ej: /mnt/DATA_2TB/audiovisual/mkv/action/pelicula.mkv)
+    // convertir a ruta relativa (mkv/action/pelicula.mkv)
+    let relativePath = path;
+    const commonPrefixes = [
+        '/mnt/DATA_2TB/audiovisual/',
+        '/mnt/servidor/Data2TB/audiovisual/',
+        '/mnt/DATA_2TB/',
+    ];
+    
+    for (const prefix of commonPrefixes) {
+        if (path.startsWith(prefix)) {
+            relativePath = path.substring(prefix.length);
+            console.log('🎬 Convertida ruta absoluta a relativa:', path, '->', relativePath);
+            break;
+        }
+    }
+    
+    // Es una ruta relativa, usar ruta original
+    window.location.href = `/play/${relativePath}`;
 }
 
 function setupClickOutside() {
