@@ -663,6 +663,6 @@ if (!document.getElementById('movie-card-styles')) {
 }
 
 // Exportar funciones
-window.createMovieCard = createMovieCard;
+window.createMovieCard = createMediaCard;
 window.createSerieCard = createSerieCard;
 window.createMediaCard = createMediaCard;

@@ -316,11 +316,12 @@ def get_movie_thumbnail_by_title():
     
     Flujo (prioridad de fuentes):
         1. Base de datos (poster_image de omdb_entries) - FUENTE PRIMARIA
-        2. OMDB API + guardar en BD (si no hay en BD)
-        3. Sistema de archivos local (thumbnails manuales) - FALLBACK
+        2. Base de datos (poster_image de local_content) - FALLBACK PARA CONTENIDO SIN IMDB
+        3. OMDB API + guardar en BD (si no hay en BD)
+        4. Sistema de archivos local (thumbnails manuales) - FALLBACK
         
     El servicio DatabaseThumbnailService es la fuente primaria que busca
-    directamente en el campo poster_image de la tabla omdb_entries.
+    directamente en el campo poster_image de las tablas omdb_entries y local_content.
     """
     import logging
     import io

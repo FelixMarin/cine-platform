@@ -48,7 +48,8 @@
 }
 
 /* ===== MOVIE CARDS (PARA CARRUSELES) ===== */
-.movie-card {
+.movie-card,
+.media-card {
     background-color: var(--bg-card);
     border-radius: var(--border-radius);
     overflow: hidden;
@@ -120,7 +121,7 @@
     font-weight: bold;
     padding: 4px 8px;
     border-radius: 20px;
-    z-index: 10;
+    z-index: 1000;
     box-shadow: 0 4px 10px rgba(229, 9, 20, 0.5);
     animation: pulse 2s infinite;
     text-transform: uppercase;
@@ -145,12 +146,14 @@
 }
 
 /* Tarjetas nuevas con borde destacado */
-.movie-card.new-movie {
+.movie-card.new-movie,
+.media-card.new-movie {
     border: 2px solid var(--accent-color);
     box-shadow: 0 0 15px rgba(229, 9, 20, 0.3);
 }
 
-.movie-card.new-movie:hover {
+.movie-card.new-movie:hover,
+.media-card.new-movie:hover {
     transform: translateY(-8px);
     box-shadow: 0 0 25px rgba(229, 9, 20, 0.5);
     border-color: var(--accent-hover);
@@ -166,6 +169,7 @@
     background: linear-gradient(to bottom, var(--accent-color), #ff8a8a);
     border-radius: 4px 0 0 4px;
     opacity: 0.8;
+    z-index: 5;
 }
 
 /* ===== ANIMACIONES DE NOVEDADES ===== */

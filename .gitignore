@@ -61,3 +61,5 @@ htmlcov/
 docker-compose.prod.yml
 
 migrations/
+
+scripts/update_poster.py
