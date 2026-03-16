@@ -107,7 +107,6 @@ class OmdbEntry(Base):
                 "episode": self.episode,
                 "series_id": self.series_id,
                 "ratings": self.ratings,
-                "file_path": self.file_path,
                 "created_at": self.created_at.isoformat() if self.created_at else None,
                 "updated_at": self.updated_at.isoformat() if self.updated_at else None,
                 "plot_es": self.plot_es,  # Plot traducido al español

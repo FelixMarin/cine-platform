@@ -19,8 +19,15 @@ async function loadAllSeries(forceRefresh = false) {
 
     try {
         console.log('📺 Cargando series desde API... (forceRefresh=' + forceRefresh + ')');
-        // Usar el endpoint existente /api/catalog/series
-        const response = await fetch('/api/catalog/series?limit=100&auto_sync=false');
+        
+        // Intentar primero con /api/catalog/series
+        let response = await fetch('/api/catalog/series?limit=100&auto_sync=false');
+        
+        // Si falla, intentar con /api/series como fallback
+        if (!response.ok) {
+            console.warn('⚠️ /api/catalog/series falló, intentando /api/series...');
+            response = await fetch('/api/series?limit=100');
+        }
         
         if (!response.ok) {
             console.error('❌ Error响应:', response.status, response.statusText);
@@ -173,10 +180,23 @@ async function createSerieCardView(serie) {
 }
 
 // Mostrar detalle de una serie (temporadas)
-async function showSerieDetail(serieId, serieTitle) {
+async function showSerieDetail(serieId, serieTitleOrData) {
     const container = document.getElementById('seriesContainer');
     if (!container) return;
 
+    // Determinar si el segundo argumento es un objeto (datos de la API) o un string (título)
+    let serieTitle = '';
+    let seasonsData = null;
+    
+    if (typeof serieTitleOrData === 'object' && serieTitleOrData !== null) {
+        // Es un objeto con datos de la API
+        serieTitle = serieTitleOrData.serie_title || '';
+        seasonsData = serieTitleOrData.seasons || [];
+    } else {
+        // Es un string con el título
+        serieTitle = serieTitleOrData || '';
+    }
+    
     // Breadcrumb
     const breadcrumb = document.createElement('div');
     breadcrumb.className = 'series-breadcrumb';
@@ -191,8 +211,11 @@ async function showSerieDetail(serieId, serieTitle) {
     container.innerHTML = '';
     container.appendChild(breadcrumb);
 
-    // Cargar temporadas
-    const seasons = await loadSerieSeasons(serieId);
+    // Cargar temporadas (desde datos pasados o desde la API)
+    let seasons = seasonsData;
+    if (!seasons) {
+        seasons = await loadSerieSeasons(serieId);
+    }
     
     if (seasons.length === 0) {
         container.innerHTML += '<div class="empty-message">No se encontraron temporadas.</div>';
@@ -321,10 +344,38 @@ function initSeriesView() {
     }
 }
 
+// Detectar URL y cargar datos apropiados para series
+function detectSeriesRoute() {
+    const path = window.location.pathname;
+    console.log('🔍 Detectando ruta de series:', path);
+    
+    // Verificar si es una ruta de serie: /series/{id}/seasons o /series/{id}/season/{num}
+    const seasonsMatch = path.match(/^\/series\/(\d+)\/seasons$/);
+    const seasonMatch = path.match(/^\/series\/(\d+)\/season\/(\d+)$/);
+    
+    if (seasonsMatch) {
+        const serieId = parseInt(seasonsMatch[1]);
+        console.log('📺 Navegando a temporadas de serie:', serieId);
+        // Mostrar temporadas de la serie
+        showSerieDetail(serieId, 'Cargando...');
+        return true;
+    } else if (seasonMatch) {
+        const serieId = parseInt(seasonMatch[1]);
+        const seasonNum = parseInt(seasonMatch[2]);
+        console.log('📺 Navegando a episodios de temporada:', serieId, 'temporada', seasonNum);
+        // Mostrar episodios de la temporada
+        showSeasonEpisodes(serieId, seasonNum, 'Cargando...');
+        return true;
+    }
+    
+    return false;
+}
+
 // Exponer funciones globalmente
 window.renderSeriesView = renderSeriesView;
 window.showSerieDetail = showSerieDetail;
 window.showSeasonEpisodes = showSeasonEpisodes;
 window.initSeriesView = initSeriesView;
+window.detectSeriesRoute = detectSeriesRoute;
 
 console.log('✅ series_view.js cargado');

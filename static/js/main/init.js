@@ -60,10 +60,22 @@ function initializeApp() {
     window.setupResizeHandler();
     window.loadSavedPreferences();
 
-    window.showTab('movies');
-
-    // Cargar contenido
-    window.loadContent();
+    // Detectar si estamos en una ruta de serie (/series/...)
+    const path = window.location.pathname;
+    if (path.startsWith('/series/')) {
+        console.log('📺 Ruta de serie detectada:', path);
+        // No mostrar pestaña de películas, esperar a que series_view maneje la ruta
+        if (window.detectSeriesRoute) {
+            setTimeout(() => {
+                window.detectSeriesRoute();
+            }, 100); // Pequeño delay para asegurar que el DOM esté listo
+        }
+    } else {
+        // Ruta normal - mostrar pestañas
+        window.showTab('movies');
+        // Cargar contenido
+        window.loadContent();
+    }
 }
 
 // Segundo event listener para asegurar que la pestaña activa sea 'movies'

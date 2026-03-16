@@ -197,7 +197,8 @@ async function preloadSeriesPosters(series) {
     }
 }
 
-// Función para renderizar series en carruseles (AHORA ASÍNCRONA)
+// Función para renderizar series en GRID (no carruseles) - CORREGIDO
+// Formato de entrada: { "nombre_serie": [ {id, name, poster, totalSeasons, ...} ] }
 async function renderSeries(series) {
     const seriesDiv = document.getElementById("seriesContainer");
     if (!seriesDiv) {
@@ -212,71 +213,94 @@ async function renderSeries(series) {
         return;
     }
 
-    // Pre-cargar pósters de todas las series (UNA llamada por serie)
-    await preloadSeriesPosters(series);
-
+    // Convertir el formato de objeto a array de series
+    const seriesArray = [];
     for (const serieName in series) {
         const episodios = series[serieName];
-
         if (!episodios || episodios.length === 0) continue;
-
-        // Obtener el nombre limpio de la serie
-        const cleanName = cleanSerieName(serieName);
-        const cachedPoster = seriePosterCache[cleanName];
-
-        const section = document.createElement("div");
-        section.classList.add("category-section");
-
-        const header = document.createElement("div");
-        header.classList.add("category-header");
-        header.innerHTML = `<h3 class="category-title">${serieName}</h3>`;
-
-        const carouselContainer = document.createElement("div");
-        carouselContainer.classList.add("carousel-container");
-
-        const carouselId = `carousel-series-${serieName.replace(/\s+/g, '-')}`;
-
-        const prevBtn = document.createElement("button");
-        prevBtn.classList.add("carousel-btn", "prev");
-        prevBtn.innerHTML = "❮";
-        prevBtn.setAttribute("aria-label", "Anterior");
-        prevBtn.onclick = (e) => {
-            e.stopPropagation();
-            scrollCarousel(prevBtn, 'prev');
-        };
-
-        const nextBtn = document.createElement("button");
-        nextBtn.classList.add("carousel-btn", "next");
-        nextBtn.innerHTML = "❯";
-        nextBtn.setAttribute("aria-label", "Siguiente");
-        nextBtn.onclick = (e) => {
-            e.stopPropagation();
-            scrollCarousel(nextBtn, 'next');
-        };
-
-        const track = document.createElement("div");
-        track.classList.add("carousel-track");
-        track.id = carouselId;
-
-        // Crear todas las tarjetas de series pasando el póster pre-cargado
-        const cardPromises = episodios.map(ep => window.createSerieCard(ep, cachedPoster));
-        const cards = await Promise.all(cardPromises);
-
-        cards.forEach(card => {
-            const item = document.createElement("div");
-            item.classList.add("carousel-item");
-            item.appendChild(card);
-            track.appendChild(item);
+        
+        // Tomar el primer elemento que tiene los datos de la serie
+        const serieData = episodios[0];
+        seriesArray.push({
+            id: serieData.id,
+            title: serieData.name || serieName,
+            poster_url: serieData.poster || serieData.thumbnail,
+            total_seasons: serieData.totalSeasons,
+            year: serieData.year,
+            imdb_id: serieData.imdb_id,
+            rating: serieData.rating,
+            plot: serieData.plot,
+            genre: serieData.genre
         });
-
-        carouselContainer.appendChild(prevBtn);
-        carouselContainer.appendChild(track);
-        carouselContainer.appendChild(nextBtn);
-
-        section.appendChild(header);
-        section.appendChild(carouselContainer);
-        seriesDiv.appendChild(section);
     }
+
+    if (seriesArray.length === 0) {
+        seriesDiv.innerHTML = '<div class="no-content-message">No hay series disponibles</div>';
+        return;
+    }
+
+    // Crear grid de series (igual que renderSeriesView en series_view.js)
+    const grid = document.createElement('div');
+    grid.className = 'series-grid';
+    grid.style.cssText = 'display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 20px; padding: 20px 0;';
+
+    for (const serie of seriesArray) {
+        const card = document.createElement('div');
+        card.className = 'serie-card';
+        card.style.cssText = 'cursor: pointer; border-radius: 8px; overflow: hidden; background: var(--card-bg, #1a1a1a); transition: transform 0.2s;';
+        
+        card.onmouseover = () => card.style.transform = 'scale(1.05)';
+        card.onmouseout = () => card.style.transform = 'scale(1)';
+        
+        // Imagen
+        const img = document.createElement('img');
+        img.style.cssText = 'width: 100%; height: 270px; object-fit: cover;';
+        img.alt = serie.title || 'Serie';
+        img.src = serie.poster_url || '/static/images/default.jpg';
+        img.onerror = () => { img.src = '/static/images/default.jpg'; };
+        
+        // Título
+        const title = document.createElement('div');
+        title.style.cssText = 'padding: 10px; font-weight: bold; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;';
+        title.textContent = serie.title || 'Sin título';
+        
+        // Info adicional (temporadas)
+        const info = document.createElement('div');
+        info.style.cssText = 'padding: 0 10px 10px; text-align: center; color: #888; font-size: 12px;';
+        const seasons = serie.total_seasons || '?';
+        info.textContent = `${seasons} temporada${seasons !== 1 ? 's' : ''}`;
+
+        card.appendChild(img);
+        card.appendChild(title);
+        card.appendChild(info);
+
+        // Click para navegar a la página de temporadas de la serie
+        // NOTA: Cambiamos a usar JavaScript en lugar de navegación de página
+        // para evitar problemas con las rutas del servidor
+        card.onclick = async () => {
+            try {
+                // Llamar a la API para obtener las temporadas
+                const response = await fetch(`/api/series/${serie.id}/seasons`);
+                if (!response.ok) {
+                    throw new Error('Error al obtener las temporadas');
+                }
+                const data = await response.json();
+                
+                // Llamar a la función del series_view.js para mostrar las temporadas
+                if (window.showSerieDetail) {
+                    window.showSerieDetail(serie.id, data);
+                }
+            } catch (error) {
+                console.error('Error al mostrar las temporadas:', error);
+                // Fallback: navegar a la página si la API falla
+                window.location.href = `/series/${serie.id}/seasons`;
+            }
+        };
+
+        grid.appendChild(card);
+    }
+
+    seriesDiv.appendChild(grid);
 }
 
 window.scrollCarousel = scrollCarousel;

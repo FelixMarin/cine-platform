@@ -54,7 +54,7 @@ from src.adapters.entry.web.routes.catalog_db import (
     init_catalog_db_routes,
 )
 from src.adapters.entry.web.routes.catalog_sync import sync_bp
-from src.adapters.entry.web.routes.series import series_bp
+from src.adapters.entry.web.routes.series import series_bp, series_page_bp
 from src.adapters.entry.web.routes.optimization_history import (
     history_bp,
     init_history_routes,
@@ -70,6 +70,7 @@ def register_all_blueprints(
     """
     # Registrar blueprints
     app.register_blueprint(main_page_bp)  # Página principal y favicon
+    app.register_blueprint(series_page_bp)  # Rutas de páginas de series (antes de otros para evitar conflictos)
     app.register_blueprint(catalog_bp)
     app.register_blueprint(player_bp)
     app.register_blueprint(player_page_bp)  # Página de reproducción
@@ -92,7 +93,8 @@ def register_all_blueprints(
     app.register_blueprint(profile_bp)  # Rutas de perfil de usuario
     app.register_blueprint(history_bp)  # Historial de optimizaciones
     app.register_blueprint(sync_bp)  # Sincronización del catálogo
-    app.register_blueprint(series_bp)  # Rutas de series
+    app.register_blueprint(series_bp)  # Rutas de series (API)
+    # series_page_bp ya registrado arriba
 
     # Log de todas las rutas registradas
     logger.info("=== Rutas registradas ===")
@@ -138,4 +140,6 @@ __all__ = [
     "init_thumbnails_routes",
     "history_bp",
     "init_history_routes",
+    "series_bp",
+    "series_page_bp",
 ]

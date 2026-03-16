@@ -128,8 +128,27 @@ function createMediaCard(media) {
 
     // DECISIÓN CRÍTICA SEGÚN EL TIPO
     if (media.type === 'series') {
-        // Si es serie, va a la vista de temporadas
-        card.onclick = () => window.location = `/series/${media.id}`;
+        // Si es serie, ir a la vista de temporadas usando JavaScript
+        // para evitar problemas con las rutas del servidor
+        card.onclick = async () => {
+            try {
+                // Llamar a la API para obtener las temporadas
+                const response = await fetch(`/api/series/${media.id}/seasons`);
+                if (!response.ok) {
+                    throw new Error('Error al obtener las temporadas');
+                }
+                const data = await response.json();
+                
+                // Llamar a la función del series_view.js para mostrar las temporadas
+                if (window.showSerieDetail) {
+                    window.showSerieDetail(media.id, data);
+                }
+            } catch (error) {
+                console.error('Error al mostrar las temporadas:', error);
+                // Fallback: navegar a la página si la API falla
+                window.location.href = `/series/${media.id}/seasons`;
+            }
+        };
     } else {
         // Si es película (o cualquier otro), va al reproductor
         const playPath = media.file_path || media.path || media.id || media.file;
@@ -347,8 +366,27 @@ async function createSerieCard(episodio, preloadedPoster = null) {
     
     // DECISIÓN CRÍTICA SEGÚN EL TIPO
     if (episodio.type === 'series') {
-        // Si es serie completa, ir a la vista de temporadas
-        card.onclick = () => window.location = `/series/${episodio.id}`;
+        // Si es serie completa, ir a la vista de temporadas usando JavaScript
+        // para evitar problemas con las rutas del servidor
+        card.onclick = async () => {
+            try {
+                // Llamar a la API para obtener las temporadas
+                const response = await fetch(`/api/series/${episodio.id}/seasons`);
+                if (!response.ok) {
+                    throw new Error('Error al obtener las temporadas');
+                }
+                const data = await response.json();
+                
+                // Llamar a la función del series_view.js para mostrar las temporadas
+                if (window.showSerieDetail) {
+                    window.showSerieDetail(episodio.id, data);
+                }
+            } catch (error) {
+                console.error('Error al mostrar las temporadas:', error);
+                // Fallback: navegar a la página si la API falla
+                window.location.href = `/series/${episodio.id}/seasons`;
+            }
+        };
     } else {
         // Si es episodio individual, ir al reproductor
         card.onclick = () => window.playMovie(playPath);
