@@ -53,9 +53,10 @@ class OptimizationHistory(Base):
     # Tracking
     created_at = Column(DateTime, server_default=func.now(), index=True)
 
-    # Relaciones
-    app_user_id = Column(Integer, ForeignKey('app_users.id'), nullable=True)
-    # movie_id = Column(Integer, ForeignKey('movie_metadata.id'), nullable=True)
+    # Nota: app_user_id se guarda como integer simple ya que la tabla app_users
+    # no existe como modelo SQLAlchemy. Si en el futuro se crea la tabla,
+    # se puede agregar la ForeignKey.
+    app_user_id = Column(Integer, nullable=True)
 
     def to_dict(self):
         """Convierte el modelo a diccionario"""

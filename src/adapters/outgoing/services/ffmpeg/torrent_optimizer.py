@@ -155,15 +155,21 @@ class TorrentOptimizer:
         Delega al OptimizationHistoryService.
         """
         progress = self._processes.get(process_id)
-        self._history_service.add_entry(
-            process_id=process_id,
-            final_path=final_path,
-            pending=pending,
-            status=status,
-            error_message=error_message,
-            transmission_client=self.transmission_client,
-            progress=progress,
-        )
+        try:
+            self._history_service.add_entry(
+                process_id=process_id,
+                final_path=final_path,
+                pending=pending,
+                status=status,
+                error_message=error_message,
+                transmission_client=self.transmission_client,
+                progress=progress,
+            )
+        except Exception as e:
+            # Log error pero no fallar la optimización por esto
+            logger.error(
+                f"[TorrentOptimizer] ❌ Error guardando historial para {process_id}: {e}"
+            )
 
     def _get_cleanup_service(self):
         """Obtiene el servicio de limpieza (inyección de dependencia)"""

@@ -97,6 +97,13 @@ class OptimizationHistoryService:
             )
             opt_end = datetime.now() if status == "completed" else None
 
+            # Validar que optimization_start no sea None (es NOT NULL en el modelo)
+            if not opt_start:
+                opt_start = datetime.now()
+                logger.warning(
+                    "[HistoryService] ⚠️ optimization_start es None, usando datetime.now()"
+                )
+
             history_data = {
                 "process_id": process_id,
                 "torrent_id": torrent_id,
@@ -118,6 +125,28 @@ class OptimizationHistoryService:
                 "compression_ratio": compression_ratio,
                 "app_user_id": user_id,
             }
+
+            # Validar campos requeridos antes de guardar
+            if not history_data["torrent_name"]:
+                # Usar el nombre del archivo de entrada como fallback
+                source_path = pending.get("source_path", "")
+                history_data["torrent_name"] = os.path.basename(source_path) or "Unknown"
+                logger.warning(
+                    f"[HistoryService] ⚠️ torrent_name es None, usando fallback: {history_data['torrent_name']}"
+                )
+
+            if not history_data["category"]:
+                history_data["category"] = "unknown"
+                logger.warning(
+                    f"[HistoryService] ⚠️ category es None, usando fallback: unknown"
+                )
+
+            # Validar status (es NOT NULL en el modelo)
+            if not history_data["status"]:
+                history_data["status"] = "completed"
+                logger.warning(
+                    "[HistoryService] ⚠️ status es None, usando fallback: completed"
+                )
 
             SessionLocal = get_session_maker()
             db = SessionLocal()
@@ -163,6 +192,8 @@ class OptimizationHistoryService:
                     db.rollback()
                 except Exception as rollback_err:
                     logger.error(f"[HistoryService] Error en rollback: {rollback_err}")
+            # Re-lanzar la excepción para que el caller pueda manejarla
+            raise
         finally:
             if db:
                 try:
