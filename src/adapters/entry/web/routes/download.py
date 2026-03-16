@@ -694,7 +694,7 @@ def download_test():
 @require_role("admin")
 def search_page():
     """Página de búsqueda"""
-    logger.debug("[PAGE] Renderizando página de búsqueda")
+    logger.info("[PAGE] Renderizando página de búsqueda")
     return render_template("search.html")
 
 
@@ -708,7 +708,7 @@ def downloads_page():
         )
         return redirect(url_for("main_page.index"))
 
-    logger.debug("[PAGE] Renderizando página de descargas")
+    logger.info("[PAGE] Renderizando página de descargas")
     return render_template("downloads.html")
 
 

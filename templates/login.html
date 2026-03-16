@@ -39,8 +39,6 @@
             scopes: 'openid profile read write'
         };
         
-        console.log('🔧 App config:', APP_CONFIG);
-        
         // Inicializar cliente OAuth2
         OAuthClient.init({
             serverUrl: APP_CONFIG.oauth2Url,
@@ -108,10 +106,8 @@
             try {
                 // Generar code_verifier y code_challenge
                 const codeVerifier = generateCodeVerifier();
-                console.log('✅ Code verifier generado:', codeVerifier.substring(0, 20) + '...');
                 
                 const codeChallenge = await generateCodeChallenge(codeVerifier);
-                console.log('✅ Code challenge generado:', codeChallenge.substring(0, 20) + '...');
                 
                 // Generar state aleatorio para CSRF
                 const actualState = Math.random().toString(36).substring(2) + Date.now().toString(36);
@@ -119,9 +115,6 @@
                 // Guardar en sessionStorage
                 sessionStorage.setItem('oauth_code_verifier', codeVerifier);
                 sessionStorage.setItem('oauth_state', actualState);
-                
-                console.log('📦 Code verifier guardado en sessionStorage');
-                console.log('📦 State guardado:', actualState);
                 
                 // 🔴 CONSTRUIR URL CORRECTA PARA OAUTH2 AUTHORIZE
                 const authUrl = new URL(APP_CONFIG.oauth2Url + '/oauth2/authorize');
@@ -132,8 +125,6 @@
                 authUrl.searchParams.set('code_challenge', codeChallenge);
                 authUrl.searchParams.set('code_challenge_method', 'S256');
                 authUrl.searchParams.set('state', actualState);
-                
-                console.log('➡️ Redirigiendo a:', authUrl.toString());
                 
                 // Redirigir al servidor OAuth2
                 window.location.href = authUrl.toString();
@@ -173,8 +164,6 @@
                     return;
                 }
                 
-                console.log('📦 Code verifier recuperado de sessionStorage');
-                
                 // Mostrar estado de carga
                 const container = document.getElementById('login-container');
                 container.innerHTML = '<h2 class="menu-title-full">Cine<span>Platform</span></h2><p>Completando autenticación...</p>';
@@ -199,7 +188,6 @@
                     return response.json();
                 })
                 .then((tokens) => {
-                    console.log('✅ Tokens recibidos:', tokens);
                     
                     // Guardar tokens en localStorage
                     localStorage.setItem('access_token', tokens.access_token);
@@ -228,7 +216,6 @@
             const btn = document.getElementById('oauth-login-btn');
             if (btn) {
                 btn.addEventListener('click', startOAuth2Flow);
-                console.log('✅ Event listener añadido al botón OAuth');
             } else {
                 console.error('❌ Botón OAuth no encontrado');
             }

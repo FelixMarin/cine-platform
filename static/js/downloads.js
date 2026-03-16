@@ -374,7 +374,7 @@ function renderSearchResults(results) {
  */
 function selectResult(index) {
     const movie = state.searchResults[index];
-    console.log('🎬 Película seleccionada:', movie);
+    
     if (!movie) return;
 
     // Mostrar modal de descarga
@@ -480,22 +480,22 @@ async function downloadFromUrl(url, category) {
  * Descarga torrent seleccionado
  */
 async function downloadSelected() {
-    console.log('🔍 downloadSelected() ejecutándose');
+    
     
     const urlInput = document.getElementById('modal-torrent-url');
-    console.log('📌 urlInput:', urlInput);
+    
     
     const url = urlInput?.value?.trim();
-    console.log('📌 url:', url);
+    
     
     const resultId = document.getElementById('download-result-id')?.value;
-    console.log('📌 resultId:', resultId);
+    
     
     const categorySelect = document.getElementById('modal-category-select');
-    console.log('📌 categorySelect:', categorySelect);
+    
     
     const category = categorySelect?.value;
-    console.log('📌 category:', category);
+    
 
     // Validación: URL requerida
     if (!url) {
@@ -568,17 +568,17 @@ async function downloadSelected() {
  */
 async function refreshDownloads() {
     try {
-        console.log('📥 Obteniendo descargas activas...');
+        
         const response = await fetch(CONFIG.endpoints.downloadsActive);
         const data = await response.json();
 
-        console.log('📥 Datos recibidos:', data);
+        
 
         if (response.ok && data.success !== false) {
             state.downloads = data.downloads || [];
             state.activeDownloadsCount = data.stats?.active_count || 0;
-            console.log('📥 Descargas en estado:', state.downloads);
-            console.log('📥 activeDownloadsCount:', state.activeDownloadsCount);
+            
+            
             renderDownloads();
         } else {
             console.error('❌ Error en respuesta:', data);
@@ -592,9 +592,9 @@ async function refreshDownloads() {
  * Renderiza la lista de descargas activas
  */
 function renderDownloads() {
-    console.log('[DEBUG] renderDownloads - INICIO');
-    console.log('[DEBUG] state.optimizations actual:', state.optimizations.map(o => ({id: o.process_id, status: o.status, torrent_id: o.torrent_id})));
-    console.log('[DEBUG] state.downloads:', state.downloads.map(d => ({id: d.id, title: d.title})));
+    
+    
+    
     
     const container = document.getElementById('downloads-list');
 
@@ -611,15 +611,6 @@ function renderDownloads() {
     }
 
     container.innerHTML = state.downloads.map(download => {
-        // Logs de depuración
-        console.log('📊 Renderizando torrent:', {
-            id: download.id,
-            title: download.title,
-            progress: download.progress,
-            status: download.status,
-            status_display: download.status_display
-        });
-
         // Usar siempre status_display (string) si está disponible
         const statusValue = download.status_display || download.status || 'unknown';
         const progress = download.progress || 0;
@@ -643,7 +634,7 @@ function renderDownloads() {
         }
 
         // Log específico para la barra
-        console.log(`📊 Barra ${download.id}: progress=${progress} (tipo=${typeof progress}), width=${progress}%`);
+        
 
         return `
             <div class="process-card" data-id="${download.id}">
@@ -678,10 +669,10 @@ function renderDownloads() {
                             const isOptimized = hasCompletedOptimization(download.id);
                             const optError = getOptimizationError(download.id);
                             
-                            console.log(`[DEBUG] Torrent ${download.id} (${download.title}): opt encontrado?`, optState ? `SÍ - status:${optState.status}, torrent_id:${optState.torrent_id}` : 'NO');
-                            console.log(`[DEBUG]   hasActiveOptimization: ${isOptimizing}`);
-                            console.log(`[DEBUG]   hasCompletedOptimization: ${isOptimized}`);
-                            console.log(`[DEBUG]   botón debería ser: ${isOptimizing ? 'Optimizing...' : isOptimized ? 'Optimized' : 'GPU Optimize'}`);
+                            
+                            
+                            
+                            
                             
                             if (isOptimizing) {
                                 return `<button class="btn-process btn-optimize optimizing" 
@@ -850,12 +841,12 @@ async function removeTorrent(id, deleteFiles = false) {
  * para mantener sincronizado el estado global
  */
 async function refreshOptimizations() {
-    console.log('[DEBUG] refreshOptimizations - INICIO');
-    console.log('[DEBUG] state.optimizations ANTES:', JSON.stringify(state.optimizations.map(o => ({id: o.process_id, status: o.status, torrent_id: o.torrent_id}))));
+    
+    
     
     try {
         // Usar el endpoint correcto de torrent_optimize
-        console.log('[DEBUG] Llamando a /api/optimize-torrent/active');
+        
         const response = await fetch(CONFIG.endpoints.torrentOptimizeActive, {
             credentials: 'include'
         });
@@ -871,19 +862,19 @@ async function refreshOptimizations() {
         }
         
         const data = await response.json();
-        console.log('[DEBUG] Respuesta de /active:', data);
-        console.log('[DEBUG] optimizations recibidas:', data.optimizations?.map(o => ({id: o.process_id, status: o.status, torrent_id: o.torrent_id})));
+        
+        
 
         if (response.ok && data.success) {
             // El backend devuelve: { success: true, active_count: N, optimizations: [...] }
             const basicOptimizations = data.optimizations || [];
             
             // Obtener información detallada de cada optimización
-            console.log('[DEBUG] Obteniendo detalles de', basicOptimizations.length, 'optimizaciones');
+            
             const detailedOptimizations = await Promise.all(
                 basicOptimizations.map(async (opt) => {
                     try {
-                        console.log('[DEBUG] Obteniendo status para:', opt.process_id);
+                        
                         const statusResponse = await fetch(
                             CONFIG.endpoints.torrentOptimizeStatus(opt.process_id),
                             { credentials: 'include' }
@@ -896,7 +887,7 @@ async function refreshOptimizations() {
                         }
                         
                         const statusData = await statusResponse.json();
-                        console.log('[DEBUG] Status para', opt.process_id, ':', statusData);
+                        
                         if (statusResponse.ok && statusData.success) {
                             return {
                                 ...opt,
@@ -912,12 +903,12 @@ async function refreshOptimizations() {
                 })
             );
             
-            console.log('[DEBUG] detailed optimizations:', detailedOptimizations.map(o => ({id: o.process_id, status: o.status, progress: o.progress, torrent_id: o.torrent_id})));
+            
             
             // ACTUALIZAR ESTADO GLOBAL - esto es crítico para la sincronización
-            console.log('[DEBUG] ACTUALIZANDO state.optimizations DE', state.optimizations.length, 'a', detailedOptimizations.length);
+            
             state.optimizations = detailedOptimizations;
-            console.log('[DEBUG] state.optimizations DESPUÉS:', JSON.stringify(state.optimizations.map(o => ({id: o.process_id, status: o.status, torrent_id: o.torrent_id}))));
+            
             
             // Actualizar contador en header
             const countElement = document.getElementById('active-optimizations-count');
@@ -927,15 +918,15 @@ async function refreshOptimizations() {
             
             // SIEMPRE renderizar downloads para actualizar botones
             // Esto evita el parpadeo al mantener los botones sincronizados
-            console.log('[DEBUG] activeTab actual:', state.activeTab);
+            
             if (state.activeTab === 'downloads') {
-                console.log('[DEBUG] Llamando a renderDownloads()');
+                
                 renderDownloads();
             }
             
             // Solo renderizar pestaña de optimizaciones si está activa
             if (state.activeTab === 'optimizations') {
-                console.log('[DEBUG] Llamando a renderOptimizations()');
+                
                 renderOptimizations();
             }
         } else {
@@ -1145,21 +1136,21 @@ async function cancelOptimization(id) {
  * @returns {Object|null} - Objeto con status y process_id o null si no hay optimización
  */
 function getOptimizationState(torrentId) {
-    console.log(`[DEBUG] getOptimizationState(${torrentId}) - Buscando en state.optimizations (${state.optimizations.length} elementos)`);
+    
     
     if (!state.optimizations || !torrentId) {
-        console.log(`[DEBUG] getOptimizationState - Retornando null (state.optimizations vacío o torrentId inválido)`);
+        
         return null;
     }
     
     // Buscar optimización activa para este torrent
     const result = state.optimizations.find(opt => {
         const match = opt.torrent_id == torrentId || opt.torrent_id === torrentId;
-        console.log(`[DEBUG] Comparando torrent_id=${opt.torrent_id} con ${torrentId}: ${match}`);
+        
         return match;
     });
     
-    console.log(`[DEBUG] getOptimizationState(${torrentId}) - Resultado:`, result ? {process_id: result.process_id, status: result.status, torrent_id: result.torrent_id} : 'null');
+    
     return result || null;
 }
 
@@ -1246,16 +1237,16 @@ const HISTORY_PER_PAGE = 20;
  */
 async function loadHistory(page = 1) {
     try {
-        console.log('[History] Cargando historial de optimizaciones...');
+        
         
         const url = `${CONFIG.endpoints.optimizationHistory}?limit=${HISTORY_PER_PAGE}&offset=${(page-1)*HISTORY_PER_PAGE}`;
-        console.log('[History] URL de la petición:', url);
+        
         
         const response = await fetch(url, {
             credentials: 'include'
         });
         
-        console.log('[History] Status de respuesta:', response.status);
+        
         
         // Manejar 401 - sesión expirada
         if (response.status === 401) {
@@ -1272,7 +1263,7 @@ async function loadHistory(page = 1) {
             historyTotalEntries = data.total;
             historyCurrentPage = page;
             renderHistoryTable(historyData, page);
-            console.log(`[History] ✅ Historial cargado: ${data.total} entradas`);
+            
         } else {
             console.error('[History] Error cargando historial:', data.error);
             // Fallback a localStorage
@@ -1436,7 +1427,7 @@ async function deleteHistoryEntry(entryId) {
         const data = await response.json();
         
         if (data.success) {
-            console.log(`[History] Entrada ${entryId} eliminada`);
+            
             loadHistory(historyCurrentPage); // Recargar página actual
         } else {
             alert('Error al eliminar: ' + data.error);
@@ -1533,7 +1524,7 @@ function updateHeaderStats() {
                 return status === 4 || status === 6 || status === 'downloading' || status === 'seeding';
             }).length;
         }
-        console.log('[DEBUG] updateHeaderStats - Descargas activas:', activeCount, 'Total:', state.downloads?.length);
+        
         downloadsEl.textContent = activeCount;
     }
     if (optimizationsEl) {
@@ -1574,8 +1565,8 @@ function stopPolling() {
  * AHORA: Siempre llama a refreshOptimizations para mantener sincronizado el estado
  */
 async function pollAll() {
-    console.log('[DEBUG] POLLING - ejecutando refreshDownloads y refreshOptimizations');
-    console.log('[DEBUG] POLLING - activeTab:', state.activeTab);
+    
+    
     
     // SIEMPRE refrescar descargas para actualizar el contador del header
     // No depende de la pestaña activa
@@ -1603,7 +1594,7 @@ function performSearch() {
 
 function startUrlDownload() {
     const urlInput = document.getElementById('torrent-url');
-    console.log('🔍 URL input:', urlInput);
+    
     
     if (!urlInput) {
         showNotification('Error', 'Campo de URL no encontrado', 'error');
@@ -1611,7 +1602,7 @@ function startUrlDownload() {
     }
     
     const url = urlInput.value.trim();
-    console.log('📌 URL:', url);
+    
     
     if (!url) {
         showNotification('Error', 'Por favor ingresa una URL', 'error');
@@ -1641,7 +1632,7 @@ function handleSearchKeypress(event) {
  * Inicializa la página
  */
 function initDownloadsPage() {
-    console.log('Inicializando página de descargas...');
+    
 
     // Cargar descargas inmediatamente para actualizar el contador del header
     refreshDownloads();
@@ -1724,7 +1715,7 @@ function initDownloadsPage() {
             const torrentName = decodeURIComponent(btn.dataset.torrentName || '');
             const torrentSize = btn.dataset.torrentSize;
             
-            console.log('[Downloads] Botón optimize clickeado:', torrentId, torrentName);
+            
             
             // Verificar que TorrentOptimize esté disponible
             if (typeof TorrentOptimize !== 'undefined' && TorrentOptimize.showOptimizeModal) {
@@ -1745,7 +1736,7 @@ function initDownloadsPage() {
         const checkTorrentOptimize = setInterval(() => {
             if (typeof TorrentOptimize !== 'undefined') {
                 clearInterval(checkTorrentOptimize);
-                console.log('[Downloads] TorrentOptimize cargado correctamente');
+                
                 // Sincronizar estados de botones al cargar
                 if (TorrentOptimize.syncWithActiveOptimizations) {
                     TorrentOptimize.syncWithActiveOptimizations();
@@ -1773,7 +1764,7 @@ function initDownloadsPage() {
     // Cargar historial
     loadHistory();
 
-    console.log('Página de descargas inicializada');
+    
 }
 
 /**

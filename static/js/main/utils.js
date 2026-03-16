@@ -22,7 +22,7 @@ function playMovie(path) {
     for (const prefix of commonPrefixes) {
         if (path.startsWith(prefix)) {
             relativePath = path.substring(prefix.length);
-            console.log('🎬 Convertida ruta absoluta a relativa:', path, '->', relativePath);
+            
             break;
         }
     }

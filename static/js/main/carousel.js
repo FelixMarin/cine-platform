@@ -4,7 +4,7 @@ let seriePosterCache = {};
 // Función para limpiar pósters en memoria (para uso manual si es necesario)
 function clearSeriePosterCache() {
     seriePosterCache = {};
-    console.log('🧹 Caché de pósters de series en memoria limpiado');
+    
 }
 
 window.clearSeriePosterCache = clearSeriePosterCache;
@@ -46,7 +46,7 @@ async function renderMoviesByCategory(categoriasLista) {
         return;
     }
 
-    console.log('Orden de categorías recibido:', categoriasLista.map(([cat]) => cat));
+    
 
     for (const [categoria, peliculas] of categoriasLista) {
         if (!peliculas || peliculas.length === 0) continue;
@@ -136,11 +136,6 @@ async function preloadSeriesPosters(series) {
         }
     }
 
-    const seriesCount = Object.keys(uniqueSeries).length;
-    if (seriesCount > 0) {
-        console.debug(`🔄 CatalogService: Precargando pósters para ${seriesCount} series`);
-    }
-
     // Obtener referencia al CatalogService
     const catalogService = window.CatalogService || null;
 
@@ -160,9 +155,6 @@ async function preloadSeriesPosters(series) {
                     
                     if (matchingSeries && matchingSeries.imdb_id) {
                         posterUrl = await catalogService.getPoster(matchingSeries.imdb_id);
-                        if (posterUrl) {
-                            console.debug(`🖼️ CatalogService: Póster para "${cleanName}" obtenido desde BBDD`);
-                        }
                     }
                 } catch (e) {
                     console.warn('⚠️ CatalogService: Error obteniendo póster de BBDD:', e);
@@ -171,7 +163,6 @@ async function preloadSeriesPosters(series) {
 
             // Fallback a OMDB si no se encontró en BBDD
             if (!posterUrl) {
-                console.debug(`⚠️ CatalogService: Póster no encontrado en BBDD para "${cleanName}", usando OMDB`);
                 try {
                     const response = await fetch(`/api/serie-poster?name=${encodeURIComponent(cleanName)}`);
                     if (response.ok) {
@@ -190,10 +181,6 @@ async function preloadSeriesPosters(series) {
                 console.debug(`📺 Póster precargado para: ${cleanName}`);
             }
         }
-    }
-
-    if (seriesCount > 0) {
-        console.debug(`✅ CatalogService: Precarga de pósters completada`);
     }
 }
 
@@ -324,7 +311,7 @@ window.renderSeries = renderSeries;
         LEGACY_KEYS.forEach(key => {
             if (localStorage.getItem(key)) {
                 localStorage.removeItem(key);
-                console.log(`🧹 Limpiado legacy localStorage: ${key}`);
+                
             }
         });
 

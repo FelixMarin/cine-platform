@@ -87,7 +87,7 @@ def _get_cached_translation(plot: str, title: str = None) -> Optional[str]:
     
     if cache_key in _translated_cache:
         text_hash = _get_text_hash(plot)
-        logger.debug(f"✅ Translation cache HIT para '{title}' (hash: {text_hash})")
+        logger.info(f"✅ Translation cache HIT para '{title}' (hash: {text_hash})")
         return _translated_cache[cache_key]
     
     return None

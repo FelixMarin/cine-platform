@@ -127,7 +127,7 @@ class FilesystemMovieRepository(IMovieRepository):
             }
             with open(self._index_file, 'w') as f:
                 json.dump(data, f)
-            logger.debug("Índice persistente guardado")
+            logger.info("Índice persistente guardado")
         except Exception as e:
             logger.warning(f"No se pudo guardar índice persistente: {e}")
     
@@ -193,7 +193,7 @@ class FilesystemMovieRepository(IMovieRepository):
         else:
             scan_folder = self._base_folder
         
-        logger.debug(f"Escaneando carpeta: {scan_folder}")
+        logger.info(f"Escaneando carpeta: {scan_folder}")
         
         # Usar os.scandir en lugar de os.walk para mejor rendimiento
         try:

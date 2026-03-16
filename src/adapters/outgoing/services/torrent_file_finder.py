@@ -143,7 +143,7 @@ class TorrentFileFinder:
             if os.path.exists(base):
                 try:
                     files = os.listdir(base)
-                    logger.debug(f"[FileFinder] Archivos en {base}: {files[:10]}...")
+                    logger.info(f"[FileFinder] Archivos en {base}: {files[:10]}...")
                 except Exception as e:
                     logger.warning(f"[FileFinder] Error listando {base}: {e}")
 

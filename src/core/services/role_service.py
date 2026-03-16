@@ -63,9 +63,9 @@ class RoleService:
             if not current_role:
                 current_role = jwt_payload.get('role')
                 
-            logger.debug(f"Roles extraídos del JWT: {roles}")
+            logger.info(f"Roles extraídos del JWT: {roles}")
         except Exception as e:
-            logger.debug(f"Error decodificando JWT: {e}")
+            logger.info(f"Error decodificando JWT: {e}")
         
         return roles, current_role
     

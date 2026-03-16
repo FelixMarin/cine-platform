@@ -151,6 +151,6 @@ function showStatus(message, type = 'info') {
     if (typeof showNotification === 'function') {
         showNotification('Búsqueda', message, type);
     } else {
-        console.log(`[${type}] ${message}`);
+        
     }
 }

@@ -143,7 +143,7 @@ export async function cleanupOldEntries(cacheName, maxEntries = 50) {
             await cache.delete(entry.request);
         }
 
-        console.log(`🧹 Limpiadas ${toDelete.length} entradas antiguas de ${cacheName}`);
+        
         return toDelete.length;
     } catch (error) {
         console.error('Error limpiando cache:', error);
@@ -161,7 +161,7 @@ export async function clearAllCaches() {
     for (const name of cacheNames) {
         try {
             await caches.delete(name);
-            console.log(`🗑️ Cache ${name} eliminado`);
+            
         } catch (error) {
             console.error(`Error eliminando cache ${name}:`, error);
         }

@@ -92,7 +92,7 @@ const TorrentOptimize = (function () {
             const result = await response.json();
 
             if (result.success && result.process_id) {
-                console.log(`[TorrentOptimize] Optimización iniciada: ${result.process_id}`);
+                
             }
 
             return result;
@@ -299,12 +299,12 @@ const TorrentOptimize = (function () {
      * Envía la solicitud de optimización
      */
     async function submitOptimization() {
-        console.log('[DEBUG] startOptimization - INICIO');
+        
         const torrentId = document.getElementById('optimize-torrent-id').value;
         const category = document.getElementById('optimize-category').value;
         let filename = document.getElementById('optimize-torrent-name').textContent;
 
-        console.log('[DEBUG] submitOptimization - torrentId:', torrentId, 'category:', category, 'filename:', filename);
+        
 
         if (!torrentId) {
             alert('ID de torrent inválido');
@@ -321,11 +321,11 @@ const TorrentOptimize = (function () {
             const ext = extensions[torrentId];
             if (ext) {
                 filename = filename + ext;
-                console.log('[TorrentOptimize] Extensión añadida:', filename);
+                
             }
         }
 
-        console.log('[TorrentOptimize] Enviando optimización:', { torrentId, category, filename });
+        
 
         const btn = document.getElementById('btn-start-optimize');
         btn.disabled = true;
@@ -345,7 +345,7 @@ const TorrentOptimize = (function () {
             const result = await response.json();
 
             if (result.success) {
-                console.log(`[TorrentOptimize] Proceso iniciado: ${result.process_id}`);
+                
 
                 // Cerrar modal inmediatamente
                 closeModal();
@@ -472,7 +472,7 @@ const TorrentOptimize = (function () {
         listActive().then(result => {
             if (result.success && typeof refreshOptimizations === 'function') {
                 // Actualizar el estado global si es necesario
-                console.log('[TorrentOptimize] Optimizaciones activas:', result.active_count);
+                
             }
         });
     }
@@ -591,7 +591,7 @@ const TorrentOptimize = (function () {
      * Inicializa el módulo
      */
     function init() {
-        console.log('[TorrentOptimize] Inicializado');
+        
 
         // Agregar estilos si no existen
         addStyles();
@@ -982,7 +982,7 @@ const TorrentOptimize = (function () {
      */
     async function restoreButtonStates() {
         const processes = getStoredProcesses();
-        console.log('[TorrentOptimize] Restaurando estados de botones:', Object.keys(processes));
+        
 
         for (const [torrentId, data] of Object.entries(processes)) {
             try {
@@ -1156,4 +1156,4 @@ const TorrentOptimize = (function () {
 
 // Exponer globalmente para que downloads.js pueda usarlo
 window.TorrentOptimize = TorrentOptimize;
-console.log('✅ TorrentOptimize expuesto globalmente');
+

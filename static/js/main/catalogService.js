@@ -30,7 +30,6 @@ const CatalogService = {
         // Verificar caché en memoria primero
         if (this._memoryCache.posters.has(imdbId)) {
             const cachedUrl = this._memoryCache.posters.get(imdbId);
-            console.debug(`📦 CatalogService: Póster desde caché en memoria para ${imdbId}`);
             return cachedUrl;
         }
 
@@ -50,7 +49,6 @@ const CatalogService = {
         const now = Date.now();
         if (this._memoryCache.movies.data && 
             (now - this._memoryCache.movies.timestamp) < this._CACHE_TTL) {
-            console.debug('📦 CatalogService: Movies desde caché en memoria');
             return this._memoryCache.movies.data;
         }
 
@@ -75,7 +73,6 @@ const CatalogService = {
         const now = Date.now();
         if (this._memoryCache.series.data && 
             (now - this._memoryCache.series.timestamp) < this._CACHE_TTL) {
-            console.debug('📦 CatalogService: Series desde caché en memoria');
             return this._memoryCache.series.data;
         }
 
@@ -143,7 +140,7 @@ const CatalogService = {
         this._memoryCache.series.data = null;
         this._memoryCache.series.timestamp = 0;
         this._memoryCache.posters.clear();
-        console.log('🧹 CatalogService: Caché en memoria invalidado');
+        
     }
 };
 
@@ -162,7 +159,7 @@ const CatalogService = {
         LEGACY_KEYS.forEach(key => {
             if (localStorage.getItem(key)) {
                 localStorage.removeItem(key);
-                console.log(`🧹 Limpiado legacy key: ${key}`);
+                
             }
         });
 

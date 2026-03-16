@@ -440,5 +440,5 @@ function escapeHtml(text) {
 
 // Inicializar
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('Profile module initialized');
+    
 });

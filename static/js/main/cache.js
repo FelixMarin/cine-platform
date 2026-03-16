@@ -136,8 +136,8 @@ window.checkWebPSupport = checkWebPSupport;
             try {
                 if (isApi) {
                     const cachedResponse = await apiCacheGet(url);
-                    if (cachedResponse) { console.log('📦 API Cache HIT:', url); return cachedResponse; }
-                    console.log('🌐 API Cache MISS:', url);
+                    if (cachedResponse) {  return cachedResponse; }
+                    
                     const networkResponse = await originalFetch(input, init);
                     if (networkResponse.ok) apiCacheSet(url, networkResponse.clone());
                     return networkResponse;
@@ -147,8 +147,8 @@ window.checkWebPSupport = checkWebPSupport;
                     else if (url.includes('/api/movie-thumbnail')) imageType = 'thumbnail';
 
                     const cached = await imageCacheGet(url);
-                    if (cached) { console.log('📦 Image Cache HIT:', url); return new Response(cached.blob, { status: 200, headers: { 'Content-Type': 'image/jpeg' } }); }
-                    console.log('🌐 Image Cache MISS:', url);
+                    if (cached) {  }
+                    
                     const networkResponse = await originalFetch(input, init);
                     if (networkResponse.ok) imageCacheSet(url, networkResponse.clone(), imageType);
                     return networkResponse;
@@ -171,7 +171,7 @@ window.checkWebPSupport = checkWebPSupport;
                 if (url && url !== '/static/images/default.jpg' && !url.startsWith('data:')) {
                     imageCacheGet(url).then(cached => {
                         if (cached && cached.blob) {
-                            console.log('📦 Imagen desde caché:', url);
+                            
                             originalImageSrc.set.call(img, cached.url);
                         } else {
                             originalImageSrc.set.call(img, url);
@@ -199,7 +199,7 @@ window.checkWebPSupport = checkWebPSupport;
         setupFetchInterceptor();
         setupImageLoader();
         initialized = true;
-        console.log('✅ CacheManager inicializado');
+        
     }
 
     window.CacheManager = { init, getCachedImageUrl, preloadImages, invalidateApiCache, clearAllCaches, getStats };

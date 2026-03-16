@@ -104,7 +104,7 @@ async function checkConnection() {
         const data = await response.json();
 
         // Mostrar estado de conexión (opcional)
-        console.log('Estado de servicios:', data.services);
+        
 
         if (!data.success) {
             showStatus('Error de conexión con los servicios de descarga', 'error');

@@ -60,7 +60,7 @@ function updateStatus() {
             window.optimizerUI.resetAfterCompletion('sin video');
         }
     }).fail(function () {
-        console.log('Error conectando con el servidor');
+        
     });
 }
 

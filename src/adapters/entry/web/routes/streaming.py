@@ -32,7 +32,7 @@ def stream_video(filename):
     logger = logging.getLogger(__name__)
 
     start_total = time.time()
-    logger.debug(f"🎬 Streaming iniciado para: {filename}")
+    logger.info(f"🎬 Streaming iniciado para: {filename}")
 
     # Obtener la ruta del archivo - probar múltiples configuraciones
     movies_folder = os.environ.get("MOVIES_FOLDER", "/mnt/DATA_2TB/audiovisual")
@@ -41,7 +41,7 @@ def stream_video(filename):
     import urllib.parse
 
     filename = urllib.parse.unquote(filename)
-    logger.debug(f"📄 filename decodificado: {filename}")
+    logger.info(f"📄 filename decodificado: {filename}")
 
     # Verificar si es una ruta válida existente
     file_path = None
@@ -62,7 +62,7 @@ def stream_video(filename):
         logger.error(f"❌ Archivo no encontrado: {filename}")
         return "File not found", 404
 
-    logger.debug(f"✅ Archivo encontrado: {file_path}")
+    logger.info(f"✅ Archivo encontrado: {file_path}")
 
     if not os.path.exists(file_path):
         return "File not found", 404
@@ -100,7 +100,7 @@ def stream_video(filename):
         }
 
         total_time = time.time() - start_total
-        logger.debug(f"⏱️ Range request TOTAL: {total_time:.3f}s")
+        logger.info(f"⏱️ Range request TOTAL: {total_time:.3f}s")
 
         return Response(data, status=206, headers=headers)
     else:
@@ -164,7 +164,7 @@ def stream_video_by_path(file_path):
 
     if clean_path.startswith("data/movies/"):
         clean_path = clean_path[len("data/movies/") :]
-        logger.debug(f"Ruta limpiada: '{original_path}' → '{clean_path}'")
+        logger.info(f"Ruta limpiada: '{original_path}' → '{clean_path}'")
 
     if not clean_path.startswith("/"):
         full_path = os.path.join(movies_base, clean_path)
@@ -174,8 +174,8 @@ def stream_video_by_path(file_path):
     full_path = os.path.normpath(full_path)
 
     logger.info(f"🎬 Streaming directo por ruta: {original_path}")
-    logger.debug(f"📁 Ruta limpia: {clean_path}")
-    logger.debug(f"📁 Ruta completa: {full_path}")
+    logger.info(f"📁 Ruta limpia: {clean_path}")
+    logger.info(f"📁 Ruta completa: {full_path}")
 
     if not os.path.exists(full_path):
         logger.warning(f"⚠️ Archivo no encontrado: {full_path}")
@@ -187,7 +187,7 @@ def stream_video_by_path(file_path):
     start_size = time.time()
     file_size = os.path.getsize(full_path)
     size_time = time.time() - start_size
-    logger.debug(f"⏱️ File size: {size_time:.3f}s - {file_size / 1024 / 1024:.2f}MB")
+    logger.info(f"⏱️ File size: {size_time:.3f}s - {file_size / 1024 / 1024:.2f}MB")
 
     # Obtener rango de bytes si existe
     range_header = request.headers.get("Range")
@@ -205,7 +205,7 @@ def stream_video_by_path(file_path):
         # Calcular tamaño del chunk
         chunk_size = end - start + 1
 
-        logger.debug(
+        logger.info(
             f"📡 Range: {start}-{end} ({chunk_size / 1024 / 1024:.1f}MB) - Buffer: {BUFFER_SIZE / 1024}KB"
         )
 
@@ -290,7 +290,7 @@ def stream_video_by_id(movie_id):
     start_size = time.time()
     file_size = os.path.getsize(file_path)
     size_time = time.time() - start_size
-    logger.debug(f"⏱️ File size: {size_time:.3f}s - {file_size / 1024 / 1024:.2f}MB")
+    logger.info(f"⏱️ File size: {size_time:.3f}s - {file_size / 1024 / 1024:.2f}MB")
 
     # Obtener rango de bytes si existe
     range_header = request.headers.get("Range")
@@ -308,7 +308,7 @@ def stream_video_by_id(movie_id):
         # Calcular tamaño del chunk
         chunk_size = end - start + 1
 
-        logger.debug(
+        logger.info(
             f"📡 Range: {start}-{end} ({chunk_size / 1024 / 1024:.1f}MB) - Buffer: {BUFFER_SIZE / 1024}KB"
         )
 
@@ -443,7 +443,7 @@ def stream_episode_by_id(episode_id):
     start_size = time.time()
     file_size = os.path.getsize(file_path)
     size_time = time.time() - start_size
-    logger.debug(f"⏱️ File size: {size_time:.3f}s - {file_size / 1024 / 1024:.2f}MB")
+    logger.info(f"⏱️ File size: {size_time:.3f}s - {file_size / 1024 / 1024:.2f}MB")
 
     # Obtener rango de bytes si existe
     range_header = request.headers.get("Range")
@@ -461,7 +461,7 @@ def stream_episode_by_id(episode_id):
         # Calcular tamaño del chunk
         chunk_size = end - start + 1
 
-        logger.debug(f"📡 Range: {start}-{end} ({chunk_size / 1024 / 1024:.1f}MB)")
+        logger.info(f"📡 Range: {start}-{end} ({chunk_size / 1024 / 1024:.1f}MB)")
 
         # Generador con buffer grande para streaming eficiente
         def generate_large_chunks():

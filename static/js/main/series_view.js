@@ -18,7 +18,7 @@ async function loadAllSeries(forceRefresh = false) {
     }
 
     try {
-        console.log('📺 Cargando series desde API... (forceRefresh=' + forceRefresh + ')');
+        
         
         // Intentar primero con /api/catalog/series
         let response = await fetch('/api/catalog/series?limit=100&auto_sync=false');
@@ -35,12 +35,12 @@ async function loadAllSeries(forceRefresh = false) {
         }
         
         const data = await response.json();
-        console.log('📺 Datos recibidos de API:', data);
+        
         
         seriesDataCache.series = data.series || [];
         seriesDataCache.timestamp = now;
         
-        console.log('📺 Series cacheadas:', seriesDataCache.series.length);
+        
         return seriesDataCache.series;
     } catch (error) {
         console.error('❌ Error cargando series:', error);
@@ -53,7 +53,7 @@ function invalidateSeriesCache() {
     seriesDataCache.series = [];
     seriesDataCache.timestamp = 0;
     seriesDataCache.seriesDetail = {};
-    console.log('🧹 Caché de series invalidado');
+    
 }
 
 // Exponer funciones globalmente
@@ -347,7 +347,7 @@ function initSeriesView() {
 // Detectar URL y cargar datos apropiados para series
 function detectSeriesRoute() {
     const path = window.location.pathname;
-    console.log('🔍 Detectando ruta de series:', path);
+    
     
     // Verificar si es una ruta de serie: /series/{id}/seasons o /series/{id}/season/{num}
     const seasonsMatch = path.match(/^\/series\/(\d+)\/seasons$/);
@@ -355,14 +355,14 @@ function detectSeriesRoute() {
     
     if (seasonsMatch) {
         const serieId = parseInt(seasonsMatch[1]);
-        console.log('📺 Navegando a temporadas de serie:', serieId);
+        
         // Mostrar temporadas de la serie
         showSerieDetail(serieId, 'Cargando...');
         return true;
     } else if (seasonMatch) {
         const serieId = parseInt(seasonMatch[1]);
         const seasonNum = parseInt(seasonMatch[2]);
-        console.log('📺 Navegando a episodios de temporada:', serieId, 'temporada', seasonNum);
+        
         // Mostrar episodios de la temporada
         showSeasonEpisodes(serieId, seasonNum, 'Cargando...');
         return true;
@@ -378,4 +378,4 @@ window.showSeasonEpisodes = showSeasonEpisodes;
 window.initSeriesView = initSeriesView;
 window.detectSeriesRoute = detectSeriesRoute;
 
-console.log('✅ series_view.js cargado');
+

@@ -266,11 +266,11 @@ class TransmissionClient:
         Raises:
             TransmissionError: Si hay un error en la comunicación
         """
-        logger.debug(f"[Transmission] 📤 Petition {method}...")
+        logger.info(f"[Transmission] 📤 Petition {method}...")
 
         # Obtener session ID si no hay uno
         if not self._session_id:
-            logger.debug("[Transmission] 🔑 No session ID, obtaining...")
+            logger.info("[Transmission] 🔑 No session ID, obtaining...")
             self._get_session_id()
 
         payload = {"method": method, "arguments": arguments or {}}
@@ -286,7 +286,7 @@ class TransmissionClient:
                 response = self._session.post(
                     self.url, json=payload, timeout=self._timeout
                 )
-                logger.debug(
+                logger.info(
                     f"[Transmission] 📥 Retry response status: {response.status_code}"
                 )
 
@@ -306,7 +306,7 @@ class TransmissionClient:
             if data.get("result") != "success":
                 raise TransmissionError(f"Error de Transmission: {data.get('result')}")
 
-            logger.debug(f"[Transmission] ✅ {method} completed successfully")
+            logger.info(f"[Transmission] ✅ {method} completed successfully")
             return data.get("arguments", {})
 
         except requests.exceptions.ConnectionError as e:
@@ -828,7 +828,7 @@ class TransmissionClient:
             
             # Si es un directorio, explorar dentro
             if os.path.isdir(full_path):
-                logger.debug(f"[Transmission] Explorando directorio: {full_path}")
+                logger.info(f"[Transmission] Explorando directorio: {full_path}")
                 for root, dirs, files in os.walk(full_path):
                     for file in files:
                         if file.lower().endswith(VIDEO_EXTENSIONS):
@@ -918,7 +918,7 @@ class TransmissionClient:
                 debug_info["primary_video_path"] = f["full_path"]
                 break
 
-        logger.debug(f"[Transmission] Debug torrent {torrent_id}: {debug_info}")
+        logger.info(f"[Transmission] Debug torrent {torrent_id}: {debug_info}")
         return debug_info
 
     def test_connection(self) -> bool:

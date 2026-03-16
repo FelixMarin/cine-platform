@@ -4,7 +4,7 @@
 // El CacheManager se carga desde cache.js en el HTML
 
 document.addEventListener('DOMContentLoaded', function () {
-    console.log('✅ DOM Content Loaded - iniciando...');
+    
 
     // Verificar que todas las funciones necesarias existen
     const requiredFunctions = [
@@ -32,7 +32,7 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 
 function initializeApp() {
-    console.log('🚀 Inicializando aplicación...');
+    
 
     // Inicializar CacheManager
     if (window.CacheManager) {
@@ -41,13 +41,13 @@ function initializeApp() {
 
     // Inicializar migración del catálogo (si hay datos legacy)
     if (window.initCatalogMigration) {
-        console.log('📦 CatalogService: Iniciando migración de localStorage...');
+        
         setTimeout(() => {
             window.initCatalogMigration().then(result => {
                 if (result && result.success) {
-                    console.log(`✅ CatalogService: Migración completada - ${result.result?.omdb_entries || 0} entradas OMDB, ${result.result?.local_content || 0} contenido local`);
+                    
                 } else if (result && result.migrated === 0) {
-                    console.log('📦 CatalogService: No hay datos legacy para migrar');
+                    
                 }
             }).catch(err => {
                 console.warn('⚠️ CatalogService: Error en migración automática:', err);
@@ -63,7 +63,7 @@ function initializeApp() {
     // Detectar si estamos en una ruta de serie (/series/...)
     const path = window.location.pathname;
     if (path.startsWith('/series/')) {
-        console.log('📺 Ruta de serie detectada:', path);
+        
         // No mostrar pestaña de películas, esperar a que series_view maneje la ruta
         if (window.detectSeriesRoute) {
             setTimeout(() => {

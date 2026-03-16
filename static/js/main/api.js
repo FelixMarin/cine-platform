@@ -18,7 +18,7 @@ function getCatalogService() {
 }
 
 async function loadContent(forceRefresh = false) {
-    console.log('Cargando contenido...', forceRefresh ? '(forzando refresco)' : '');
+    
 
     const catalogService = getCatalogService();
 
@@ -34,13 +34,11 @@ async function loadContent(forceRefresh = false) {
     // Obtener datos del catálogo de la base de datos
     if (catalogService) {
         try {
-            console.debug('🔍 CatalogService: Buscando en BBDD...');
             const dbMovies = await catalogService.getMovies(100, 0);
             const dbSeries = await catalogService.getSeries(50, 0);
 
             if ((dbMovies.movies && dbMovies.movies.length > 0) || 
                 (dbSeries.series && dbSeries.series.length > 0)) {
-                console.debug(`✅ CatalogService: ${(dbMovies.movies?.length || 0) + (dbSeries.series?.length || 0)} items encontrados en BBDD`);
                 
                 // Transformar datos de BBDD al formato esperado
                 const data = transformCatalogToApiFormat(dbMovies.movies || [], dbSeries.series || []);
@@ -176,13 +174,13 @@ function transformCatalogToApiFormat(movies, series) {
 
 // Función para cargar desde el servidor
 function fetchFromServer(forceRefresh = false) {
-    console.log('🌐 Cargando del servidor...');
+    
 
     // Construir URL con parámetro refresh si es necesario
     let url = "/api/movies";
     if (forceRefresh) {
         url += "?refresh=true";
-        console.log('🔄 Forzando refresco en servidor');
+        
     }
 
     fetch(url)
@@ -193,7 +191,7 @@ function fetchFromServer(forceRefresh = false) {
             return r.json();
         })
         .then(async data => {
-            console.log('Datos recibidos:', data);
+            
 
             // Guardar en caché en memoria
             contentMemoryCache.data = data;
@@ -213,16 +211,16 @@ async function renderContent(data) {
     const startTime = performance.now();
 
     // === LOGS DE DEPURACIÓN ===
-    console.log('📊 Datos recibidos en renderContent:', data);
-    console.log('📊 Tipo de data:', typeof data);
-    console.log('📊 ¿data.categorias existe?:', data && data.categorias !== undefined);
-    console.log('📊 ¿data.categorias tiene contenido?:', data && data.categorias ? ` length=${data.categorias.length}` : 'undefined/null');
-    console.log('📊 ¿data.series existe?:', data && data.series !== undefined);
-    console.log('📊 ¿data.series tiene contenido?:', data && data.series ? ` keys=${Object.keys(data.series).length}` : 'undefined/null');
+    
+    
+    
+    
+    
+    
     // ==========================
 
     if (data.categorias) {
-        console.log('📂 Renderizando películas por categoría...');
+        
         await window.renderMoviesByCategory(data.categorias);
     } else {
         console.warn('⚠️ No hay categorías en los datos - mostrando mensaje');
@@ -230,7 +228,7 @@ async function renderContent(data) {
     }
 
     if (data.series) {
-        console.log('📺 Renderizando series...');
+        
         await window.renderSeries(data.series);
     } else {
         console.warn('⚠️ No hay series en los datos - mostrando mensaje');
@@ -238,13 +236,13 @@ async function renderContent(data) {
     }
 
     const renderTime = performance.now() - startTime;
-    console.log(`⏱️ Renderizado completado en ${renderTime.toFixed(2)}ms`);
+    
 }
 
 function refreshInBackground() {
     // Refrescar en segundo plano después de 1 segundo
     setTimeout(() => {
-        console.log('🔄 Refrescando caché en segundo plano...');
+        
         fetch("/api/movies?refresh=true")
             .then(r => r.json())
             .then(data => {
@@ -252,9 +250,9 @@ function refreshInBackground() {
                 if (JSON.stringify(contentMemoryCache.data) !== JSON.stringify(data)) {
                     contentMemoryCache.data = data;
                     contentMemoryCache.timestamp = Date.now();
-                    console.log('✅ Caché actualizado con nuevos datos');
+                    
                 } else {
-                    console.log('📦 Caché ya está actualizado');
+                    
                 }
             })
             .catch(err => console.error('Error refrescando caché:', err));
@@ -262,7 +260,7 @@ function refreshInBackground() {
 }
 
 function refreshContent(forceReload = false) {
-    console.log('🔄 Refrescando contenido...');
+    
 
     // Invalidar caché en memoria
     contentMemoryCache.data = null;
@@ -305,7 +303,7 @@ function invalidateCache() {
         window.invalidateSeriesCache();
     }
 
-    console.log('🗑️ Caché invalidado manualmente (memoria + Cache API + CatalogService)');
+    
 }
 
 // Nueva función: Precargar thumbnails en segundo plano usando CacheManager
@@ -326,11 +324,11 @@ async function preloadThumbnails(data) {
     // Usar CacheManager para precargar si está disponible
     const cm = getCacheManager();
     if (cm && thumbnailsToPreload.length > 0) {
-        console.log(`🖼️ Precargando ${Math.min(thumbnailsToPreload.length, 20)} thumbnails con CacheManager...`);
+        
         await cm.preloadImages(thumbnailsToPreload.slice(0, 20), 'thumbnail');
     } else {
         // Fallback al método original
-        console.log(`🖼️ Precargando ${Math.min(thumbnailsToPreload.length, 20)} thumbnails...`);
+        
 
         let loaded = 0;
         thumbnailsToPreload.slice(0, 20).forEach(url => {
@@ -338,7 +336,7 @@ async function preloadThumbnails(data) {
             img.onload = () => {
                 loaded++;
                 if (loaded === 20 || loaded === thumbnailsToPreload.length) {
-                    console.log(`✅ Precarga de thumbnails completada (${loaded})`);
+                    
                 }
             };
             img.src = url;
@@ -361,4 +359,3 @@ window.loadContent = loadContent;
 window.refreshContent = refreshContent;
 window.invalidateCache = invalidateCache;
 
-console.log('✅ api.js cargado - loadContent disponible');

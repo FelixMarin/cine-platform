@@ -156,6 +156,7 @@ class TorrentOptimizer:
         """
         progress = self._processes.get(process_id)
         try:
+            logger.info(f"[TorrentOptimizer] Guardando historial para process_id={process_id}, status={status}")
             self._history_service.add_entry(
                 process_id=process_id,
                 final_path=final_path,
@@ -165,11 +166,14 @@ class TorrentOptimizer:
                 transmission_client=self.transmission_client,
                 progress=progress,
             )
+            logger.info(f"[TorrentOptimizer] Historial guardado exitosamente para {process_id}")
         except Exception as e:
             # Log error pero no fallar la optimización por esto
+            import traceback
             logger.error(
                 f"[TorrentOptimizer] ❌ Error guardando historial para {process_id}: {e}"
             )
+            logger.error(f"[TorrentOptimizer] Traceback: {traceback.format_exc()}")
 
     def _get_cleanup_service(self):
         """Obtiene el servicio de limpieza (inyección de dependencia)"""
@@ -245,9 +249,9 @@ class TorrentOptimizer:
         # Intentar con el nombre exacto primero
         for base in search_paths:
             candidate = os.path.join(base, filename)
-            logger.debug(f"[TorrentOptimizer] Probando: {candidate}")
+            logger.info(f"[TorrentOptimizer] Probando: {candidate}")
             if os.path.exists(candidate):
-                logger.debug(f"[TorrentOptimizer] ✓ Archivo encontrado: {candidate}")
+                logger.info(f"[TorrentOptimizer] ✓ Archivo encontrado: {candidate}")
                 return candidate
 
         # Si no se encuentra, probar con extensiones comunes
@@ -263,7 +267,7 @@ class TorrentOptimizer:
                     continue
                 candidate = os.path.join(base, filename + ext)
                 if os.path.exists(candidate):
-                    logger.debug(
+                    logger.info(
                         f"[TorrentOptimizer] ✓ Archivo encontrado con extensión añadida: {candidate}"
                     )
                     return candidate
@@ -276,7 +280,7 @@ class TorrentOptimizer:
             if os.path.exists(base):
                 try:
                     files = os.listdir(base)
-                    logger.debug(
+                    logger.info(
                         f"[TorrentOptimizer] Archivos en {base}: {files[:10]}..."
                     )  # Primeros 10
                 except Exception as e:

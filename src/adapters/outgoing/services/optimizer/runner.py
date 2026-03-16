@@ -133,7 +133,7 @@ class OptimizationRunner:
             Proceso Popen
         """
         full_cmd = ["docker", "exec", self.FFMPEG_CONTAINER] + cmd
-        logger.debug(f"[Optimizer] Ejecutando en contenedor: {' '.join(full_cmd)}")
+        logger.info(f"[Optimizer] Ejecutando en contenedor: {' '.join(full_cmd)}")
         
         return subprocess.Popen(
             full_cmd,

@@ -26,8 +26,6 @@ class OAuth2Client:
         
         # Log the URL being used
         logger.info(f"[OAuth2Client] Initialized with base_url: {self.base_url}")
-        logger.info(f"[OAuth2Client] OAUTH2_URL env: {os.environ.get('OAUTH2_URL', 'NOT SET')}")
-        logger.info(f"[OAuth2Client] PUBLIC_OAUTH2_URL env: {os.environ.get('PUBLIC_OAUTH2_URL', 'NOT SET')}")
         
         # Endpoints - Note: OAUTH2_TOKEN_ENDPOINT in configmap uses /oauth/token
         self.token_endpoint = os.environ.get("OAUTH2_TOKEN_ENDPOINT", "/oauth2/token")
@@ -125,7 +123,7 @@ class OAuth2Client:
         for base_url in urls_to_try:
             url = f"{base_url}{self.token_endpoint}"
             
-            # Log detallado para debugging
+            # Log para debugging
             logger.info(f"[OAUTH_TOKEN_EXCHANGE] Intentando URL: {url}")
             logger.info(f"[OAUTH_TOKEN_EXCHANGE] Client ID: {self.client_id}")
             logger.info(f"[OAUTH_TOKEN_EXCHANGE] Redirect URI: {self.redirect_uri}")
@@ -133,8 +131,7 @@ class OAuth2Client:
             # Headers que se envían
             auth_header = self._get_basic_auth_header()
             # No loguear el secret completo por seguridad
-            auth_header_preview = f"Basic {auth_header['Authorization'].split(' ')[1][:20]}..."
-            logger.info(f"[OAUTH_TOKEN_EXCHANGE] Authorization header: {auth_header_preview}")
+            logger.info(f"[OAUTH_TOKEN_EXCHANGE] Authorization header: (hidden)")
             
             payload = {
                 "grant_type": "authorization_code",
@@ -143,10 +140,10 @@ class OAuth2Client:
                 "code_verifier": code_verifier,
             }
             
-            logger.info(f"[OAUTH_TOKEN_EXCHANGE] Payload: grant_type={payload['grant_type']}, code={code[:20]}..., redirect_uri={self.redirect_uri}, code_verifier={code_verifier[:20]}...")
+            logger.info(f"[OAUTH_TOKEN_EXCHANGE] Payload: grant_type={payload['grant_type']}, code=(hidden), redirect_uri={self.redirect_uri}, code_verifier=(hidden)")
             
             try:
-                logger.info(f"[OAUTH_TOKEN_EXCHANGE] Haciendo petición POST a {url}...")
+                logger.info(f"[OAUTH_TOKEN_EXCHANGE] Haciendo petición POST...")
                 response = requests.post(
                     url, 
                     data=payload, 
@@ -155,13 +152,13 @@ class OAuth2Client:
                     verify=False  # Para certificados autofirmados en desarrollo
                 )
                 
-                logger.info(f"[OAUTH_TOKEN_EXCHANGE] Respuesta recibida: status_code={response.status_code}")
+                logger.info(f"[OAUTH_TOKEN_EXCHANGE] Respuesta: status_code={response.status_code}")
                 
                 if response.status_code == 200:
                     data = response.json()
                     self.token = data.get("access_token")
                     self.refresh_token = data.get("refresh_token")
-                    logger.info(f"[OAUTH_TOKEN_EXCHANGE] Token obtenido exitosamente con URL: {url}")
+                    logger.info(f"[OAUTH_TOKEN_EXCHANGE] Token obtenido exitosamente")
                     return True, data
                 else:
                     logger.error(f"[OAUTH_TOKEN_EXCHANGE] Error response from {url}: {response.text}")
@@ -316,7 +313,7 @@ class OAuth2Client:
             
             if response.status_code == 200:
                 data = response.json()
-                logger.info(f"[OAUTH_INTROSPECT] Token introspection response: {data}")
+                logger.info(f"[OAUTH_INTROSPECT] Token introspection completed")
                 return data
             return None
         except Exception as e:

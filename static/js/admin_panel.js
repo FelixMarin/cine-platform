@@ -105,7 +105,7 @@ function setupEventListeners() {
     if (backBtn) {
         backBtn.addEventListener('click', function (e) {
             // Puedes agregar un efecto de transición si lo deseas
-            console.log('Navegando al dashboard...');
+            
         });
     }
 
@@ -160,14 +160,14 @@ function initStatsCards() {
  */
 function loadSystemLogs() {
     // Aquí se implementará la carga de logs
-    console.log('Cargando logs del sistema...');
+    
 }
 
 /**
  * Exportar datos (para implementar después)
  */
 function exportData(format = 'json') {
-    console.log(`Exportando datos en formato ${format}...`);
+    
     // Implementar exportación
 }
 

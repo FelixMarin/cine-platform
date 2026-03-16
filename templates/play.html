@@ -69,35 +69,12 @@
     <script>
     // 🚨 IMPORTANTE: El video debe empezar INMEDIATAMENTE
     // No esperar a metadatos, no esperar a nada
-    (function() {
-        console.log('🎬 Página de reproducción cargando...');
-        
+    (function() {        
         // 1. El video YA debería estar descargando por preload="auto"
         // Verificar que existe
         var video = document.getElementById('videoPlayer');
         if (video) {
             var source = video.querySelector('source');
-            console.log('📹 Video src:', source ? source.src : 'NO SOURCE');
-            
-            // Forzar carga si no ha started
-            video.load();
-            
-            // Logs de eventos
-            video.addEventListener('loadstart', function() {
-                console.log('🔄 Video loadstart - empezando a descargar');
-            });
-            video.addEventListener('loadedmetadata', function() {
-                console.log('📊 Video metadata cargado');
-            });
-            video.addEventListener('canplay', function() {
-                console.log('✅ Video canplay - listo para reproducir');
-            });
-            video.addEventListener('playing', function() {
-                console.log('🎥 Video REPRODUCIENDO');
-            });
-            video.addEventListener('error', function(e) {
-                console.error('❌ Video error:', e);
-            });
         }
         
         // 2. Los metadatos se cargan en BACKGROUND (NO bloquea video)
@@ -132,9 +109,6 @@
                 }
             }
             
-            console.log('📡 Cargando metadatos en background...');
-            console.log('📊 Tipo de medio:', mediaType, '| Título:', cleanTitle);
-            
             if (cleanTitle) {
                 // Usar el endpoint correcto según el tipo de medio
                 var metadataUrl;
@@ -168,13 +142,10 @@
                 if (mediaType === 'serie') {
                     // Para series, usar el nombre de la serie
                     var serieTitle = serieName || finalTitle;
-                    console.log('📺 Título de serie extraído:', serieTitle);
                     metadataUrl = '/api/serie/metadata?title=' + encodeURIComponent(serieTitle);
-                    console.log('📺 Cargando metadatos de serie:', serieTitle);
                 } else {
                     // Para películas
                     metadataUrl = '/api/movie/metadata?title=' + encodeURIComponent(finalTitle);
-                    console.log('🎬 Cargando metadatos de película:', cleanTitle);
                 }
                 
                 if (movieYear) {
@@ -196,7 +167,6 @@
                         }
                     })
                     .catch(function(error) {
-                        console.log('No se pudieron cargar los metadatos:', error);
                         mostrarNoInfo();
                     });
             } else {

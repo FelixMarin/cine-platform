@@ -130,7 +130,7 @@ def get_my_profile():
 
         profile = service.get_user_profile(lookup_id)
 
-        logger.info(f"[Profile] get_user_profile result: {profile}")
+        # logger.info(f"[Profile] get_user_profile result: {profile}")
 
         if not profile:
             # Fallback: usar datos de sesión si el perfil no existe en BD
@@ -237,21 +237,21 @@ def upload_avatar():
     app_user_id = session.get("app_user_id") or session.get("user_id")
 
     # LOG 1: Información de la sesión
-    logger.info(f"[Avatar] ===== INICIO SUBIDA AVATAR =====")
-    logger.info(f"[Avatar] app_user_id: {app_user_id}")
-    logger.info(f"[Avatar] session keys: {list(session.keys())}")
+    # logger.info(f"[Avatar] ===== INICIO SUBIDA AVATAR =====")
+    # logger.info(f"[Avatar] app_user_id: {app_user_id}")
+    # logger.info(f"[Avatar] session keys: {list(session.keys())}")
 
     # LOG 2: Información del directorio
-    logger.info(f"[Avatar] current_app.root_path: {current_app.root_path}")
-    logger.info(f"[Avatar] Directorio actual: {os.getcwd()}")
-    logger.info(f"[Avatar] AVATAR_UPLOAD_FOLDER definido como: {AVATAR_UPLOAD_FOLDER}")
+    # logger.info(f"[Avatar] current_app.root_path: {current_app.root_path}")
+    # logger.info(f"[Avatar] Directorio actual: {os.getcwd()}")
+    # logger.info(f"[Avatar] AVATAR_UPLOAD_FOLDER definido como: {AVATAR_UPLOAD_FOLDER}")
 
     # LOG 3: Verificar si el directorio existe
     abs_folder = os.path.abspath(
         os.path.join(current_app.root_path, "static", "uploads", "avatars")
     )
-    logger.info(f"[Avatar] Ruta absoluta del folder: {abs_folder}")
-    logger.info(f"[Avatar] ¿Existe el folder? {os.path.exists(abs_folder)}")
+    # logger.info(f"[Avatar] Ruta absoluta del folder: {abs_folder}")
+    # logger.info(f"[Avatar] ¿Existe el folder? {os.path.exists(abs_folder)}")
 
     if os.path.exists(abs_folder):
         logger.info(
@@ -292,7 +292,7 @@ def upload_avatar():
     upload_folder = os.path.join(base_dir, "static", "uploads", "avatars")
     os.makedirs(upload_folder, exist_ok=True)
 
-    logger.info(f"[Profile] Directorio de uploads: {upload_folder}")
+    # logger.info(f"[Profile] Directorio de uploads: {upload_folder}")
 
     filename_orig = file.filename
     if not filename_orig or "." not in filename_orig:
@@ -304,14 +304,14 @@ def upload_avatar():
     filepath = os.path.join(upload_folder, filename)
 
     # LOG 4: Antes de guardar
-    logger.info(f"[Avatar] Nombre archivo original: {filename_orig}")
-    logger.info(f"[Avatar] Nombre archivo generado: {filename}")
-    logger.info(f"[Avatar] Ruta completa de guardado: {filepath}")
-    logger.info(f"[Avatar] Ruta absoluta de guardado: {os.path.abspath(filepath)}")
+    # logger.info(f"[Avatar] Nombre archivo original: {filename_orig}")
+    # logger.info(f"[Avatar] Nombre archivo generado: {filename}")
+    # logger.info(f"[Avatar] Ruta completa de guardado: {filepath}")
+    # logger.info(f"[Avatar] Ruta absoluta de guardado: {os.path.abspath(filepath)}")
 
     try:
         file.save(filepath)
-        logger.info(f"[Avatar] Avatar guardado exitosamente")
+        # logger.info(f"[Avatar] Avatar guardado exitosamente")
     except Exception as e:
         logger.error(f"[Avatar] Error guardando archivo: {e}")
         return jsonify(
@@ -334,8 +334,8 @@ def upload_avatar():
 
     # LOG 6: URL generada
     avatar_url = f"/static/uploads/avatars/{filename}"
-    logger.info(f"[Avatar] URL generada: {avatar_url}")
-    logger.info(f"[Avatar] ===== FIN SUBIDA AVATAR =====\n")
+    # logger.info(f"[Avatar] URL generada: {avatar_url}")
+    # logger.info(f"[Avatar] ===== FIN SUBIDA AVATAR =====\n")
 
     try:
         repo = AppUserRepository()
@@ -399,5 +399,4 @@ def test_upload():
 def debug_session():
     """Endpoint para depurar lo que hay en sesión"""
     session_data = {k: str(v) for k, v in session.items()}
-    logger.info(f"[Profile] Session data: {session_data}")
     return jsonify({"success": True, "session": session_data})

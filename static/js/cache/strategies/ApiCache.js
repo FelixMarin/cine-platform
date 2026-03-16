@@ -33,7 +33,7 @@ class ApiCache {
             }
 
             this.initialized = true;
-            console.log('✅ ApiCache inicializado');
+            
         } catch (error) {
             console.error('Error inicializando ApiCache:', error);
         }
@@ -213,7 +213,7 @@ class ApiCache {
                 }
             }
             sessionStorage.setItem(this.metadataCacheName, JSON.stringify({}));
-            console.log('🗑️ ApiCache limpiado');
+            
         } catch (error) {
             console.error('Error limpiando ApiCache:', error);
         }

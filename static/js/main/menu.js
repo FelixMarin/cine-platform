@@ -108,16 +108,23 @@ async function syncCatalog(button) {
         }
 
         const result = await response.json();
-        console.log('✅ Sincronización completada:', result);
+        
 
-        // Mostrar notificación de éxito
-        showNotification('Sincronización completada', 'success');
+        // Mostrar notificación de éxito con detalles
+        const addedCount = result.added_movies + result.added_series;
+        const deletedCount = result.deleted_movies + result.deleted_series;
+        let message = 'Sincronización completada';
+        if (addedCount > 0 || deletedCount > 0) {
+            message += `: ${addedCount} añadidos, ${deletedCount} eliminados`;
+        }
+        showNotification(message, 'success');
 
         // Invalidar caché
         window.invalidateCache();
 
-        // Recargar contenido
-        window.refreshContent();
+        // Recargar página completamente para asegurar datos frescos
+        // Esto es necesario porque el repositorio tiene caché interna
+        window.location.reload();
 
     } catch (error) {
         console.error('❌ Error en sincronización:', error);

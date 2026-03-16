@@ -501,10 +501,8 @@ def exchange_token():
                 f"{oauth2_url}/userinfo",
                 headers={"Authorization": f"Bearer {access_token}"},
             )
-            logger.info(f"[EXCHANGE_TOKEN] 🔴 TOKEN {access_token}")
             if userinfo_response.status_code == 200:
                 user_info = userinfo_response.json()
-                logger.info(f"[EXCHANGE_TOKEN] Userinfo obtenido")
         except Exception as e:
             logger.warning(f"[EXCHANGE_TOKEN] Error obteniendo userinfo: {e}")
 
@@ -734,11 +732,7 @@ def start_oauth2_flow():
     """
     try:
         # Verificar que no hay sesión activa (para evitar accesos no autorizados)
-        logger.info(f"[OAUTH_START] Request cookies: {dict(request.cookies)}")
-        logger.info(
-            f"[OAUTH_START] Session keys: {list(session.keys()) if session else 'No session'}"
-        )
-        logger.info(f"[OAUTH_START] Is logged in: {is_logged_in()}")
+        logger.info(f"[OAUTH_START] Iniciando flujo OAuth2")
 
         # Si ya hay una sesión activa, no permitir iniciar OAuth2
         if is_logged_in():
@@ -800,14 +794,14 @@ def _complete_oauth_flow(code_challenge: str, state: str = None):
     """
     try:
         logger.info(
-            f"[OAUTH_FLOW] Iniciando flujo OAuth2 con code_challenge: {code_challenge[:30]}..."
+            f"[OAUTH_FLOW] Iniciando flujo OAuth2"
         )
 
         code_verifier = session.get("oauth_code_verifier")
         if not code_verifier:
             code_verifier = _generate_code_verifier()
             session["oauth_code_verifier"] = code_verifier
-            logger.info(f"[OAUTH_FLOW] Code verifier generado: {code_verifier[:30]}...")
+            logger.info(f"[OAUTH_FLOW] Code verifier generado")
 
         oauth2_url = os.environ.get(
             "PUBLIC_OAUTH2_URL", "http://localhost:8080"
@@ -993,7 +987,7 @@ def logout_page():
     """Página de logout"""
     from flask import current_app, make_response
 
-    logger.info(f"[LOGOUT] Cookies recibidas: {dict(request.cookies)}")
+    logger.info(f"[LOGOUT] Iniciando logout")
 
     try:
         oauth_token = session.get("oauth_token")
@@ -1005,10 +999,10 @@ def logout_page():
     except Exception as e:
         logger.warning(f"[LOGOUT] Error revocando token: {e}")
 
-    logger.info("[LOGOUT] Usuario cerró sesión - limpiando datos")
+    logger.info("[LOGOUT] Usuario cerró sesión")
 
     session_keys = list(session.keys())
-    logger.info(f"[LOGOUT] Keys en sesión antes de limpiar: {session_keys}")
+    logger.info(f"[LOGOUT] Limpiando sesión")
     session.clear()
 
     session.modified = True
@@ -1045,9 +1039,7 @@ def logout_page():
 @auth_bp.route("/logout-check", methods=["GET"])
 def logout_check():
     """Endpoint para verificar el estado del logout"""
-    logger.info(f"[LOGOUT_CHECK] Cookies: {dict(request.cookies)}")
-    logger.info(f"[LOGOUT_CHECK] Session keys: {list(session.keys())}")
-    logger.info(f"[LOGOUT_CHECK] Is logged in: {is_logged_in()}")
+    logger.info(f"[LOGOUT_CHECK] Verificando estado de logout")
     return jsonify(
         {
             "logged_in": is_logged_in(),

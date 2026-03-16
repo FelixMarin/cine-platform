@@ -69,7 +69,7 @@ class OAuth2UserInfoService:
             jwt_payload = jwt.decode(token, options={"verify_signature": False})
             return jwt_payload.get("roles", [])
         except Exception as e:
-            logger.debug(f"[OAuth2UserInfoService] Error decoding JWT: {e}")
+            logger.info(f"[OAuth2UserInfoService] Error decoding JWT: {e}")
             return []
 
     def revoke_token(self, token: str) -> bool:

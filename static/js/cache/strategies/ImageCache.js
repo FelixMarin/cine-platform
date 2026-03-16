@@ -39,7 +39,7 @@ class ImageCache {
             }
 
             this.initialized = true;
-            console.log('✅ ImageCache inicializado');
+            
         } catch (error) {
             console.error('Error inicializando ImageCache:', error);
         }
@@ -321,7 +321,7 @@ class ImageCache {
                 }
             }
             localStorage.setItem(this.metadataCacheName, JSON.stringify({}));
-            console.log('🗑️ ImageCache limpiado');
+            
         } catch (error) {
             console.error('Error limpiando ImageCache:', error);
         }

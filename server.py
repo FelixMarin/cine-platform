@@ -184,6 +184,12 @@ def create_app():
     # Importar blueprint de sincronización del catálogo
     from src.adapters.entry.web.routes.catalog_sync import sync_bp
 
+    # Importar blueprint de historial de optimizaciones
+    from src.adapters.entry.web.routes.optimization_history import (
+        history_bp,
+        init_history_routes,
+    )
+
     # Inicializar rutas
     init_catalog_routes(
         list_movies_use_case=list_movies_use_case,
@@ -242,6 +248,7 @@ def create_app():
     app.register_blueprint(torrent_optimize_bp)
     app.register_blueprint(catalog_db_bp)
     app.register_blueprint(profile_bp)  # Rutas de perfil de usuario
+    app.register_blueprint(history_bp)  # Historial de optimizaciones
     app.register_blueprint(sync_bp)  # Sincronización del catálogo
 
     logger.info("[ROUTER] Blueprints registrados correctamente")

@@ -82,7 +82,7 @@ function createMediaCard(media) {
 
     // Manejar error de carga
     img.onerror = function () {
-        console.log(`🖼️ Error cargando imagen, usando default: ${this.src}`);
+        
         this.src = '/static/images/default.jpg';
         this.onerror = null;
     };
@@ -191,7 +191,6 @@ async function loadMovieThumbnailInternal(imgElement, title, year, filename, imd
             if (cs) {
                 const posterUrl = await cs.getPoster(imdbId);
                 if (posterUrl) {
-                    console.debug(`🖼️ CatalogService: Póster para ${imdbId} obtenido desde BBDD`);
                     imgElement.src = posterUrl;
                     return;
                 } else {
@@ -238,12 +237,12 @@ async function loadMovieThumbnailInternal(imgElement, title, year, filename, imd
             }
         }
 
-        console.log(`🔍 Solicitando thumbnail: ${url}`);
+        
         const response = await fetch(url);
 
         if (!response.ok) {
             if (response.status === 404) {
-                console.log(`ℹ️ No hay thumbnail para: ${searchTitle}`);
+                
             } else {
                 console.warn(`⚠️ Error ${response.status}`);
             }
@@ -265,7 +264,7 @@ async function loadMovieThumbnailInternal(imgElement, title, year, filename, imd
             });
             
             imgElement.src = imageUrl;
-            console.log(`✅ Thumbnail cargado (imagen directa) para: ${searchTitle}`);
+            
             return;
         }
 
@@ -281,7 +280,7 @@ async function loadMovieThumbnailInternal(imgElement, title, year, filename, imd
 
             // Cargar imagen
             imgElement.src = data.thumbnail;
-            console.log(`✅ Thumbnail cargado para: ${searchTitle}`);
+            
         }
     } catch (error) {
         console.error('Error cargando thumbnail:', error);
@@ -395,7 +394,7 @@ async function createSerieCard(episodio, preloadedPoster = null) {
     // Si tenemos póster pre-cargado, usarlo directamente
     if (preloadedPoster) {
         img.src = preloadedPoster;
-        console.log(`📺 Usando póster pre-cargado para: ${serieName}`);
+        
     } else {
         // Cargar póster solo si no hay pre-carga
         loadSeriePoster(img, serieName, episodio.filename);
@@ -418,7 +417,7 @@ async function loadSeriePoster(imgElement, serieName, firstEpisodeFilename) {
         try {
             const cachedUrl = await cm.getCachedImageUrl(omdbUrl);
             if (cachedUrl !== omdbUrl) {
-                console.log(`📦 Póster desde Cache API para: ${serieName}`);
+                
                 imgElement.src = cachedUrl;
                 return;
             }
@@ -430,14 +429,14 @@ async function loadSeriePoster(imgElement, serieName, firstEpisodeFilename) {
     // Verificar caché en memoria
     const memoryCached = thumbnailMemoryCache.get(cacheKey);
     if (memoryCached && (Date.now() - memoryCached.timestamp) < THUMBNAIL_CACHE_TTL) {
-        console.log(`📦 Póster de serie en memoria para: ${serieName}`);
+        
         imgElement.src = memoryCached.url;
         return;
     }
 
     try {
         // 1. Intentar con OMDB
-        console.log(`🔍 Buscando póster para serie: "${serieName}"`);
+        
         const response = await fetch(`/api/serie-poster?name=${encodeURIComponent(serieName)}`);
 
         if (response.ok) {
@@ -449,13 +448,13 @@ async function loadSeriePoster(imgElement, serieName, firstEpisodeFilename) {
                     timestamp: Date.now()
                 });
                 imgElement.src = data.poster;
-                console.log(`✅ Póster de serie cargado desde OMDB para: ${serieName}`);
+                
                 return;
             }
         }
 
         // 2. SIEMPRE intentar thumbnail local después de OMDB (incluso si falla)
-        console.log(`📁 Intentando thumbnail local para serie: ${serieName}`);
+        
 
         if (firstEpisodeFilename) {
             // Quitar extensión y limpiar sufijos (ej: .mkv)
@@ -473,14 +472,14 @@ async function loadSeriePoster(imgElement, serieName, firstEpisodeFilename) {
             baseName = baseName.replace(/\s+/g, ' ').trim();
 
             // === LOGS PARA DEPURACIÓN ===
-            console.log(`📁 firstEpisodeFilename: ${firstEpisodeFilename}`);
-            console.log(`📁 baseName generado: ${baseName}`);
+            
+            
 
             const localJpg = `/thumbnails/${baseName}.jpg`;
             const localWebp = `/thumbnails/${baseName}.webp`;
 
-            console.log(`🖼️ Intentando thumbnail local JPG: ${localJpg}`);
-            console.log(`🖼️ Intentando thumbnail local WEBP: ${localWebp}`);
+            
+            
             // === FIN LOGS ===
 
             // Guardar en caché en memoria
@@ -490,9 +489,9 @@ async function loadSeriePoster(imgElement, serieName, firstEpisodeFilename) {
             });
 
             imgElement.src = localJpg;
-            console.log(`🖼️ Estableciendo src a: ${localJpg}`);
+            
         } else {
-            console.log(`❌ No hay firstEpisodeFilename para thumbnail local`);
+            
         }
 
     } catch (error) {
@@ -518,7 +517,7 @@ async function loadSeriePoster(imgElement, serieName, firstEpisodeFilename) {
 // Función para limpiar caché de thumbnails en memoria (para uso manual si es necesario)
 function clearThumbnailMemoryCache() {
     thumbnailMemoryCache.clear();
-    console.log('🧹 Caché de thumbnails en memoria limpiado');
+    
 }
 
 // Exponer función para uso externo

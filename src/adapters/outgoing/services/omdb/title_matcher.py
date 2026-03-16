@@ -38,11 +38,11 @@ class OMDBTitleMatcher:
             return False
 
         if not OMDBTitleMatcher._years_match(search_year, result_year):
-            logger.debug(f"OMDB: Año no coincide: '{search_year}' vs '{result_year}'")
+            logger.info(f"OMDB: Año no coincide: '{search_year}' vs '{result_year}'")
             return False
 
         if not OMDBTitleMatcher._titles_match_semantically(search_title, result_title):
-            logger.debug(
+            logger.info(
                 f"OMDB: Título no coincide semánticamente: '{search_title}' vs '{result_title}'"
             )
             return False

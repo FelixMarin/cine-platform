@@ -267,11 +267,11 @@
         const cachedResponse = await apiCacheGet(url);
 
         if (cachedResponse) {
-            console.log('📦 API Cache HIT:', url);
+            
             return cachedResponse;
         }
 
-        console.log('🌐 API Cache MISS:', url);
+        
         const networkResponse = await originalFetch(input, init);
 
         if (networkResponse.ok) {
@@ -292,14 +292,14 @@
         const cached = await imageCacheGet(url);
 
         if (cached) {
-            console.log('📦 Image Cache HIT:', url);
+            
             return new Response(cached.blob, {
                 status: 200,
                 headers: { 'Content-Type': 'image/jpeg' }
             });
         }
 
-        console.log('🌐 Image Cache MISS:', url);
+        
         const networkResponse = await originalFetch(input, init);
 
         if (networkResponse.ok) {
@@ -334,7 +334,7 @@
             } catch (e) { }
         }
 
-        console.log(`🖼️ Precargadas ${urlsToPreload.length} imágenes`);
+        
     }
 
     async function invalidateApiCache(url) {
@@ -351,7 +351,7 @@
             apiCacheMetadata = {};
             saveApiMetadata();
         }
-        console.log('🗑️ Caché API invalidado');
+        
     }
 
     async function invalidateImageCache(url) {
@@ -368,7 +368,7 @@
             imageCacheMetadata = {};
             saveImageMetadata();
         }
-        console.log('🗑️ Caché de imágenes invalidado');
+        
     }
 
     async function clearAllCaches() {
@@ -378,7 +378,7 @@
         imageCacheMetadata = {};
         saveApiMetadata();
         saveImageMetadata();
-        console.log('🗑️ Todos los caches limpiados');
+        
     }
 
     async function getStats() {
@@ -408,7 +408,7 @@
         setupFetchInterceptor();
         initialized = true;
 
-        console.log('✅ CacheManager inicializado');
+        
     }
 
     // Exponer API globalmente

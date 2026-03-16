@@ -93,5 +93,5 @@ class StandardSanitizer(INameSanitizer):
         # 12. Limpieza final
         result = re.sub(r'-+', '-', result)
 
-        logger.debug(f"[StandardSanitizer] Original: {filename} -> Sanitizado: {result}")
+        logger.info(f"[StandardSanitizer] Original: {filename} -> Sanitizado: {result}")
         return result
