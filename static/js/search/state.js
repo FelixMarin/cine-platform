@@ -1,71 +1,80 @@
 /**
  * Search Page - State Management
+ * Estado global y getters/setters
  */
+(function() {
+    'use strict';
 
-// Estado global
-const searchState = {
-    mode: 'search',  // 'search' o 'url'
-    currentCategory: '',
-    downloadInterval: null,
-    currentDownloadId: null
-};
+    window.searchState = {
+        mode: 'search',  // 'search' o 'url'
+        currentCategory: '',
+        downloadInterval: null,
+        currentDownloadId: null
+    };
 
-function getSearchState() {
-    return searchState;
-}
+    window.getSearchState = function() {
+        return window.searchState;
+    };
 
-function setSearchMode(mode) {
-    searchState.mode = mode;
-    
-    document.querySelectorAll('.search-tab').forEach(tab => {
-        tab.classList.toggle('active', tab.dataset.mode === mode);
-        tab.setAttribute('aria-selected', tab.dataset.mode === mode);
-    });
+    window.setSearchMode = function(mode) {
+        window.searchState.mode = mode;
+        
+        document.querySelectorAll('.search-tab').forEach(function(tab) {
+            tab.classList.toggle('active', tab.dataset.mode === mode);
+            tab.setAttribute('aria-selected', tab.dataset.mode === mode);
+        });
 
-    document.getElementById('search-mode-input').style.display = mode === 'search' ? 'flex' : 'none';
-    document.getElementById('url-mode-input').style.display = mode === 'url' ? 'flex' : 'none';
+        var searchModeInput = document.getElementById('search-mode-input');
+        var urlModeInput = document.getElementById('url-mode-input');
+        
+        if (searchModeInput) searchModeInput.style.display = mode === 'search' ? 'flex' : 'none';
+        if (urlModeInput) urlModeInput.style.display = mode === 'url' ? 'flex' : 'none';
 
-    // Mostrar/ocultar category-selector basado en el modo
-    const categorySelectors = document.querySelectorAll('.category-selector');
-    categorySelectors.forEach(function(selector) {
-        if (mode === 'url') {
-            // URL Directa: mostrar
-            selector.style.visibility = 'visible';
-            selector.style.opacity = '1';
-        } else {
-            // Buscar película: ocultar pero mantener espacio
-            selector.style.visibility = 'hidden';
-            selector.style.opacity = '0';
+        // Mostrar/ocultar category-selector (mantiene el espacio con visibility)
+        var categorySelectors = document.querySelectorAll('.search-form .category-selector');
+        categorySelectors.forEach(function(selector) {
+            if (mode === 'url') {
+                selector.style.visibility = 'visible';
+                selector.style.opacity = '1';
+            } else {
+                selector.style.visibility = 'hidden';
+                selector.style.opacity = '0';
+            }
+        });
+
+        // Limpiar inputs
+        var torrentUrl = document.getElementById('torrent-url');
+        var searchQuery = document.getElementById('search-query');
+        
+        if (mode === 'search' && torrentUrl) {
+            torrentUrl.value = '';
+        } else if (mode === 'url' && searchQuery) {
+            searchQuery.value = '';
         }
-    });
+    };
 
-    if (mode === 'search') {
-        document.getElementById('torrent-url').value = '';
-    } else {
-        document.getElementById('search-query').value = '';
-    }
-}
+    window.setCurrentCategory = function(category) {
+        window.searchState.currentCategory = category;
+    };
 
-function setCurrentCategory(category) {
-    searchState.currentCategory = category;
-}
+    window.getCurrentCategory = function() {
+        return window.searchState.currentCategory;
+    };
 
-function getCurrentCategory() {
-    return searchState.currentCategory;
-}
+    window.setCurrentDownloadId = function(id) {
+        window.searchState.currentDownloadId = id;
+    };
 
-function setCurrentDownloadId(id) {
-    searchState.currentDownloadId = id;
-}
+    window.getCurrentDownloadId = function() {
+        return window.searchState.currentDownloadId;
+    };
 
-function getCurrentDownloadId() {
-    return searchState.currentDownloadId;
-}
+    window.setDownloadInterval = function(interval) {
+        window.searchState.downloadInterval = interval;
+    };
 
-function setDownloadInterval(interval) {
-    searchState.downloadInterval = interval;
-}
+    window.getDownloadInterval = function() {
+        return window.searchState.downloadInterval;
+    };
 
-function getDownloadInterval() {
-    return searchState.downloadInterval;
-}
+})();

@@ -506,6 +506,7 @@ class ProwlarrClient:
             # Formatear resultado
             formatted_result = {
                 "id": result.guid or hash(result.title),
+                "guid": result.guid,
                 "title": clean_title,
                 "fullTitle": full_title,
                 "size": size_formatted,
@@ -515,7 +516,9 @@ class ProwlarrClient:
                 "quality": self._extract_quality(title),
                 "language": self._extract_language(title),
                 "poster": None,  # Prowlarr no devuelve poster por defecto
-                "downloadUrl": download_url,
+                "download_url": download_url,
+                "magnet_url": result.magnet_url,
+                "torrent_url": result.torrent_url,
                 "isMagnet": is_magnet,
                 "category": category,
                 "date": self._format_relative_date(result.publish_date),
