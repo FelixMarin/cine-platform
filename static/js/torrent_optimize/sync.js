@@ -38,6 +38,32 @@
                             updateOptimizeButton(torrentId, buttonState, data.process_id);
                         }
 
+                        // Actualizar el estado global de optimizaciones
+                        if (window.state && window.state.optimizations) {
+                            var existingIndex = -1;
+                            for (var i = 0; i < window.state.optimizations.length; i++) {
+                                if (window.state.optimizations[i].process_id === data.process_id || 
+                                    window.state.optimizations[i].id === data.process_id) {
+                                    existingIndex = i;
+                                    break;
+                                }
+                            }
+                            
+                            var optData = {
+                                process_id: data.process_id,
+                                torrent_id: torrentId,
+                                status: result.status,
+                                progress: result.progress || 0,
+                                error: result.error || null
+                            };
+                            
+                            if (existingIndex >= 0) {
+                                window.state.optimizations[existingIndex] = optData;
+                            } else {
+                                window.state.optimizations.push(optData);
+                            }
+                        }
+
                         // Si está en proceso, continuar monitoreando
                         if (buttonState === BUTTON_STATES.OPTIMIZING) {
                             if (monitorOptimization) {
@@ -68,6 +94,11 @@
                 }
             }
         }
+        
+        // Forzar actualización de la UI de descargas después de restaurar estados
+        if (typeof window.renderDownloads === 'function') {
+            window.renderDownloads();
+        }
     };
 
     /**
@@ -84,6 +115,12 @@
 
             var activeMap = {};
             var optimizations = result.optimizations || [];
+            
+            // Actualizar el estado global de optimizaciones
+            if (window.state) {
+                window.state.optimizations = optimizations;
+            }
+            
             for (var i = 0; i < optimizations.length; i++) {
                 var opt = optimizations[i];
                 if (opt.torrent_id) {
@@ -110,6 +147,12 @@
                     }
                 }
             }
+            
+            // Forzar actualización de la UI de descargas
+            if (typeof window.renderDownloads === 'function') {
+                window.renderDownloads();
+            }
+            
             return activeMap;
         } catch (e) {
             console.error('[TorrentOptimize] Error sincronizando optimizaciones activas:', e);

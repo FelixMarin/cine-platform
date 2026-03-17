@@ -69,6 +69,10 @@ async function refreshOptimizations() {
         if (data.optimizations) {
             state.optimizations = data.optimizations;
             renderOptimizationsList(data.optimizations);
+            // Actualizar la UI de descargas para reflejar el estado de las optimizaciones
+            if (typeof window.renderDownloads === 'function') {
+                window.renderDownloads();
+            }
         }
     } catch (error) {
         console.error('Error refreshing optimizations:', error);

@@ -53,9 +53,15 @@
         var listActive = window.TorrentOptimize.listActive;
         if (listActive) {
             listActive().then(function(result) {
-                if (result.success && typeof refreshOptimizations === 'function') {
-                    // Actualizar el estado global si es necesario
-                    
+                if (result.success) {
+                    // Actualizar el estado global de optimizaciones
+                    if (window.state && result.optimizations) {
+                        window.state.optimizations = result.optimizations;
+                    }
+                    // Actualizar UI de descargas para reflejar el estado
+                    if (typeof window.renderDownloads === 'function') {
+                        window.renderDownloads();
+                    }
                 }
             });
         }
@@ -89,6 +95,38 @@
                     // Guardar estado
                     if (window.TorrentOptimize.saveProcess) {
                         window.TorrentOptimize.saveProcess(torrentId, processId, result.status);
+                    }
+
+                    // Actualizar el estado global de optimizaciones para que los botones se actualicen
+                    if (window.state && window.state.optimizations) {
+                        // Buscar si ya existe esta optimización en el estado
+                        var existingIndex = -1;
+                        for (var i = 0; i < window.state.optimizations.length; i++) {
+                            if (window.state.optimizations[i].process_id === processId || 
+                                window.state.optimizations[i].id === processId) {
+                                existingIndex = i;
+                                break;
+                            }
+                        }
+                        
+                        var optData = {
+                            process_id: processId,
+                            torrent_id: torrentId,
+                            status: result.status,
+                            progress: result.progress || 0,
+                            error: result.error || null
+                        };
+                        
+                        if (existingIndex >= 0) {
+                            window.state.optimizations[existingIndex] = optData;
+                        } else {
+                            window.state.optimizations.push(optData);
+                        }
+                        
+                        // Forzar actualización de la UI de descargas
+                        if (typeof window.renderDownloads === 'function') {
+                            window.renderDownloads();
+                        }
                     }
 
                     // Detener si completó o falló
