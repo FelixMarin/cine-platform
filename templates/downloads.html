@@ -271,22 +271,60 @@
     <script src="{{ url_for('static', filename='js/downloads.js') }}"></script>
     <script src="{{ url_for('static', filename='js/torrent_optimize.js') }}"></script>
     <script>
-        // Inicializar
-        document.addEventListener('DOMContentLoaded', function() {
-            loadCategories();
-            checkConnection();
-            refreshDownloads();
-            refreshOptimizations();
-            
-            // Auto-refresh cada 3 segundos
-            setInterval(() => {
-                if (document.visibilityState === 'visible') {
-                    refreshDownloads();
-                    refreshOptimizations();
+        // Variables para controlar la inicialización
+        let modulesLoaded = false;
+        let domReady = false;
+        
+        // Función de inicialización cuando todo está listo
+        function initializeWhenReady() {
+            if (modulesLoaded && domReady) {
+                console.log('[App] Inicializando aplicación...');
+                
+                // Verificar que las funciones existen antes de llamarlas
+                if (typeof loadCategories === 'function') loadCategories();
+                if (typeof checkConnection === 'function') checkConnection();
+                if (typeof refreshDownloads === 'function') refreshDownloads();
+                if (typeof refreshOptimizations === 'function') refreshOptimizations();
+                
+                // Inicializar estado del category-selector
+                if (typeof setSearchMode === 'function') {
+                    setSearchMode('search');
                 }
-            }, 3000);
+                
+                // Auto-refresh cada 3 segundos
+                setInterval(() => {
+                    if (document.visibilityState === 'visible') {
+                        if (typeof refreshDownloads === 'function') refreshDownloads();
+                        if (typeof refreshOptimizations === 'function') refreshOptimizations();
+                    }
+                }, 3000);
+            }
+        }
+        
+        // Detectar cuando los módulos de downloads han cargado
+        document.addEventListener('downloads-modules-loaded', function() {
+            console.log('[App] Módulos de downloads cargados');
+            modulesLoaded = true;
+            initializeWhenReady();
         });
-
+        
+        // Si los módulos ya cargaron antes (por si acaso)
+        setTimeout(function() {
+            if (typeof window.state !== 'undefined') {
+                console.log('[App] Módulos detectados por timeout');
+                modulesLoaded = true;
+                initializeWhenReady();
+            }
+        }, 1000);
+        
+        // DOM ready
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('[App] DOM listo');
+            domReady = true;
+            initializeWhenReady();
+        });
+        
+        // Funciones globales del menú
         function toggleMenu() {
             const menu = document.getElementById('sideMenu');
             const overlay = document.querySelector('.menu-overlay');
