@@ -463,8 +463,10 @@ class CatalogRepository:
                         db.add(entry)
                         results["omdb_entries"] += 1
 
+                    # Solo insertar en local_content si NO tiene imdb_id
+                    # (para contenido sin metadata de OMDB)
                     file_path = movie_data.get("file_path") or movie_data.get("path")
-                    if file_path:
+                    if not imdb_id and file_path:
                         existing_local = self.get_local_content_by_file_path(file_path)
                         if not existing_local:
                             local = LocalContent(
@@ -508,8 +510,10 @@ class CatalogRepository:
                             db.add(entry)
                             results["omdb_entries"] += 1
 
+                    # Solo insertar en local_content si NO tiene imdb_id
+                    # (para contenido sin metadata de OMDB)
                     file_path = series_data.get("file_path") or series_data.get("path")
-                    if file_path:
+                    if not imdb_id and file_path:
                         existing_local = self.get_local_content_by_file_path(file_path)
                         if not existing_local:
                             local = LocalContent(

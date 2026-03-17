@@ -81,7 +81,7 @@ class OMDBMetadataService(IMetadataService):
         
         return self._make_request(params)
     
-    def search_movies(self, query: str) -> List[Dict]:
+    def search_movies(self, query: str, year: int = None) -> List[Dict]:
         """Busca películas por título"""
         params = {
             's': query,
@@ -89,19 +89,27 @@ class OMDBMetadataService(IMetadataService):
             'r': 'json'
         }
         
+        # Agregar año si está disponible
+        if year:
+            params['y'] = str(year)
+        
         data = self._make_request(params)
         
         if data and data.get('Search'):
             return data['Search']
         return []
     
-    def search_series(self, query: str) -> List[Dict]:
+    def search_series(self, query: str, year: int = None) -> List[Dict]:
         """Busca series por título"""
         params = {
             's': query,
             'type': 'series',
             'r': 'json'
         }
+        
+        # Agregar año si está disponible
+        if year:
+            params['y'] = str(year)
         
         data = self._make_request(params)
         

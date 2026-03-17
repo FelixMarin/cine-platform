@@ -408,52 +408,49 @@ def sync_catalog():
                     title = movie_data["title"]
                     year = movie_data["year"]
 
-                    search_results = omdb_service.search_movies_cached(title, limit=5)
+                    search_results = omdb_service.search_movies_cached(title, year=year, limit=10)
                     imdb_id = None
 
+                    # Filtrar por título Y año exacto para evitar insertar películas incorrectas
                     for result in search_results:
                         result_title = result.get("title", "")
                         result_year = result.get("year")
-                        if result_title.lower() == title.lower():
-                            if year and result_year and str(year) == str(result_year):
-                                imdb_id = result.get("imdb_id") or result.get("imdbID")
-                                break
-                            elif not year:
-                                imdb_id = result.get("imdb_id") or result.get("imdbID")
-                                break
+                        # Comparar títulos de forma más flexible (contiene o igual)
+                        title_match = title.lower() in result_title.lower() or result_title.lower() in title.lower()
+                        year_match = year and result_year and str(year) == str(result_year)
+                        
+                        if title_match and year_match:
+                            imdb_id = result.get("imdb_id") or result.get("imdbID")
+                            break
 
-                    if not imdb_id and search_results:
-                        imdb_id = search_results[0].get("imdb_id") or search_results[
-                            0
-                        ].get("imdbID")
+                    # Si no hay coincidencia exacta de título Y año, NO insertar
+                    # Esto evita insertar películas incorrectas en la base de datos
+                    if not imdb_id:
+                        logger.warning(
+                            f"No se encontró coincidencia exacta para película: {title} ({year}). "
+                            f"Resultados encontrados: {[r.get('title') + ' (' + str(r.get('year')) + ')' for r in search_results]}"
+                        )
 
                     if imdb_id:
                         omdb_data = omdb_service.get_movie_by_imdb_id_raw(imdb_id)
                         if omdb_data:
-                            content_data = {
-                                "imdb_id": omdb_data.get("imdbID"),
-                                "title": omdb_data.get("Title") or title,
-                                "year": omdb_data.get("Year")
-                                or (str(year) if year else None),
-                                "genre": _clean_omdb_value(omdb_data.get("Genre")),
-                                "plot": _clean_omdb_value(omdb_data.get("Plot")),
-                                "poster_url": _clean_omdb_value(
-                                    omdb_data.get("Poster")
-                                ),
-                                "imdb_rating": _clean_omdb_value(
-                                    omdb_data.get("imdbRating"), "float"
-                                ),
-                                "type": "movie",
-                                "file_path": file_path,
-                                "runtime": _clean_omdb_value(omdb_data.get("Runtime")),
-                                "director": _clean_omdb_value(
-                                    omdb_data.get("Director")
-                                ),
-                                "actors": _clean_omdb_value(omdb_data.get("Actors")),
-                            }
-                            repo.create_local_content(content_data)
+                            # Usar create_or_update_omdb_entry en lugar de create_local_content
+                            # para evitar duplicación entre omdb_entries y local_content
+                            repo.create_or_update_omdb_entry(omdb_data)
                             added_movies += 1
-                            logger.info(f"Añadida película: {content_data['title']}")
+                            title = omdb_data.get("Title") or title
+                            logger.info(f"Añadida película desde OMDB: {title}")
+                    else:
+                        # Película sin imdb_id, guardar en local_content como fallback
+                        content_data = {
+                            "title": title,
+                            "year": str(year) if year else None,
+                            "type": "movie",
+                            "file_path": file_path,
+                        }
+                        repo.create_local_content(content_data)
+                        added_movies += 1
+                        logger.info(f"Añadida película sin IMDB: {title}")
                 except Exception as e:
                     logger.error(f"Error añadiendo película {title}: {e}")
 
@@ -480,42 +477,36 @@ def sync_catalog():
                 # Buscar en OMDB (UNA SOLA VEZ por serie)
                 try:
                     search_results = omdb_service.search_series_cached(
-                        serie_name, limit=5
+                        serie_name, year=serie_data.get("year"), limit=10
                     )
                     imdb_id = None
+                    
+                    # Obtener año de la serie si está disponible
+                    serie_year = serie_data.get("year")
 
+                    # Filtrar por título Y año exacto para evitar insertar series incorrectas
                     for result in search_results:
                         result_title = result.get("title", "")
-                        if result_title.lower() == serie_name.lower():
+                        result_year = result.get("year")
+                        # Comparar títulos de forma más flexible (contiene o igual)
+                        title_match = serie_name.lower() in result_title.lower() or result_title.lower() in serie_name.lower()
+                        year_match = serie_year and result_year and str(serie_year) == str(result_year)
+                        
+                        if title_match and year_match:
                             imdb_id = result.get("imdb_id") or result.get("imdbID")
                             break
 
-                    if not imdb_id and search_results:
-                        imdb_id = search_results[0].get("imdb_id") or search_results[
-                            0
-                        ].get("imdbID")
+                    # Si no hay coincidencia exacta de título Y año, NO insertar
+                    # Esto evita insertar series incorrectas en la base de datos
+                    if not imdb_id:
+                        logger.warning(
+                            f"No se encontró coincidencia exacta para serie: {serie_name} ({serie_year}). "
+                            f"Resultados encontrados: {[r.get('title') + ' (' + str(r.get('year')) + ')' for r in search_results]}"
+                        )
 
                     if imdb_id:
                         omdb_data = omdb_service.get_serie_by_imdb_id_raw(imdb_id)
                         if omdb_data:
-                            # Usar el campo total_seasons de OMDB o el detectado en disco
-                            total_seasons_raw = (
-                                omdb_data.get("totalSeasons")
-                                or serie_data["seasons_found"]
-                            )
-                            total_seasons = _clean_omdb_value(
-                                total_seasons_raw, "integer"
-                            )
-
-                            # Guardar datos locales del escaneo en un campo separado
-                            local_metadata = {
-                                "seasons_found": serie_data["seasons_found"],
-                                "episodes_found": serie_data["episodes_found"],
-                                "has_valid_structure": serie_data[
-                                    "has_valid_structure"
-                                ],
-                            }
-
                             # Descargar póster si hay URL
                             poster_bytes = None
                             poster_url = omdb_data.get("Poster")
@@ -531,62 +522,15 @@ def sync_catalog():
                                 except Exception as e:
                                     logger.warning(f"Error descargando póster: {e}")
 
-                            # Mapear todos los campos de OMDB (usar claves en mayúsculas como devuelve OMDB)
-                            # IMPORTANTE: Limpiar valores 'N/A' para campos numéricos
-                            content_data = {
-                                "imdb_id": _clean_omdb_value(omdb_data.get("imdbID")),
-                                "title": _clean_omdb_value(omdb_data.get("Title"))
-                                or serie_name,
-                                "year": _clean_omdb_value(omdb_data.get("Year")),
-                                "rated": _clean_omdb_value(omdb_data.get("Rated")),
-                                "released": _clean_omdb_value(
-                                    omdb_data.get("Released")
-                                ),
-                                "runtime": _clean_omdb_value(omdb_data.get("Runtime")),
-                                "genre": _clean_omdb_value(omdb_data.get("Genre")),
-                                "director": _clean_omdb_value(
-                                    omdb_data.get("Director")
-                                ),
-                                "writer": _clean_omdb_value(omdb_data.get("Writer")),
-                                "actors": _clean_omdb_value(omdb_data.get("Actors")),
-                                "plot": _clean_omdb_value(omdb_data.get("Plot")),
-                                "language": _clean_omdb_value(
-                                    omdb_data.get("Language")
-                                ),
-                                "country": _clean_omdb_value(omdb_data.get("Country")),
-                                "awards": _clean_omdb_value(omdb_data.get("Awards")),
-                                "poster_url": _clean_omdb_value(poster_url),
-                                "poster_image": poster_bytes,
-                                "metascore": _clean_omdb_value(
-                                    omdb_data.get("Metascore"), "integer"
-                                ),  # INTEGER en BD
-                                "imdb_rating": _clean_omdb_value(
-                                    omdb_data.get("imdbRating"), "float"
-                                ),  # FLOAT en BD
-                                "imdb_votes": _clean_omdb_value(
-                                    omdb_data.get("imdbVotes")
-                                ),
-                                "type": "series",
-                                "total_seasons": total_seasons,  # INTEGER en BD
-                                "box_office": _clean_omdb_value(
-                                    omdb_data.get("BoxOffice")
-                                ),
-                                "production": _clean_omdb_value(
-                                    omdb_data.get("Production")
-                                ),
-                                "website": _clean_omdb_value(omdb_data.get("Website")),
-                                "dvd_release": _clean_omdb_value(omdb_data.get("DVD")),
-                                "ratings": _clean_omdb_value(omdb_data.get("Ratings")),
-                                "file_path": serie_data["path"],
-                                "full_response": omdb_data,  # Guardar respuesta completa de OMDB
-                            }
-                            repo.create_local_content(content_data)
+                            # Usar create_or_update_omdb_entry en lugar de create_local_content
+                            # para evitar duplicación entre omdb_entries y local_content
+                            repo.create_or_update_omdb_entry(omdb_data, poster_bytes)
                             added_series += 1
                             logger.info(
-                                f"Añadida serie: {content_data['title']} ({total_seasons} temporadas, {serie_data['episodes_found']} episodios)"
+                                f"Añadida serie desde OMDB: {omdb_data.get('Title')} ({omdb_data.get('totalSeasons')} temporadas)"
                             )
                     else:
-                        # Serie sin IMDB, crear con datos básicos
+                        # Serie sin IMDB, crear con datos básicos en local_content
                         content_data = {
                             "title": serie_name,
                             "type": "series",

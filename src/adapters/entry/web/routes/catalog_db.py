@@ -149,14 +149,26 @@ def get_catalog_series():
                                 search_results = omdb_service.search_series_cached(serie_name, limit=5)
                                 imdb_id = None
                                 
+                                # Obtener año de la serie si está disponible
+                                serie_year = serie_data.get("year")
+
+                                # Filtrar por título Y año exacto para evitar insertar series incorrectas
                                 for result in search_results:
                                     result_title = result.get('title', '')
-                                    if result_title.lower() == serie_name.lower():
+                                    result_year = result.get('year')
+                                    # Comparar títulos de forma más flexible
+                                    title_match = serie_name.lower() in result_title.lower() or result_title.lower() in serie_name.lower()
+                                    year_match = serie_year and result_year and str(serie_year) == str(result_year)
+                                    
+                                    if title_match and year_match:
                                         imdb_id = result.get('imdb_id') or result.get('imdbID')
                                         break
                                 
-                                if not imdb_id and search_results:
-                                    imdb_id = search_results[0].get('imdb_id') or search_results[0].get('imdbID')
+                                # Si no hay coincidencia exacta, NO insertar
+                                if not imdb_id:
+                                    logger.warning(
+                                        f"No se encontró coincidencia exacta para serie: {serie_name} ({serie_year})"
+                                    )
                                 
                                 if imdb_id:
                                     omdb_data = omdb_service.get_serie_by_imdb_id_raw(imdb_id)

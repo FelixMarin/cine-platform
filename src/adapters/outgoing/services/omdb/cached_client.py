@@ -310,7 +310,7 @@ class OMDBMetadataServiceCached(OMDBMetadataService):
         # Devolver los datos crudos de OMDB (claves en mayúsculas)
         return omdb_data
 
-    def search_movies_cached(self, query: str, limit: int = 10) -> List[Dict]:
+    def search_movies_cached(self, query: str, year: int = None, limit: int = 10) -> List[Dict]:
         """
         Busca películas con caché
 
@@ -320,12 +320,23 @@ class OMDBMetadataServiceCached(OMDBMetadataService):
         with get_catalog_repository_session() as db:
             repo = get_catalog_repository(db)
 
-            local_results = repo.search_omdb_entries(query, limit=limit)
+            # Si hay año, buscar primero en local con filtro de año
+            if year:
+                local_results = repo.search_omdb_entries(query, limit=limit * 2)
+                # Filtrar por año exacto
+                local_results = [r for r in local_results if r.year and str(year) in r.year]
+                local_results = local_results[:limit]
+            else:
+                local_results = repo.search_omdb_entries(query, limit=limit)
 
             if len(local_results) >= limit:
                 return [r.to_dict() for r in local_results]
 
-            omdb_results = self.search_movies(query)
+            # Buscar en OMDB con año si está disponible
+            if year:
+                omdb_results = self.search_movies(query, year=year)
+            else:
+                omdb_results = self.search_movies(query)
 
             for result in omdb_results:
                 imdb_id = result.get("imdbID")
@@ -338,10 +349,16 @@ class OMDBMetadataServiceCached(OMDBMetadataService):
                         except Exception:
                             pass
 
-            all_results = repo.search_omdb_entries(query, limit=limit)
+            # Volver a buscar en local después de actualizar
+            if year:
+                all_results = repo.search_omdb_entries(query, limit=limit * 2)
+                all_results = [r for r in all_results if r.year and str(year) in r.year]
+                all_results = all_results[:limit]
+            else:
+                all_results = repo.search_omdb_entries(query, limit=limit)
             return [r.to_dict() for r in all_results]
 
-    def search_series_cached(self, query: str, limit: int = 10) -> List[Dict]:
+    def search_series_cached(self, query: str, year: int = None, limit: int = 10) -> List[Dict]:
         """
         Busca series con caché
 
@@ -351,21 +368,30 @@ class OMDBMetadataServiceCached(OMDBMetadataService):
         
         with get_catalog_repository_session() as db:
             # Buscar localmente entradas que sean series
-            local_results = (
-                db.query(OmdbEntry)
-                .filter(OmdbEntry.title.ilike(f"%{query}%"))
-                .limit(limit)
-                .all()
-            )
-
-            # Filtrar localmente solo series
-            series_results = [r for r in local_results if r.type == 'series']
+            if year:
+                local_results = (
+                    db.query(OmdbEntry)
+                    .filter(OmdbEntry.title.ilike(f"%{query}%"))
+                    .limit(limit * 2)
+                    .all()
+                )
+                # Filtrar por año exacto y tipo series
+                series_results = [r for r in local_results if r.type == 'series' and r.year and str(year) in r.year]
+                series_results = series_results[:limit]
+            else:
+                local_results = (
+                    db.query(OmdbEntry)
+                    .filter(OmdbEntry.title.ilike(f"%{query}%"))
+                    .limit(limit)
+                    .all()
+                )
+                series_results = [r for r in local_results if r.type == 'series']
             
             if len(series_results) >= limit:
                 return [r.to_dict() for r in series_results]
 
-            # OMDB search
-            omdb_results = self.search_series(query)
+            # OMDB search con año si está disponible
+            omdb_results = self.search_series(query, year=year)
 
             for result in omdb_results:
                 imdb_id = result.get("imdbID")
@@ -378,13 +404,23 @@ class OMDBMetadataServiceCached(OMDBMetadataService):
                             pass
 
             # Re-buscar en BD después de cachear
-            all_results = (
-                db.query(OmdbEntry)
-                .filter(OmdbEntry.title.ilike(f"%{query}%"))
-                .limit(limit)
-                .all()
-            )
-            series_results = [r for r in all_results if r.type == 'series']
+            if year:
+                all_results = (
+                    db.query(OmdbEntry)
+                    .filter(OmdbEntry.title.ilike(f"%{query}%"))
+                    .limit(limit * 2)
+                    .all()
+                )
+                series_results = [r for r in all_results if r.type == 'series' and r.year and str(year) in r.year]
+                series_results = series_results[:limit]
+            else:
+                all_results = (
+                    db.query(OmdbEntry)
+                    .filter(OmdbEntry.title.ilike(f"%{query}%"))
+                    .limit(limit)
+                    .all()
+                )
+                series_results = [r for r in all_results if r.type == 'series']
             return [r.to_dict() for r in series_results]
 
     def get_serie_by_imdb_id_raw(
