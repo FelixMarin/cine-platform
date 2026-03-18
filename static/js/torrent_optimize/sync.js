@@ -49,12 +49,24 @@
                                 }
                             }
                             
+                            var existingOpt = null;
+                            if (window.state && window.state.optimizations) {
+                                for (var j = 0; j < window.state.optimizations.length; j++) {
+                                    if (window.state.optimizations[j].process_id === data.process_id || 
+                                        window.state.optimizations[j].id === data.process_id) {
+                                        existingOpt = window.state.optimizations[j];
+                                        break;
+                                    }
+                                }
+                            }
+                            
                             var optData = {
                                 process_id: data.process_id,
                                 torrent_id: torrentId,
                                 status: result.status,
                                 progress: result.progress || 0,
-                                error: result.error || null
+                                error: result.error || null,
+                                notificationShown: existingOpt && existingOpt.notificationShown ? true : false
                             };
                             
                             if (existingIndex >= 0) {
@@ -116,13 +128,26 @@
             var activeMap = {};
             var optimizations = result.optimizations || [];
             
-            // Actualizar el estado global de optimizaciones
             if (window.state) {
-                window.state.optimizations = optimizations;
+                var existingOptimizations = window.state.optimizations || [];
+                window.state.optimizations = optimizations.map(function(newOpt) {
+                    var existing = null;
+                    for (var j = 0; j < existingOptimizations.length; j++) {
+                        if (existingOptimizations[j].process_id === newOpt.process_id || 
+                            existingOptimizations[j].id === newOpt.process_id) {
+                            existing = existingOptimizations[j];
+                            break;
+                        }
+                    }
+                    if (existing && existing.notificationShown) {
+                        return { ...newOpt, notificationShown: true };
+                    }
+                    return newOpt;
+                });
             }
             
-            for (var i = 0; i < optimizations.length; i++) {
-                var opt = optimizations[i];
+            for (var i = 0; i < window.state.optimizations.length; i++) {
+                var opt = window.state.optimizations[i];
                 if (opt.torrent_id) {
                     activeMap[opt.torrent_id] = {
                         process_id: opt.process_id,

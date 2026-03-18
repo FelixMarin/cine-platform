@@ -304,7 +304,29 @@ def _scan_series_from_filesystem():
 
 
 def _parse_filename(filename):
-    """Parsea nombre de archivo para extraer título y año"""
+    """
+    Parsea nombre de archivo para extraer título, año, calidad e idioma.
+
+    Soporta el patrón: Título (AÑO) [Calidad][Idioma].ext
+    Ejemplos:
+        - "Unidad Alpha (2025) [Bluray 720p][Esp].mkv"
+        - "The Matrix (1999) [Bluray 1080p][Eng].mkv"
+
+    Returns:
+        tuple: (title, year) donde:
+            - title: Título limpio sin año ni etiquetas
+            - year: Año como int o None
+    """
+    # Patrón principal: Título (AÑO) [Calidad][Idioma].ext
+    pattern = r"^(.+?)\s*\((\d{4})\)(?:\s*\[([^\]]+)\])?(?:\s*\[([^\]]+)\])?\.([^.]+)$"
+
+    match = re.match(pattern, filename)
+    if match:
+        title = match.group(1).strip()
+        year = int(match.group(2))
+        return title, year
+
+    # Fallback: método original para otros patrones
     name_without_ext = filename.rsplit(".", 1)[0]
     name_clean = name_without_ext
     for suffix in ["-optimized", "-HD", "-4K", "-BluRay", "-WEB", "-DL", "-AC3"]:
@@ -408,7 +430,9 @@ def sync_catalog():
                     title = movie_data["title"]
                     year = movie_data["year"]
 
-                    search_results = omdb_service.search_movies_cached(title, year=year, limit=10)
+                    search_results = omdb_service.search_movies_cached(
+                        title, year=year, limit=10
+                    )
                     imdb_id = None
 
                     # Filtrar por título Y año exacto para evitar insertar películas incorrectas
@@ -416,9 +440,14 @@ def sync_catalog():
                         result_title = result.get("title", "")
                         result_year = result.get("year")
                         # Comparar títulos de forma más flexible (contiene o igual)
-                        title_match = title.lower() in result_title.lower() or result_title.lower() in title.lower()
-                        year_match = year and result_year and str(year) == str(result_year)
-                        
+                        title_match = (
+                            title.lower() in result_title.lower()
+                            or result_title.lower() in title.lower()
+                        )
+                        year_match = (
+                            year and result_year and str(year) == str(result_year)
+                        )
+
                         if title_match and year_match:
                             imdb_id = result.get("imdb_id") or result.get("imdbID")
                             break
@@ -480,7 +509,7 @@ def sync_catalog():
                         serie_name, year=serie_data.get("year"), limit=10
                     )
                     imdb_id = None
-                    
+
                     # Obtener año de la serie si está disponible
                     serie_year = serie_data.get("year")
 
@@ -489,9 +518,16 @@ def sync_catalog():
                         result_title = result.get("title", "")
                         result_year = result.get("year")
                         # Comparar títulos de forma más flexible (contiene o igual)
-                        title_match = serie_name.lower() in result_title.lower() or result_title.lower() in serie_name.lower()
-                        year_match = serie_year and result_year and str(serie_year) == str(result_year)
-                        
+                        title_match = (
+                            serie_name.lower() in result_title.lower()
+                            or result_title.lower() in serie_name.lower()
+                        )
+                        year_match = (
+                            serie_year
+                            and result_year
+                            and str(serie_year) == str(result_year)
+                        )
+
                         if title_match and year_match:
                             imdb_id = result.get("imdb_id") or result.get("imdbID")
                             break

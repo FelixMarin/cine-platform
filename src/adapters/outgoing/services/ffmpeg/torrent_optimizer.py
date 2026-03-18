@@ -69,7 +69,16 @@ class TorrentOptimizer:
     - Procesa y mueve resultado a la categoría final
     """
 
-    # Rutas de Transmission
+    # Rutas CORRECTAS donde debe buscar el optimizador (IGNORAR downloadDir de Transmission)
+    # Estas son las rutas DENTRO del contenedor cine-platform/transmission
+    # El mount es: /mnt/DATA_2TB/administracion-peliculas/downloads -> /downloads
+    TORRENT_SEARCH_PATHS = [
+        '/downloads/',
+        '/downloads/complete/',
+        '/downloads/incomplete/'
+    ]
+
+    # Rutas legacy (deprecated - ya no se usan)
     TRANSMISSION_COMPLETE = os.environ.get(
         "TRANSMISSION_COMPLETE_PATH", "/downloads/complete"
     )
@@ -185,8 +194,10 @@ class TorrentOptimizer:
         self, filename: str, torrent_id: Optional[int] = None
     ) -> Optional[str]:
         """
-        Busca el archivo en las carpetas tradicionales de Transmission (fallback).
-        Este método solo se usa si el método principal con TransmissionClient falla.
+        Busca el archivo en las rutas CORRECTAS (fallback).
+        
+        IMPORTANTE: Este método IGNORA el downloadDir de Transmission y busca
+        ÚNICAMENTE en las rutas configuradas en TORRENT_SEARCH_PATHS.
 
         Args:
             filename: Nombre del archivo a buscar (puede incluir o no extensión)
@@ -195,62 +206,19 @@ class TorrentOptimizer:
         Returns:
             Ruta completa del archivo si se encuentra, None si no
         """
-        search_paths = [self.TRANSMISSION_COMPLETE, self.TRANSMISSION_INCOMPLETE]
+        search_paths = self.TORRENT_SEARCH_PATHS
+        logger.info(f"[TorrentOptimizer] Fallback: buscando en rutas correctas: {search_paths}")
 
-        # Primero, intentar obtener la ruta real desde Transmission si tenemos torrent_id
-        if torrent_id and self.transmission_client:
-            try:
-                torrent = self.transmission_client.get_torrent(torrent_id)
-                if (
-                    torrent
-                    and torrent.download_dir
-                    and os.path.exists(torrent.download_dir)
-                ):
-                    logger.info(
-                        f"[TorrentOptimizer] Fallback: buscando en downloadDir del torrent: {torrent.download_dir}"
-                    )
-                    # Buscar el archivo en el directorio del torrent
-                    for f in torrent.files:
-                        file_name = f.get("name", "")
-                        # Buscar archivos de video
-                        if file_name.lower().endswith(
-                            (
-                                ".mkv",
-                                ".mp4",
-                                ".avi",
-                                ".mov",
-                                ".webm",
-                                ".m4v",
-                                ".wmv",
-                                ".flv",
-                                ".ts",
-                                ".m2ts",
-                            )
-                        ):
-                            full_path = os.path.join(torrent.download_dir, file_name)
-                            if os.path.exists(full_path):
-                                logger.info(
-                                    f"[TorrentOptimizer] ✓ Archivo encontrado en downloadDir: {full_path}"
-                                )
-                                return full_path
-            except Exception as e:
-                if "torrent not found" in str(e).lower():
-                    logger.error(
-                        f"[TorrentOptimizer] ❌ Torrent {torrent_id} no existe en Transmission"
-                    )
-                    logger.info(
-                        "[TorrentOptimizer] 📋 Torrents activos en Transmission:"
-                    )
-                    # Listar torrents disponibles para ayudar al usuario
-                    active_torrents = self.transmission_client.get_torrents()
-                    for t in active_torrents[:5]:  # Mostrar primeros 5
-                        logger.info(f"   - ID: {t.id}, Nombre: {t.name}")
+        # Extraer nombre base sin extensión
+        base_name = filename
+        for ext in ['.mkv', '.mp4', '.avi', '.mov', '.webm', '.m4v', '.wmv', '.flv', '.ts', '.m2ts']:
+            base_name = base_name.replace(ext, '')
 
         # Intentar con el nombre exacto primero
         for base in search_paths:
             candidate = os.path.join(base, filename)
             logger.info(f"[TorrentOptimizer] Probando: {candidate}")
-            if os.path.exists(candidate):
+            if os.path.exists(candidate) and os.path.isfile(candidate):
                 logger.info(f"[TorrentOptimizer] ✓ Archivo encontrado: {candidate}")
                 return candidate
 
@@ -266,11 +234,29 @@ class TorrentOptimizer:
                 if filename.lower().endswith(ext):
                     continue
                 candidate = os.path.join(base, filename + ext)
-                if os.path.exists(candidate):
+                if os.path.exists(candidate) and os.path.isfile(candidate):
                     logger.info(
                         f"[TorrentOptimizer] ✓ Archivo encontrado con extensión añadida: {candidate}"
                     )
                     return candidate
+
+        # Búsqueda en subdirectorios
+        logger.info(f"[TorrentOptimizer] Buscando en subdirectorios...")
+        for base in search_paths:
+            if not os.path.exists(base):
+                continue
+            try:
+                for item in os.listdir(base):
+                    item_path = os.path.join(base, item)
+                    if os.path.isdir(item_path):
+                        # Buscar dentro del subdirectorio
+                        for file in os.listdir(item_path):
+                            if base_name.lower() in file.lower() and file.lower().endswith(('.mkv', '.mp4', '.avi', '.mov', '.webm', '.m4v')):
+                                full_path = os.path.join(item_path, file)
+                                logger.info(f"[TorrentOptimizer] ✓ Archivo encontrado en subdirectorio: {full_path}")
+                                return full_path
+            except Exception as e:
+                logger.warning(f"[TorrentOptimizer] Error listando {base}: {e}")
 
         # Si aún no se encuentra, listar archivos en las carpetas para debug
         logger.error(
@@ -439,8 +425,11 @@ class TorrentOptimizer:
         output_filename = name_sanitizer.sanitize(actual_filename)
 
         # USAR DIRECTAMENTE la ruta original como input (no copiar)
-        # Convertir la ruta del host (/downloads/...) a la ruta del contenedor ffmpeg-api (/shared/input/)
-        # porque /downloads/ está mapeado a /shared/input/ en el contenedor ffmpeg-api
+        # Convertir la ruta del contenedor cine-platform/transmission al contenedor ffmpeg-api
+        # cine-platform usa: /downloads/...
+        # ffmpeg-api usa: /shared/input/...
+        # La transformación es: /downloads/ -> /shared/input/
+        # Además, debemos mantener la estructura de subdirectorios que crea Transmission
         shared_input = source_path.replace("/downloads/", "/shared/input/")
         logger.info(
             f"[TorrentOptimizer] Usando archivo original directamente: {shared_input}"

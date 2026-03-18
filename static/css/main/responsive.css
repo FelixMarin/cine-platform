@@ -10,8 +10,19 @@
 }
 
 @media (max-width: 768px) {
+    body {
+        overflow-x: hidden;
+        width: 100%;
+        position: relative;
+    }
+
+    .main-content,
     .container {
-        padding: 16px;
+        width: 100%;
+        max-width: 100%;
+        overflow-x: hidden;
+        padding: 1rem;
+        box-sizing: border-box;
     }
     
     .tabs {
@@ -83,11 +94,48 @@
     .movie-thumb {
         height: 10em;
     }
+
+    .side-menu {
+        width: 85%;
+        max-width: 300px;
+    }
+
+    .downloads-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+
+    .header-stats {
+        font-size: 0.9rem;
+    }
+
+    .downloads-tabs {
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+
+    .download-tab {
+        flex: 1 1 auto;
+        min-width: 120px;
+        padding: 0.75rem 0.5rem;
+        font-size: 0.9rem;
+    }
 }
 
 @media (max-width: 480px) {
+    body {
+        overflow-x: hidden;
+        width: 100%;
+    }
+
+    .main-content,
     .container {
-        padding: 12px;
+        padding: 0.5rem;
+        width: 100%;
+        max-width: 100%;
+        overflow-x: hidden;
+        box-sizing: border-box;
     }
     
     .tab, .tab-link {
@@ -165,6 +213,16 @@
     
     .movie-thumb {
         height: 170px;
+    }
+
+    .results-grid {
+        grid-template-columns: 1fr;
+        padding: 0.5rem;
+    }
+
+    .result-card,
+    .process-card {
+        width: 100%;
     }
 }
 

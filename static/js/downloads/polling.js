@@ -67,11 +67,33 @@ async function refreshOptimizations() {
     try {
         const data = await DownloadsAPI.getActiveOptimizations();
         if (data.optimizations) {
-            state.optimizations = data.optimizations;
-            renderOptimizationsList(data.optimizations);
-            // Actualizar la UI de descargas para reflejar el estado de las optimizaciones
+            const existingOptimizations = state.optimizations || [];
+            
+            const mergedOptimizations = data.optimizations.map(function(newOpt) {
+                var existing = null;
+                for (var i = 0; i < existingOptimizations.length; i++) {
+                    if (existingOptimizations[i].process_id === newOpt.process_id || 
+                        existingOptimizations[i].id === newOpt.process_id) {
+                        existing = existingOptimizations[i];
+                        break;
+                    }
+                }
+                
+                if (existing && existing.notificationShown) {
+                    return { ...newOpt, notificationShown: true };
+                }
+                return newOpt;
+            });
+            
+            state.optimizations = mergedOptimizations;
+            renderOptimizationsList(mergedOptimizations);
             if (typeof window.renderDownloads === 'function') {
                 window.renderDownloads();
+            }
+            
+            const countEl = document.getElementById('active-optimizations-count');
+            if (countEl) {
+                countEl.textContent = mergedOptimizations.length;
             }
         }
     } catch (error) {

@@ -73,6 +73,8 @@
      * @param {string} torrentId - ID del torrent
      */
     window.TorrentOptimize.monitorOptimization = function(processId, torrentId) {
+        var notificationShown = false;
+
         var poll = async function() {
             try {
                 var getStatus = window.TorrentOptimize.getStatus;
@@ -81,30 +83,27 @@
                 var result = await getStatus(processId);
 
                 if (result.success) {
-                    // Actualizar UI del modal si está abierto
                     if (window.TorrentOptimize.updateProgressUI) {
                         window.TorrentOptimize.updateProgressUI(result);
                     }
 
-                    // Actualizar botón según resultado
                     if (window.TorrentOptimize.getButtonState && window.TorrentOptimize.updateOptimizeButton) {
                         var buttonState = window.TorrentOptimize.getButtonState(result.status);
                         window.TorrentOptimize.updateOptimizeButton(torrentId, buttonState, processId);
                     }
 
-                    // Guardar estado
                     if (window.TorrentOptimize.saveProcess) {
                         window.TorrentOptimize.saveProcess(torrentId, processId, result.status);
                     }
 
-                    // Actualizar el estado global de optimizaciones para que los botones se actualicen
                     if (window.state && window.state.optimizations) {
-                        // Buscar si ya existe esta optimización en el estado
                         var existingIndex = -1;
+                        var existingOpt = null;
                         for (var i = 0; i < window.state.optimizations.length; i++) {
                             if (window.state.optimizations[i].process_id === processId || 
                                 window.state.optimizations[i].id === processId) {
                                 existingIndex = i;
+                                existingOpt = window.state.optimizations[i];
                                 break;
                             }
                         }
@@ -114,7 +113,8 @@
                             torrent_id: torrentId,
                             status: result.status,
                             progress: result.progress || 0,
-                            error: result.error || null
+                            error: result.error || null,
+                            notificationShown: existingOpt && existingOpt.notificationShown ? true : false
                         };
                         
                         if (existingIndex >= 0) {
@@ -123,40 +123,51 @@
                             window.state.optimizations.push(optData);
                         }
                         
-                        // Forzar actualización de la UI de descargas
+                        notificationShown = optData.notificationShown;
+                        
                         if (typeof window.renderDownloads === 'function') {
                             window.renderDownloads();
                         }
                     }
 
-                    // Detener si completó o falló
                     if (result.status === 'completed' || result.status === 'error') {
                         if (window.TorrentOptimize.statusIntervals && window.TorrentOptimize.statusIntervals[processId]) {
                             clearInterval(window.TorrentOptimize.statusIntervals[processId]);
                             delete window.TorrentOptimize.statusIntervals[processId];
                         }
 
-                        // Notificaciones
-                        if (result.status === 'error' && result.error) {
-                            if (typeof showNotification === 'function') {
-                                showNotification(
-                                    '❌ Error en optimización',
-                                    result.error,
-                                    'error'
-                                );
+                        if (!notificationShown) {
+                            notificationShown = true;
+                            
+                            if (window.state && window.state.optimizations) {
+                                window.state.optimizations = window.state.optimizations.map(function(opt) {
+                                    if (opt.process_id === processId || opt.id === processId) {
+                                        return { ...opt, status: result.status, notificationShown: true };
+                                    }
+                                    return opt;
+                                });
                             }
-                            console.error('[TorrentOptimize] Error en optimización:', result.error);
-                        } else if (result.status === 'completed') {
-                            if (typeof showNotification === 'function') {
-                                showNotification(
-                                    '✅ Optimización completada',
-                                    'El archivo ha sido optimizado correctamente',
-                                    'success'
-                                );
+
+                            if (result.status === 'error' && result.error) {
+                                if (typeof showNotification === 'function') {
+                                    showNotification(
+                                        '❌ Error en optimización',
+                                        result.error,
+                                        'error'
+                                    );
+                                }
+                                console.error('[TorrentOptimize] Error en optimización:', result.error);
+                            } else if (result.status === 'completed') {
+                                if (typeof showNotification === 'function') {
+                                    showNotification(
+                                        '✅ Optimización completada',
+                                        'El archivo ha sido optimizado correctamente',
+                                        'success'
+                                    );
+                                }
                             }
                         }
 
-                        // Refrescar lista
                         if (window.TorrentOptimize.refreshOptimizationsList) {
                             window.TorrentOptimize.refreshOptimizationsList();
                         }
@@ -170,7 +181,6 @@
         var pollInterval = window.TorrentOptimize.POLL_INTERVAL || 2000;
         window.TorrentOptimize.statusIntervals[processId] = setInterval(poll, pollInterval);
         
-        // Ejecutar inmediatamente
         poll();
     };
 
