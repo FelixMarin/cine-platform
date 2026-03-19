@@ -21,7 +21,7 @@ optimizer_page_bp = Blueprint('optimizer_page', __name__)
 @require_role('admin')
 def optimizer_page():
     """Página del optimizador de video"""
-    return render_template('optimizer.html')
+    return render_template('pages/optimizer/index.html')
 
 
 @optimizer_page_bp.route('/optimizer/profiles')

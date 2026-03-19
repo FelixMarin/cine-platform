@@ -15,7 +15,12 @@ from src.infrastructure.logging import setup_logging
 logger = setup_logging(os.environ.get("LOG_FOLDER"))
 
 series_bp = Blueprint("series", __name__, url_prefix="/api")
-series_page_bp = Blueprint("series_page", __name__, url_prefix="", template_folder="../../templates")
+# Ruta absoluta para el template_folder del Blueprint
+_series_template_path = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+    "templates"
+)
+series_page_bp = Blueprint("series_page", __name__, url_prefix="", template_folder=_series_template_path)
 
 
 # Rutas de página (sin prefijo /api)
@@ -27,7 +32,7 @@ def series_page():
     """
     Página principal con la pestaña de series activa.
     """
-    return render_template("index.html")
+    return render_template("pages/movies/index.html")
 
 
 @series_page_bp.route("/series/<int:serie_id>", methods=["GET"])
@@ -35,7 +40,7 @@ def serie_detail_page(serie_id):
     """
     Página de detalle de una serie específica.
     """
-    return render_template("index.html")
+    return render_template("pages/movies/index.html")
 
 
 @series_page_bp.route("/series/<int:serie_id>/seasons", methods=["GET"])
@@ -43,7 +48,7 @@ def serie_seasons_page(serie_id):
     """
     Página de temporadas de una serie específica.
     """
-    return render_template("index.html")
+    return render_template("pages/movies/index.html")
 
 
 @series_page_bp.route("/series/<int:serie_id>/season/<int:season_num>", methods=["GET"])
@@ -51,7 +56,7 @@ def serie_season_page(serie_id, season_num):
     """
     Página de episodios de una temporada específica.
     """
-    return render_template("index.html")
+    return render_template("pages/movies/index.html")
 
 
 # Ruta catch-all para cualquier ruta /series que no coincida con las anteriores
@@ -60,7 +65,7 @@ def series_catch_all(path):
     """
     Ruta catch-all para series - maneja cualquier ruta no coincidente.
     """
-    return render_template("index.html")
+    return render_template("pages/movies/index.html")
 
 
 @series_bp.route("/series", methods=["GET"])

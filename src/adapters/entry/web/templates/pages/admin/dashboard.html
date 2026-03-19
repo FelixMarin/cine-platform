@@ -1,0 +1,68 @@
+{% extends "base/layout.html" %}
+
+{% block title %}Panel de Administración - Cine Platform{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/admin/admin_panel.css') }}?v={{ range(1, 10000) | random }}">
+{% endblock %}
+
+{% block menu %}
+{% include "components/menu.html" %}
+{% endblock %}
+
+{% block content %}
+<div class="admin-container">
+    <div class="admin-header">
+        <h1>⚙️ Panel de Administración</h1>
+        <p>Bienvenido, {{ session['user_email'] }}</p>
+    </div>
+
+    <div class="admin-section">
+        <h2>📊 Estadísticas del Sistema</h2>
+        <div class="admin-stats">
+            <div class="stat-card">
+                <h3>-</h3>
+                <p>Películas y Series</p>
+            </div>
+            <div class="stat-card">
+                <h3>-</h3>
+                <p>Usuarios Activos</p>
+            </div>
+            <div class="stat-card">
+                <h3>-</h3>
+                <p>Almacenamiento</p>
+            </div>
+            <div class="stat-card">
+                <h3>-</h3>
+                <p>Videos Procesados</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="admin-section">
+        <h2>🛠️ Herramientas de Administración</h2>
+        <p>
+            Panel de administración en desarrollo. Aquí podrás gestionar usuarios,
+            contenido, y configuración del sistema.
+        </p>
+        <ul>
+            <li>Gestión de usuarios y permisos</li>
+            <li>Administración de contenido multimedia</li>
+            <li>Monitoreo de procesamiento de videos</li>
+            <li>Configuración del sistema</li>
+            <li>Logs y auditoría</li>
+        </ul>
+    </div>
+
+    <div class="admin-section">
+        <h2>📝 Logs Recientes</h2>
+        <p>
+            Los logs del sistema se encuentran en: <code>logs/cine-platform.log</code>
+        </p>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/admin_panel.js') }}?v={{ range(1, 10000) | random }}" defer></script>
+{% endblock %}

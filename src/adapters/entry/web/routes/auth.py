@@ -49,7 +49,7 @@ def status():
 @require_auth
 def index():
     """Página principal del catálogo"""
-    return render_template("index.html")
+    return render_template("pages/movies/index.html")
 
 
 @main_page_bp.route("/favicon.ico")
@@ -111,7 +111,7 @@ def login_page():
         logger.info(f"[LOGIN_PAGE] Code verifier guardado para OAuth")
 
     return render_template(
-        "login.html",
+        "pages/auth/login.html",
         client_id=client_id,
         oauth2_url=os.environ.get("PUBLIC_OAUTH2_URL", "http://localhost:8080"),
         redirect_uri=os.environ.get(
@@ -138,7 +138,7 @@ def login_post():
     # Validaciones
     if not username or not password:
         return render_template(
-            "login.html",
+            "pages/auth/login.html",
             error="Usuario y contraseña requeridos",
             client_id=client_id or session.get("client_id"),
         )
@@ -148,7 +148,7 @@ def login_post():
         if not client_id:
             logger.error("[LOGIN] No se pudo determinar el client_id")
             return render_template(
-                "login.html", error="Error: Aplicación no identificada"
+                "pages/auth/login.html", error="Error: Aplicación no identificada"
             )
 
     logger.info(
@@ -223,7 +223,7 @@ def login_post():
                 f"[LOGIN] Credenciales incorrectas para {username} en {client_id}"
             )
             return render_template(
-                "login.html",
+                "pages/auth/login.html",
                 error="Credenciales incorrectas para esta aplicación",
                 client_id=client_id,
             )
@@ -231,14 +231,14 @@ def login_post():
     except requests.exceptions.ConnectionError:
         logger.error(f"[LOGIN] Error de conexión con servidor OAuth2 en {oauth2_url}")
         return render_template(
-            "login.html",
+            "pages/auth/login.html",
             error="Error de conexión con servidor de autenticación",
             client_id=client_id,
         )
     except Exception as e:
         logger.error(f"[LOGIN] Error inesperado: {e}")
         return render_template(
-            "login.html", error="Error interno del servidor", client_id=client_id
+            "pages/auth/login.html", error="Error interno del servidor", client_id=client_id
         )
 
 
@@ -834,7 +834,7 @@ def _complete_oauth_flow(code_challenge: str, state: str = None):
     except Exception as e:
         logger.error(f"[OAUTH_FLOW] Error: {e}")
         return render_template(
-            "login.html", error=f"Error al completar OAuth: {str(e)}"
+            "pages/auth/login.html", error=f"Error al completar OAuth: {str(e)}"
         )
 
 

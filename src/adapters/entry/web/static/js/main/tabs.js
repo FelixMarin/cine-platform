@@ -3,13 +3,9 @@ function showTab(tabName) {
 
     document.querySelectorAll('.menu-item').forEach(item => item.classList.remove('active'));
 
-    if (tabName === 'movies') {
-        const moviesTab = document.querySelector('.menu-item[onclick="showTab(\'movies\')"]');
-        if (moviesTab) moviesTab.classList.add('active');
-    } else {
-        const seriesTab = document.querySelector('.menu-item[onclick="showTab(\'series\')"]');
-        if (seriesTab) seriesTab.classList.add('active');
-    }
+    // Buscar por data-tab attribute
+    const targetTab = document.querySelector(`.menu-item[data-tab="${tabName}"]`);
+    if (targetTab) targetTab.classList.add('active');
 
     const moviesDiv = document.getElementById('movies');
     const seriesDiv = document.getElementById('series');

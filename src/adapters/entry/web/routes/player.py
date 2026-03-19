@@ -73,7 +73,7 @@ def play_page(media_path):
     clean_title = re.sub(r"[._-]", " ", clean_title).strip()
 
     return render_template(
-        "play.html",
+        "pages/movies/play.html",
         filename=filename,
         sanitized_name=sanitized_name,
         media_path=media_path,
@@ -115,7 +115,7 @@ def play_page_by_id(movie_id):
         logger.info(f"✅ Reproduciendo: {clean_title} ({year})")
 
         return render_template(
-            "play.html",
+            "pages/movies/play.html",
             filename=filename,
             sanitized_name=sanitized_name,
             media_path=movie_id,
@@ -135,7 +135,7 @@ def play_page_by_id(movie_id):
 def play_page_root():
     """Página de reproducción (raíz)"""
     return render_template(
-        "play.html", filename="", sanitized_name="Reproducción", media_path=""
+        "pages/movies/play.html", filename="", sanitized_name="Reproducción", media_path=""
     )
 
 
@@ -238,7 +238,7 @@ def play_serie_episode(serie_id, season, episode):
             year = getattr(serie, "year", None)
 
             return render_template(
-                "play.html",
+                "pages/movies/play.html",
                 filename=rel_path,
                 sanitized_name=sanitized_name,
                 media_path=f"{serie_id}/{season}/{episode}",

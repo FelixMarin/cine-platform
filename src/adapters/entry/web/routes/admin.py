@@ -16,7 +16,7 @@ admin_page_bp = Blueprint('admin_page', __name__)
 @require_role('admin')
 def admin_page():
     """Página del panel de administración"""
-    return render_template('admin_panel.html')
+    return render_template('pages/admin/dashboard.html')
 
 
 def init_admin_routes():
@@ -29,7 +29,7 @@ def init_admin_routes():
 @require_role('admin')
 def index():
     """Panel de administración"""
-    return render_template('admin_panel.html')
+    return render_template('pages/admin/dashboard.html')
 
 
 @admin_bp.route('/stats')

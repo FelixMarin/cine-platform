@@ -1,0 +1,52 @@
+<!-- Menú lateral colapsable -->
+<div class="side-menu" id="sideMenu" role="navigation" aria-label="Menú principal">
+    <div class="menu-collapse-btn" onclick="toggleCollapse()" title="Colapsar menú" role="button" aria-label="Colapsar menú">◀</div>
+
+    <div class="menu-header">
+        <h2 class="menu-title-full">Cine<span>Platform</span></h2>
+    </div>
+
+    <div class="menu-user">
+        <div class="menu-user-email">{{ session['user_email'] }}</div>
+        <div class="menu-user-role">{{ session['user_role'] }}</div>
+    </div>
+
+    <div class="menu-items">
+        <div class="menu-section-title">PRINCIPAL</div>
+
+        <a href="/" class="menu-item" data-tab="movies" role="tab" aria-selected="false" onclick="showTab('movies'); return false;">
+            <span aria-hidden="true">🎬</span>
+            <span class="menu-item-text">Películas</span>
+        </a>
+
+        <a href="/" class="menu-item" data-tab="series" role="tab" aria-selected="false" onclick="showTab('series'); return false;">
+            <span aria-hidden="true">📺</span>
+            <span class="menu-item-text">Series</span>
+        </a>
+
+
+        {% if session['user_role'] == 'admin' %}
+        <div class="menu-section-title">ADMINISTRACIÓN</div>
+
+        <a href="/admin/manage" class="menu-item">
+            <span aria-hidden="true">⚙️</span>
+            <span class="menu-item-text">Panel Admin</span>
+        </a>
+
+        <a href="/optimizer" class="menu-item">
+            <span aria-hidden="true">🎥</span>
+            <span class="menu-item-text">Optimizador</span>
+        </a>
+
+        <a href="/downloads" class="menu-item">
+            <span aria-hidden="true">📥</span>
+            <span class="menu-item-text">Descargas</span>
+        </a>
+        {% endif %}
+    </div>
+
+    <a href="/logout" class="menu-logout">
+        <span aria-hidden="true">🚪</span>
+        <span class="menu-logout-text">Cerrar Sesión</span>
+    </a>
+</div>

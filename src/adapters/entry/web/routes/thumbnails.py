@@ -1,7 +1,7 @@
 """
 Rutas de Thumbnails - Miniaturas
 """
-from flask import Blueprint, send_from_directory, jsonify, abort
+from flask import Blueprint, send_from_directory, jsonify, abort, current_app
 import os
 
 thumbnails_bp = Blueprint('thumbnails', __name__, url_prefix='/thumbnails')
@@ -25,7 +25,10 @@ def get_thumbnail(filename):
         return send_from_directory(thumbnail_folder, filename)
     
     # Si no existe, retornar imagen por defecto
-    return send_from_directory('static/images', 'default.jpg')
+    return send_from_directory(
+        os.path.join(current_app.static_folder, 'images'),
+        'default.jpg'
+    )
 
 
 @thumbnails_bp.route('/list')

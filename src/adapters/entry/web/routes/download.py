@@ -695,7 +695,7 @@ def download_test():
 def search_page():
     """Página de búsqueda"""
     logger.info("[PAGE] Renderizando página de búsqueda")
-    return render_template("search.html")
+    return render_template("pages/search/index.html")
 
 
 @search_page_bp.route("/downloads", methods=["GET"])
@@ -709,7 +709,7 @@ def downloads_page():
         return redirect(url_for("main_page.index"))
 
     logger.info("[PAGE] Renderizando página de descargas")
-    return render_template("downloads.html")
+    return render_template("pages/downloads/index.html")
 
 
 # ============================================================================
