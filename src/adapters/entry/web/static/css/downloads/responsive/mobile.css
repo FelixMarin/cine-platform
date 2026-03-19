@@ -42,15 +42,16 @@
         font-size: var(--font-size-lg);
     }
 
+    /* Downloads tabs ahora tienen scroll horizontal */
     .downloads-tabs {
-        flex-wrap: wrap;
-        gap: 0.5rem;
+        flex-wrap: nowrap;
+        gap: 0;
     }
 
     .download-tab {
-        flex: 1 1 auto;
-        min-width: 120px;
-        padding: 0.75rem 0.5rem;
+        flex: 0 0 auto;
+        min-width: auto;
+        padding: 12px 16px;
     }
 
     .process-card {

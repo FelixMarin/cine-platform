@@ -30,8 +30,10 @@
     <!-- Notificaciones -->
     <div id="notificationContainer" class="notification-container"></div>
 
-    <!-- Scripts comunes -->
-    <script src="{{ url_for('static', filename='js/main/menu.js') }}?v={{ range(1, 10000) | random }}" defer></script>
+    <!-- Scripts comunes (sin defer para que estén disponibles en DOMContentLoaded) -->
+    <script src="{{ url_for('static', filename='js/main/menu.js') }}?v={{ range(1, 10000) | random }}"></script>
+    <script src="{{ url_for('static', filename='js/main/utils.js') }}?v={{ range(1, 10000) | random }}"></script>
+    <script src="{{ url_for('static', filename='js/main/tabs.js') }}?v={{ range(1, 10000) | random }}"></script>
     {% block extra_js %}{% endblock %}
 </body>
 </html>

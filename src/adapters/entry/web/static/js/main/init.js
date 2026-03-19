@@ -20,12 +20,23 @@ document.addEventListener('DOMContentLoaded', function () {
 
     if (missingFunctions.length > 0) {
         console.warn('⚠️ Funciones no disponibles:', missingFunctions);
-        console.warn('Esperando 500ms para que se carguen los módulos...');
+        console.warn('Esperando 1000ms para que se carguen los módulos...');
 
-        // Reintentar después de 500ms
+        // Reintentar después de 1000ms para dar tiempo a que los scripts con defer se carguen
         setTimeout(() => {
-            initializeApp();
-        }, 500);
+            // Verificar de nuevo
+            const stillMissing = requiredFunctions.filter(fn => typeof window[fn] !== 'function');
+            if (stillMissing.length > 0) {
+                console.warn('⚠️ Funciones aún no disponibles:', stillMissing);
+                console.warn('Esperando otros 1000ms...');
+                // Un segundo intento
+                setTimeout(() => {
+                    initializeApp();
+                }, 1000);
+            } else {
+                initializeApp();
+            }
+        }, 1000);
     } else {
         initializeApp();
     }
@@ -55,10 +66,19 @@ function initializeApp() {
         }, 1000);
     }
 
-    window.setupClickOutside();
-    window.setupEmptyLinks();
-    window.setupResizeHandler();
-    window.loadSavedPreferences();
+    // Inicializar funciones del menú (verificar que existen)
+    if (typeof window.setupClickOutside === 'function') {
+        window.setupClickOutside();
+    }
+    if (typeof window.setupEmptyLinks === 'function') {
+        window.setupEmptyLinks();
+    }
+    if (typeof window.setupResizeHandler === 'function') {
+        window.setupResizeHandler();
+    }
+    if (typeof window.loadSavedPreferences === 'function') {
+        window.loadSavedPreferences();
+    }
 
     // Detectar si estamos en una ruta de serie (/series/...)
     const path = window.location.pathname;
@@ -72,9 +92,14 @@ function initializeApp() {
         }
     } else {
         // Ruta normal - mostrar pestañas
-        window.showTab('movies');
+        // Verificar que showTab existe antes de llamar
+        if (typeof window.showTab === 'function') {
+            window.showTab('movies');
+        }
         // Cargar contenido
-        window.loadContent();
+        if (typeof window.loadContent === 'function') {
+            window.loadContent();
+        }
     }
 }
 

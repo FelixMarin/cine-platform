@@ -9,8 +9,10 @@
         padding: var(--spacing-lg);
     }
 
+    /* Los search tabs ahora tienen scroll horizontal */
     .search-tabs {
-        flex-direction: column;
+        flex-direction: row;
+        flex-wrap: nowrap;
     }
 
     .search-input-group {

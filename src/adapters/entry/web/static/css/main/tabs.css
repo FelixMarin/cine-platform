@@ -1,26 +1,59 @@
 /* ===== TABS PRINCIPALES ===== */
 .tabs {
     display: flex;
-    justify-content: center;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    white-space: nowrap;
     background-color: var(--bg-secondary);
     border-bottom: 2px solid var(--border-color);
     margin-bottom: 20px;
     position: sticky;
     top: 0;
     z-index: 100;
+    padding-bottom: 2px;
+    gap: 0;
+    scroll-behavior: smooth;
+}
+
+/* Scrollbar personalizada para WebKit */
+.tabs::-webkit-scrollbar {
+    height: 4px;
+}
+
+.tabs::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.05);
+    border-radius: 4px;
+}
+
+.tabs::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 4px;
+}
+
+.tabs::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 0, 0, 0.3);
 }
 
 .tab {
-    flex: 1;
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     text-align: center;
-    padding: 16px;
+    padding: 16px 20px;
     cursor: pointer;
     font-size: 1.2rem;
     background-color: var(--bg-secondary);
     border-right: 1px solid var(--border-color);
+    border-bottom: none;
     color: var(--text-primary);
     transition: background-color 0.3s ease;
     font-weight: 500;
+    white-space: nowrap;
 }
 
 .tab:last-child {
@@ -35,13 +68,17 @@
     background-color: var(--accent-color);
     color: var(--text-primary);
     font-weight: 600;
+    border-bottom: 3px solid var(--accent-color);
 }
 
 /* ===== TABS SECUNDARIOS (TAB-LINK) ===== */
 .tab-link {
-    flex: 1;
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     text-align: center;
-    padding: 15px 0;
+    padding: 15px 20px;
     cursor: pointer;
     color: var(--text-primary);
     background-color: var(--bg-secondary);
@@ -49,6 +86,8 @@
     font-weight: 500;
     transition: all 0.3s ease;
     border-bottom: 3px solid transparent;
+    white-space: nowrap;
+    border-right: 1px solid var(--border-color);
 }
 
 .tab-link:hover {
@@ -68,4 +107,54 @@
     margin-bottom: 30px;
     font-weight: 700;
     letter-spacing: -0.5px;
+}
+
+/* ===== CONTENEDORES DE TABS CON INDICADORES DE SCROLL ===== */
+.tabs-scroll-container,
+.tabs-container,
+.downloads-tabs-container {
+    position: relative;
+    width: 100%;
+}
+
+/* Indicador visual de contenido desplazable a la derecha */
+.tabs-scroll-container.scrollable-right::after,
+.tabs-container.scrollable-right::after,
+.downloads-tabs-container.scrollable-right::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 2px;
+    width: 40px;
+    pointer-events: none;
+    background: linear-gradient(to right, transparent, var(--bg-secondary, #1a1a2e));
+    opacity: 1;
+    transition: opacity 0.2s ease;
+}
+
+/* Indicador visual de contenido desplazable a la izquierda */
+.tabs-scroll-container.scrollable-left::before,
+.tabs-container.scrollable-left::before,
+.downloads-tabs-container.scrollable-left::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 2px;
+    width: 40px;
+    pointer-events: none;
+    background: linear-gradient(to left, transparent, var(--bg-secondary, #1a1a2e));
+    opacity: 1;
+    z-index: 1;
+}
+
+/* Ocultar indicadores cuando no hay scroll */
+.tabs-scroll-container:not(.has-scroll)::after,
+.tabs-scroll-container:not(.has-scroll)::before,
+.tabs-container:not(.has-scroll)::after,
+.tabs-container:not(.has-scroll)::before,
+.downloads-tabs-container:not(.has-scroll)::after,
+.downloads-tabs-container:not(.has-scroll)::before {
+    display: none;
 }

@@ -25,14 +25,14 @@
         box-sizing: border-box;
     }
     
-    .tabs {
-        flex-wrap: wrap;
+    /* Los tabs ahora tienen scroll horizontal, no se envuelven */
+    .tabs, .tab-link {
+        flex-wrap: nowrap;
     }
     
     .tab, .tab-link {
-        padding: 14px 8px;
-        font-size: 1.1rem;
-        flex-basis: 50%;
+        padding: 14px 16px;
+        font-size: 1rem;
     }
     
     /* Ajustes carrusel para tablet */
@@ -110,16 +110,17 @@
         font-size: 0.9rem;
     }
 
+    /* Downloads tabs ahora tienen scroll horizontal */
     .downloads-tabs {
-        flex-wrap: wrap;
-        gap: 0.5rem;
+        flex-wrap: nowrap;
+        gap: 0;
     }
 
     .download-tab {
-        flex: 1 1 auto;
-        min-width: 120px;
-        padding: 0.75rem 0.5rem;
-        font-size: 0.9rem;
+        flex: 0 0 auto;
+        min-width: auto;
+        padding: 12px 16px;
+        font-size: 0.95rem;
     }
 }
 
@@ -138,15 +139,11 @@
         box-sizing: border-box;
     }
     
+    /* Los tabs ahora tienen scroll horizontal, mantienen el estilo base */
     .tab, .tab-link {
-        flex-basis: 100%;
-        padding: 16px;
-        border-right: none;
-        border-bottom: 1px solid var(--border-color);
-    }
-    
-    .tab:last-child, .tab-link:last-child {
-        border-bottom: none;
+        flex-basis: auto;
+        padding: 14px 12px;
+        font-size: 0.95rem;
     }
     
     /* Ajustes carrusel para móvil */
