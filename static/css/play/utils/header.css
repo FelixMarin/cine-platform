@@ -1,0 +1,14 @@
+/* ============================================
+   HEADER - Play
+   ============================================ */
+
+.info-header {
+    display: flex;
+    gap: var(--spacing-xxl);
+    margin-bottom: var(--spacing-xxl);
+    flex-wrap: wrap;
+}
+
+.movie-header {
+    flex: 1;
+}

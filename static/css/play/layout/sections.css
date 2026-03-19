@@ -1,0 +1,18 @@
+/* ============================================
+   SECTIONS - Play
+   ============================================ */
+
+/* Video Player Section */
+.video-section {
+    margin-bottom: var(--spacing-xxxxl);
+}
+
+/* Movie Info Section */
+.movie-info {
+    background: var(--bg-secondary);
+    border-radius: var(--border-radius-lg);
+    padding: var(--spacing-xxl);
+    margin-top: var(--spacing-xxl);
+    border: 1px solid var(--border-color);
+    box-shadow: var(--shadow);
+}

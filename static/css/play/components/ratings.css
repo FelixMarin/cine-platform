@@ -1,0 +1,32 @@
+/* ============================================
+   RATINGS - Play
+   ============================================ */
+
+.ratings {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-lg);
+    margin-bottom: var(--spacing-xxl);
+}
+
+.rating-card {
+    background: var(--bg-card);
+    padding: var(--spacing-lg);
+    border-radius: var(--border-radius-md);
+    flex: 1;
+    min-width: 150px;
+    text-align: center;
+    border: 1px solid var(--border-color);
+}
+
+.rating-source {
+    font-size: var(--font-size-xs);
+    color: var(--text-secondary);
+    margin-bottom: var(--spacing-xs);
+}
+
+.rating-value {
+    font-size: var(--font-size-xxl);
+    font-weight: bold;
+    color: var(--rating-gold);
+}

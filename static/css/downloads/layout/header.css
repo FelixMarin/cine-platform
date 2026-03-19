@@ -1,0 +1,31 @@
+/* ============================================
+   HEADER - Downloads
+   ============================================ */
+
+.downloads-header {
+    padding: 20px 30px;
+    background: linear-gradient(135deg, var(--primary-bg) 0%, var(--tertiary-bg) 100%);
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+.downloads-header h1 {
+    margin: 0;
+    color: var(--text-primary);
+    font-size: var(--font-size-6xl);
+    font-weight: 600;
+}
+
+.header-stats {
+    color: var(--text-secondary);
+    font-size: var(--font-size-lg);
+}
+
+.header-stats .divider {
+    margin: 0 10px;
+    color: #444;
+}

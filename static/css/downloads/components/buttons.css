@@ -1,0 +1,75 @@
+/* ============================================
+   BOTONES - Downloads
+   ============================================ */
+
+.process-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.btn-process {
+    flex: 1;
+    padding: 10px 16px;
+    border: none;
+    border-radius: var(--border-radius-sm);
+    font-size: var(--font-size-md);
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.btn-cancel {
+    background: rgba(244, 67, 54, 0.2);
+    color: var(--error);
+}
+
+.btn-cancel:hover {
+    background: var(--error);
+    color: white;
+}
+
+.btn-view {
+    background: var(--accent-primary);
+    color: white;
+}
+
+.btn-view:hover {
+    background: var(--accent-hover);
+}
+
+/* Botón de optimización */
+.btn-optimize {
+    background: linear-gradient(135deg, var(--optimize-start) 0%, var(--optimize-end) 100%);
+    color: white;
+}
+
+.btn-optimize:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-glow);
+}
+
+/* Botón de eliminar torrent (solo torrent, mantener archivos) */
+.btn-remove {
+    background: rgba(255, 193, 7, 0.2);
+    color: var(--remove-warning);
+}
+
+.btn-remove:hover {
+    background: var(--remove-warning);
+    color: #000;
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-warning);
+}
+
+/* Botón de eliminar torrent y archivos */
+.btn-remove-files {
+    background: rgba(244, 67, 54, 0.2);
+    color: var(--error);
+}
+
+.btn-remove-files:hover {
+    background: var(--error);
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-error);
+}

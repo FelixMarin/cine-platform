@@ -1,0 +1,16 @@
+/* ============================================
+   VARIABLES CSS - Profile
+   ============================================ */
+
+/* Variables específicas para profile */
+/* Las variables globales se importan desde main/variables.css */
+
+:root {
+    /* Variable adicional necesaria para profile */
+    --bg-hover: #2a2a2a;
+    
+    /* Colores de utilidad */
+    --error-color: #ef4444;
+    --success-color: #22c55e;
+    --info-color: #06b6d4;
+}

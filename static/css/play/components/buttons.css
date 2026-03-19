@@ -1,0 +1,19 @@
+/* ============================================
+   BUTTONS - Play
+   ============================================ */
+
+.download-btn {
+    background: var(--bg-card);
+    color: var(--text-primary);
+    padding: var(--spacing-md) var(--spacing-xl);
+    border-radius: var(--border-radius-sm);
+    text-decoration: none;
+    font-size: var(--font-size-md);
+    transition: all 0.3s ease;
+    border: 1px solid var(--border-color);
+}
+
+.download-btn:hover {
+    background: var(--accent-color);
+    border-color: var(--accent-hover);
+}

@@ -1,0 +1,47 @@
+/* ============================================
+   AVATAR
+   ============================================ */
+
+.profile-avatar-section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 25px;
+    padding-bottom: 25px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.profile-avatar-large {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    object-fit: cover;
+    background: var(--bg-tertiary);
+}
+
+.avatar-preview-large {
+    width: 150px;
+    height: 150px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 3px solid var(--accent-color);
+}
+
+.current-avatar {
+    margin-bottom: 20px;
+}
+
+.upload-controls {
+    margin: 20px 0;
+}
+
+.upload-icon {
+    font-size: 1.2rem;
+}
+
+.upload-hint {
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    margin-top: 10px;
+}

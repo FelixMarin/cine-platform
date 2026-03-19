@@ -1,0 +1,24 @@
+/* ============================================
+   TYPOGRAPHY - Play
+   ============================================ */
+
+h1 {
+    font-size: var(--font-size-5xl);
+    margin-bottom: var(--spacing-md);
+    color: var(--text-primary);
+}
+
+.movie-header h2 {
+    font-size: var(--font-size-6xl);
+    margin-bottom: var(--spacing-md);
+    color: var(--text-primary);
+}
+
+.cast-section h3 {
+    font-size: var(--font-size-xl);
+    margin-bottom: var(--spacing-lg);
+    color: var(--text-primary);
+    border-bottom: 2px solid var(--accent-color);
+    padding-bottom: var(--spacing-sm);
+    display: inline-block;
+}

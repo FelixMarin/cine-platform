@@ -1,0 +1,26 @@
+/* ============================================
+   EMPTY STATE - Search
+   ============================================ */
+
+.no-results {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: var(--spacing-6xl) var(--spacing-xl);
+    color: var(--search-text-muted);
+}
+
+.no-results-icon {
+    font-size: var(--font-size-7xl);
+    margin-bottom: var(--spacing-xl);
+    opacity: 0.5;
+}
+
+.no-results h3 {
+    margin: 0 0 var(--spacing-md);
+    color: var(--search-text);
+}
+
+.no-results p {
+    margin: 0;
+    font-size: var(--font-size-xl);
+}

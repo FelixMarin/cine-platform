@@ -110,6 +110,9 @@ class OptimizationHistoryService:
                 "torrent_name": torrent.name
                 if torrent
                 else pending.get("original_filename"),
+                "movie_name": torrent.name
+                if torrent
+                else pending.get("original_filename"),
                 "category": pending.get("category"),
                 "input_file": pending.get("source_path", ""),
                 "output_file": final_path,
@@ -155,6 +158,7 @@ class OptimizationHistoryService:
                 process_id=history_data["process_id"],
                 torrent_id=history_data["torrent_id"],
                 torrent_name=history_data["torrent_name"],
+                movie_name=history_data.get("movie_name", history_data["torrent_name"]),
                 category=history_data["category"],
                 input_file=history_data["input_file"],
                 output_file=history_data["output_file"],
@@ -174,6 +178,12 @@ class OptimizationHistoryService:
             )
 
             db.add(entry)
+            
+            logger.info(
+                f"[HistoryService] 💾 Guardando entrada: process_id={entry.process_id}, "
+                f"torrent_name={entry.torrent_name}, movie_name={entry.movie_name}, "
+                f"category={entry.category}, status={entry.status}"
+            )
             db.commit()
 
             logger.info(

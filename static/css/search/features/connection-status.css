@@ -1,0 +1,28 @@
+/* ============================================
+   CONNECTION STATUS - Search
+   ============================================ */
+
+.connection-status {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    padding: 12px 20px;
+    border-radius: var(--border-radius-md);
+    font-size: var(--font-size-md);
+    display: none;
+    z-index: 100;
+}
+
+.connection-status.online {
+    display: block;
+    background: rgba(76, 175, 80, 0.2);
+    border: 1px solid var(--search-success);
+    color: var(--search-success);
+}
+
+.connection-status.offline {
+    display: block;
+    background: rgba(244, 67, 54, 0.2);
+    border: 1px solid var(--search-error);
+    color: var(--search-error);
+}

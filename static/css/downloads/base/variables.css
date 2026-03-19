@@ -1,0 +1,67 @@
+/* ============================================
+   VARIABLES CSS - Downloads
+   ============================================ */
+
+:root {
+    /* Colores principales */
+    --primary-bg: #1a1a2e;
+    --secondary-bg: #16213e;
+    --tertiary-bg: #0f0f1a;
+    --border-color: #2a2a4a;
+    --border-color-light: #2d2d44;
+    
+    /* Colores de texto */
+    --text-primary: #eaeaea;
+    --text-secondary: #a0a0a0;
+    
+    /* Colores de acento */
+    --accent-primary: #e94560;
+    --accent-hover: #ff6b6b;
+    
+    /* Colores de estado */
+    --success: #4caf50;
+    --success-bg: #28a745;
+    --warning: #ff9800;
+    --warning-bg: #ffc107;
+    --error: #f44336;
+    --error-bg: #dc3545;
+    --info: #2196f3;
+    --optimize-start: #4f46e5;
+    --optimize-end: #06b6d4;
+    --remove-warning: #ffc107;
+    
+    /* Sombras */
+    --shadow-sm: 0 4px 15px rgba(0, 0, 0, 0.2);
+    --shadow-md: 0 4px 20px rgba(0, 0, 0, 0.3);
+    --shadow-glow: 0 4px 15px rgba(79, 70, 229, 0.4);
+    --shadow-warning: 0 4px 15px rgba(255, 193, 7, 0.4);
+    --shadow-error: 0 4px 15px rgba(244, 67, 54, 0.4);
+    
+    /* Bordes y radios */
+    --border-radius-sm: 6px;
+    --border-radius-md: 8px;
+    --border-radius-lg: 12px;
+    --border-radius-xl: 20px;
+    --border-radius-full: 50%;
+    
+    /* Espaciados */
+    --spacing-xs: 4px;
+    --spacing-sm: 8px;
+    --spacing-md: 10px;
+    --spacing-lg: 15px;
+    --spacing-xl: 20px;
+    --spacing-xxl: 30px;
+    
+    /* Fuentes */
+    --font-size-xs: 0.7rem;
+    --font-size-sm: 0.75rem;
+    --font-size-md: 0.85rem;
+    --font-size-lg: 0.9rem;
+    --font-size-xl: 1rem;
+    --font-size-2xl: 1.1rem;
+    --font-size-3xl: 1.2rem;
+    --font-size-4xl: 1.3rem;
+    --font-size-5xl: 1.5rem;
+    --font-size-6xl: 1.8rem;
+    --font-size-7xl: 4rem;
+}

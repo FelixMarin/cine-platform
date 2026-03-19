@@ -1,0 +1,79 @@
+/* ============================================
+   FILTRO DE IDIOMA ESPAÑOL - Downloads
+   ============================================ */
+
+.spanish-filter {
+    display: flex;
+    align-items: center;
+    margin-top: 15px;
+    padding: 10px 15px;
+    background: rgba(233, 69, 96, 0.1);
+    border: 1px solid rgba(233, 69, 96, 0.3);
+    border-radius: var(--border-radius-md);
+}
+
+.filter-toggle {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    user-select: none;
+}
+
+.filter-toggle input {
+    display: none;
+}
+
+.filter-slider {
+    position: relative;
+    width: 44px;
+    height: 24px;
+    background-color: var(--border-color);
+    border-radius: 24px;
+    transition: 0.3s;
+    margin-right: 12px;
+}
+
+.filter-slider::before {
+    content: "";
+    position: absolute;
+    height: 18px;
+    width: 18px;
+    left: 3px;
+    bottom: 3px;
+    background-color: var(--text-secondary);
+    border-radius: 50%;
+    transition: 0.3s;
+}
+
+.filter-toggle input:checked + .filter-slider {
+    background-color: var(--accent-primary);
+}
+
+.filter-toggle input:checked + .filter-slider::before {
+    transform: translateX(20px);
+    background-color: white;
+}
+
+.filter-label {
+    color: var(--text-primary);
+    font-size: var(--font-size-lg);
+    font-weight: 500;
+}
+
+/* Badge de contenido en español */
+.spanish-badge {
+    display: inline-block;
+    margin-left: 8px;
+    padding: 2px 8px;
+    background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-hover) 100%);
+    color: white;
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    border-radius: 10px;
+    text-transform: uppercase;
+}
+
+/* Tarjeta de contenido en español */
+.process-card.spanish-content {
+    border-left: 3px solid var(--accent-primary);
+}

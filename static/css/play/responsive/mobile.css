@@ -1,0 +1,40 @@
+/* ============================================
+   RESPONSIVE - Play (Mobile)
+   ============================================ */
+
+@media (max-width: 768px) {
+    h1 { 
+        font-size: var(--font-size-xxxxl); 
+    }
+    
+    .info-header {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+    }
+
+    .movie-poster, 
+    .movie-poster-placeholder {
+        width: 150px;
+    }
+
+    .movie-poster-placeholder {
+        height: 225px;
+    }
+
+    .movie-header h2 {
+        font-size: var(--font-size-xxxxl);
+    }
+
+    .movie-meta {
+        justify-content: center;
+    }
+
+    .genres {
+        justify-content: center;
+    }
+
+    .plot {
+        text-align: left;
+    }
+}

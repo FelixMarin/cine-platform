@@ -1,0 +1,33 @@
+/* ============================================
+   MODAL HEADER - Search
+   ============================================ */
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--spacing-xl) var(--spacing-3xl);
+    background: var(--search-bg);
+    border-bottom: 1px solid var(--search-border);
+}
+
+.modal-header h2 {
+    margin: 0;
+    color: var(--search-text);
+    font-size: var(--font-size-4xl);
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    color: var(--search-text-muted);
+    font-size: 1.8rem;
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+    transition: color 0.3s ease;
+}
+
+.modal-close:hover {
+    color: var(--search-error);
+}

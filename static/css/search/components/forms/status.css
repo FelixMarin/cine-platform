@@ -1,0 +1,32 @@
+/* ============================================
+   STATUS - Search
+   ============================================ */
+
+.search-status {
+    margin-top: var(--spacing-lg);
+    padding: var(--spacing-md) var(--spacing-lg);
+    border-radius: var(--border-radius-md);
+    font-size: var(--font-size-lg);
+    display: none;
+}
+
+.search-status.loading {
+    display: block;
+    background: rgba(255, 152, 0, 0.1);
+    border: 1px solid var(--search-warning);
+    color: var(--search-warning);
+}
+
+.search-status.error {
+    display: block;
+    background: rgba(244, 67, 54, 0.1);
+    border: 1px solid var(--search-error);
+    color: var(--search-error);
+}
+
+.search-status.success {
+    display: block;
+    background: rgba(76, 175, 80, 0.1);
+    border: 1px solid var(--search-success);
+    color: var(--search-success);
+}

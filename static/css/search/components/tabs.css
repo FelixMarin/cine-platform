@@ -1,0 +1,32 @@
+/* ============================================
+   TABS - Search
+   ============================================ */
+
+.search-tabs {
+    display: flex;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-xl);
+}
+
+.search-tab {
+    padding: var(--spacing-md) var(--spacing-xl);
+    background: transparent;
+    border: 1px solid var(--search-border);
+    border-radius: var(--border-radius-md);
+    color: var(--search-text-muted);
+    cursor: pointer;
+    font-size: var(--font-size-lg);
+    transition: all 0.3s ease;
+}
+
+.search-tab:hover {
+    background: rgba(233, 69, 96, 0.1);
+    border-color: var(--search-accent);
+    color: var(--search-text);
+}
+
+.search-tab.active {
+    background: var(--search-accent);
+    border-color: var(--search-accent);
+    color: white;
+}

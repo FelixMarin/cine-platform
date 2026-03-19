@@ -35,8 +35,8 @@ class OptimizationHistory(Base):
     output_filename = Column(String(500), nullable=True)
 
     # Fechas - USAR LOS NOMBRES CORRECTOS DE LA TABLA
-    download_started = Column('download_started', DateTime, nullable=True)
-    download_completed = Column('download_completed', DateTime, nullable=True)
+    download_started = Column('torrent_download_start', DateTime, nullable=True)
+    download_completed = Column('torrent_download_end', DateTime, nullable=True)
     optimization_started = Column('optimization_started', DateTime, nullable=True)
     optimization_completed = Column('optimization_completed', DateTime, nullable=True)
 
@@ -45,7 +45,7 @@ class OptimizationHistory(Base):
     error_message = Column(Text, nullable=True)
 
     # Tamaños y compresión - USAR NOMBRES CORRECTOS
-    optimized_size_bytes = Column('optimized_size_bytes', BigInteger, nullable=True)
+    optimized_size_bytes = Column('file_size_bytes', BigInteger, nullable=True)
     original_size_bytes = Column(BigInteger, nullable=True)
     compression_ratio = Column(Numeric(5, 2), nullable=True)
 

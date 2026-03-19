@@ -1,0 +1,57 @@
+/* ============================================
+   VARIABLES CSS - Play
+   ============================================ */
+
+:root {
+    /* Colores principales */
+    --bg-primary: #121212;
+    --bg-secondary: #1e1e1e;
+    --bg-card: #2d2d2d;
+    
+    /* Colores de acento */
+    --accent-color: #e50914;
+    --accent-hover: #b20710;
+    
+    /* Colores de texto */
+    --text-primary: #ffffff;
+    --text-secondary: #b3b3b3;
+    
+    /* Colores de borde */
+    --border-color: #333;
+    
+    /* Colores especiales */
+    --rating-gold: #f5c518;
+    
+    /* Sombras */
+    --shadow: 0 8px 16px rgba(0, 0, 0, 0.4);
+    --shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.5);
+    
+    /* Bordes y radios */
+    --border-radius-sm: 6px;
+    --border-radius-md: 8px;
+    --border-radius-lg: 12px;
+    --border-radius-xl: 20px;
+    --border-radius-full: 50%;
+    
+    /* Espaciados */
+    --spacing-xs: 5px;
+    --spacing-sm: 8px;
+    --spacing-md: 10px;
+    --spacing-lg: 15px;
+    --spacing-xl: 20px;
+    --spacing-xxl: 30px;
+    --spacing-xxxl: 40px;
+    --spacing-xxxxl: 60px;
+    
+    /* Fuentes */
+    --font-size-xs: 12px;
+    --font-size-sm: 13px;
+    --font-size-md: 14px;
+    --font-size-lg: 16px;
+    --font-size-xl: 18px;
+    --font-size-xxl: 20px;
+    --font-size-xxxl: 24px;
+    --font-size-xxxxl: 28px;
+    --font-size-5xl: 32px;
+    --font-size-6xl: 36px;
+}

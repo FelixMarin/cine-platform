@@ -1,0 +1,68 @@
+/* ============================================
+   UTILIDADES
+   ============================================ */
+
+.loading-spinner {
+    text-align: center;
+    padding: 40px;
+    color: var(--text-secondary);
+}
+
+.loading-spinner::after {
+    content: '';
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    margin-left: 10px;
+    border: 2px solid var(--text-secondary);
+    border-top-color: var(--accent-color);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+.error-message {
+    padding: 15px;
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid #ef4444;
+    border-radius: 6px;
+    color: #ef4444;
+}
+
+/* ============================================
+   RESPONSIVE
+   ============================================ */
+
+@media (max-width: 768px) {
+    .profile-name {
+        display: none;
+    }
+    
+    .profile-header {
+        position: fixed;
+        top: 16px;
+        right: 70px;
+        padding: 0;
+        margin: 0;
+        background: transparent;
+        z-index: 1002;
+    }
+    
+    .profile-dropdown {
+        position: static;
+    }
+    
+    .profile-button {
+        padding: 8px;
+        background: var(--bg-tertiary);
+        border: 1px solid var(--border-color);
+        border-radius: 30px;
+    }
+    
+    .dropdown-menu {
+        min-width: 200px;
+        position: fixed;
+        top: 66px;
+        right: 16px;
+        left: auto;
+    }
+}

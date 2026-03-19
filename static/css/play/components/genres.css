@@ -1,0 +1,25 @@
+/* ============================================
+   GENRES - Play
+   ============================================ */
+
+.genres {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-xl);
+}
+
+.genre-tag {
+    background: var(--bg-card);
+    padding: 6px var(--spacing-lg);
+    border-radius: var(--border-radius-xl);
+    font-size: var(--font-size-sm);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    transition: all 0.3s ease;
+}
+
+.genre-tag:hover {
+    background: var(--accent-color);
+    border-color: var(--accent-hover);
+}

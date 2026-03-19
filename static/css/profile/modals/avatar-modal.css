@@ -1,0 +1,60 @@
+/* ============================================
+   MODAL DE AVATAR - Estilos específicos
+   ============================================ */
+
+.avatar-upload-container {
+    text-align: center;
+}
+
+#avatarPreviewContainer {
+    margin-top: 20px;
+    padding: 20px;
+    background: var(--bg-tertiary);
+    border-radius: 8px;
+}
+
+#avatarPreviewContainer h4 {
+    margin: 0 0 15px 0;
+    color: var(--text-primary);
+}
+
+.preview-container {
+    margin-bottom: 15px;
+}
+
+.preview-container img {
+    max-width: 200px;
+    max-height: 200px;
+    border-radius: 8px;
+    border: 2px solid var(--border-color);
+}
+
+.preview-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+}
+
+#uploadProgress {
+    margin-top: 20px;
+}
+
+.progress-bar-container {
+    width: 100%;
+    height: 20px;
+    background: var(--bg-tertiary);
+    border-radius: 10px;
+    overflow: hidden;
+    margin-bottom: 5px;
+}
+
+.progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent-color), #06b6d4);
+    transition: width 0.3s ease;
+}
+
+#uploadStatus {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
