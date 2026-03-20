@@ -145,4 +145,58 @@
         min-width: auto;
         max-width: calc(100vw - 40px);
     }
+
+    /* Nuevo layout horizontal - responsive */
+    .download-info-row {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+    }
+
+    .download-progress {
+        width: 100%;
+        min-width: 100%;
+    }
+
+    .download-stats {
+        justify-content: space-between;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        padding-bottom: 5px;
+    }
+
+    .stat-item {
+        font-size: var(--font-size-xs);
+        flex-shrink: 0;
+    }
+
+    .download-actions {
+        margin-left: 0;
+        justify-content: flex-end;
+    }
+
+    .download-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+
+    .download-header .status {
+        align-self: flex-start;
+    }
+}
+
+/* Tablet */
+@media (min-width: 769px) and (max-width: 1024px) {
+    .download-info-row {
+        gap: 10px;
+    }
+
+    .download-progress {
+        min-width: 120px;
+    }
+
+    .stat-item {
+        font-size: var(--font-size-xs);
+    }
 }

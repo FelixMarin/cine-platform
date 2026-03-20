@@ -3,10 +3,17 @@
  */
 (function() {
     'use strict';
+    
+    // Función helper para añadir cache busting a URLs
+    function addCacheBuster(url) {
+        var separator = url.includes('?') ? '&' : '?';
+        return url + separator + '_cb=' + Date.now();
+    }
+    
     window.loadHistory = async function(pg) {
         pg = pg || 1;
         try {
-            var url = window.CONFIG.endpoints.optimizationHistory + '?limit=' + window.HISTORY_PER_PAGE + '&offset=' + ((pg-1)*window.HISTORY_PER_PAGE);
+            var url = addCacheBuster(window.CONFIG.endpoints.optimizationHistory + '?limit=' + window.HISTORY_PER_PAGE + '&offset=' + ((pg-1)*window.HISTORY_PER_PAGE));
             var r = await fetch(url, {credentials:'include'});
             if (r.status === 401) { window.showNotification('Sesión expirada','Por favor inicia sesión','warning'); setTimeout(function(){window.location.href='/login';},1500); return; }
             var d = await r.json();
@@ -54,7 +61,7 @@
     window.deleteHistoryEntry = async function(id) {
         if (!confirm('¿Eliminar esta entrada?')) return;
         try {
-            var r = await fetch('/api/optimization-history/'+id, {method:'DELETE',credentials:'include'});
+            var r = await fetch(addCacheBuster('/api/optimization-history/'+id), {method:'DELETE',credentials:'include'});
             var d = await r.json();
             if (d.success) { window.showNotification('Eliminado','Entrada eliminada','success'); window.loadHistory(window.historyCurrentPage); }
             else alert('Error: '+d.error);

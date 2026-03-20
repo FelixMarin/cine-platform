@@ -51,33 +51,37 @@
             window.updateHeaderStats();
             return;
         }
-        c.innerHTML = window.state.downloads.map(function(d) {
-            var sv = d.status_display || d.status || 'unknown';
-            var p = d.progress || 0;
-            var sc = window.getStatusClass(sv);
-            var ds = d.download_speed || d.downloadSpeed || 0;
-            var us = d.upload_speed || d.uploadSpeed || 0;
-            var sd = d.status_display || d.statusDisplay || d.status;
-            var ef = d.eta_formatted || d.etaFormatted || '--';
-            var ic = p >= 99.9 || sv === 'seeding' || sv === 6 || sv === 'completed';
-            var if_ = (p >= 0 && sv === 'failed') || sv === '0' || sv === 'failed';
-            var isc = ic || sv === 'stopped' || sv === '0' || sv === 'completed';
-            var pp = p > 100 ? 100 : p;
-            var btns = '';
-            if (!ic && !if_) btns += '<button class="btn-process btn-cancel" onclick="cancelDownload(\''+d.id+'\')">❌ Cancelar</button>';
-            if (ic) {
-                var os = window.getOptimizationState(d.id);
-                var io = window.hasActiveOptimization(d.id);
-                var io_ = window.hasCompletedOptimization(d.id);
-                var oe = window.getOptimizationError(d.id);
-                if (io) btns += '<button class="btn-process btn-optimize optimizing" data-torrent-id="'+d.id+'" data-torrent-name="'+encodeURIComponent(d.title)+'" data-torrent-size="'+(d.size_total||d.sizeTotal||0)+'" disabled>⏳ Optimizing...</button>';
-                else if (io_) btns += '<button class="btn-process btn-optimize optimized" data-torrent-id="'+d.id+'" data-torrent-name="'+encodeURIComponent(d.title)+'" data-torrent-size="'+(d.size_total||d.sizeTotal||0)+'" disabled>✅ Optimized</button>';
-                else if (oe) btns += '<button class="btn-process btn-optimize error" data-torrent-id="'+d.id+'" data-torrent-name="'+encodeURIComponent(d.title)+'" data-torrent-size="'+(d.size_total||d.sizeTotal||0)+'" title="Error: '+oe+'">❌ Error</button>';
-                else btns += '<button class="btn-process btn-optimize" data-torrent-id="'+d.id+'" data-torrent-name="'+encodeURIComponent(d.title)+'" data-torrent-size="'+(d.size_total||d.sizeTotal||0)+'">🚀 GPU Optimize</button>';
-            }
-            if (isc) { btns += '<button class="btn-process btn-remove" onclick="removeTorrent(\''+d.id+'\',false)" title="Eliminar">🗑️ Eliminar</button><button class="btn-process btn-remove-files" onclick="removeTorrent(\''+d.id+'\',true)" title="Eliminar todo">🗑️📁 Eliminar todo</button>'; }
-            return '<div class="process-card" data-id="'+d.id+'"><div class="process-header"><h3 class="process-title">'+(d.title||'Descarga')+'</h3><span class="process-status '+sc+'">'+sd+'</span></div><div class="process-meta"><span class="process-meta-item">📊 '+(typeof pp==='number'?pp.toFixed(1):0)+'%</span><span class="process-meta-item">⬇️ '+window.formatBytes(ds)+'/s</span><span class="process-meta-item">⬆️ '+window.formatBytes(us)+'/s</span><span class="process-meta-item">⏱️ '+ef+'</span><span class="process-meta-item">📁 '+(d.category||'N/A')+'</span></div><div class="process-progress"><div class="progress-container"><div class="progress-bar" style="width:'+(typeof pp==='number'?pp:0)+'%"></div></div></div><div class="process-actions">'+btns+'</div></div>';
-        }).join('');
+        if (typeof window.renderDownloadsList === 'function') {
+            window.renderDownloadsList(window.state.downloads);
+        } else {
+            c.innerHTML = window.state.downloads.map(function(d) {
+                var sv = d.status_display || d.status || 'unknown';
+                var p = d.progress || 0;
+                var sc = window.getStatusClass(sv);
+                var ds = d.download_speed || d.downloadSpeed || 0;
+                var us = d.upload_speed || d.uploadSpeed || 0;
+                var sd = d.status_display || d.statusDisplay || d.status;
+                var ef = d.eta_formatted || d.etaFormatted || '--';
+                var ic = p >= 99.9 || sv === 'seeding' || sv === 6 || sv === 'completed';
+                var if_ = (p >= 0 && sv === 'failed') || sv === '0' || sv === 'failed';
+                var isc = ic || sv === 'stopped' || sv === '0' || sv === 'completed';
+                var pp = p > 100 ? 100 : p;
+                var btns = '';
+                if (!ic && !if_) btns += '<button class="btn-process btn-cancel" onclick="cancelDownload(\''+d.id+'\')">❌ Cancelar</button>';
+                if (ic) {
+                    var os = window.getOptimizationState(d.id);
+                    var io = window.hasActiveOptimization(d.id);
+                    var io_ = window.hasCompletedOptimization(d.id);
+                    var oe = window.getOptimizationError(d.id);
+                    if (io) btns += '<button class="btn-process btn-optimize optimizing" data-torrent-id="'+d.id+'" data-torrent-name="'+encodeURIComponent(d.title)+'" data-torrent-size="'+(d.size_total||d.sizeTotal||0)+'" disabled>⏳ Optimizing...</button>';
+                    else if (io_) btns += '<button class="btn-process btn-optimize optimized" data-torrent-id="'+d.id+'" data-torrent-name="'+encodeURIComponent(d.title)+'" data-torrent-size="'+(d.size_total||d.sizeTotal||0)+'" disabled>✅ Optimized</button>';
+                    else if (oe) btns += '<button class="btn-process btn-optimize error" data-torrent-id="'+d.id+'" data-torrent-name="'+encodeURIComponent(d.title)+'" data-torrent-size="'+(d.size_total||d.sizeTotal||0)+'" title="Error: '+oe+'">❌ Error</button>';
+                    else btns += '<button class="btn-process btn-optimize" data-torrent-id="'+d.id+'" data-torrent-name="'+encodeURIComponent(d.title)+'" data-torrent-size="'+(d.size_total||d.sizeTotal||0)+'">🚀 GPU Optimize</button>';
+                }
+                if (isc) { btns += '<button class="btn-process btn-remove" onclick="removeTorrent(\''+d.id+'\',false)" title="Eliminar">🗑️ Eliminar</button><button class="btn-process btn-remove-files" onclick="removeTorrent(\''+d.id+'\',true)" title="Eliminar todo">🗑️📁 Eliminar todo</button>'; }
+                return '<div class="process-card" data-id="'+d.id+'"><div class="process-header"><h3 class="process-title">'+(d.title||'Descarga')+'</h3><span class="process-status '+sc+'">'+sd+'</span></div><div class="process-meta"><span class="process-meta-item">📊 '+(typeof pp==='number'?pp.toFixed(1):0)+'%</span><span class="process-meta-item">⬇️ '+window.formatBytes(ds)+'/s</span><span class="process-meta-item">⬆️ '+window.formatBytes(us)+'/s</span><span class="process-meta-item">⏱️ '+ef+'</span><span class="process-meta-item">📁 '+(d.category||'N/A')+'</span></div><div class="process-progress"><div class="progress-container"><div class="progress-bar" style="width:'+(typeof pp==='number'?pp:0)+'%"></div></div></div><div class="process-actions">'+btns+'</div></div>';
+            }).join('');
+        }
         window.updateHeaderStats();
     };
 })();

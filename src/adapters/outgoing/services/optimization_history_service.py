@@ -49,8 +49,9 @@ class OptimizationHistoryService:
             )
 
             if not user_id:
+                user_id = 1
                 logger.warning(
-                    "[HistoryService] ⚠️ No hay user_id, el historial no tendrá usuario asignado"
+                    "[HistoryService] ⚠️ No hay user_id, usando user_id=1 por defecto"
                 )
 
             optimization_duration = None
@@ -133,7 +134,9 @@ class OptimizationHistoryService:
             if not history_data["torrent_name"]:
                 # Usar el nombre del archivo de entrada como fallback
                 source_path = pending.get("source_path", "")
-                history_data["torrent_name"] = os.path.basename(source_path) or "Unknown"
+                history_data["torrent_name"] = (
+                    os.path.basename(source_path) or "Unknown"
+                )
                 logger.warning(
                     f"[HistoryService] ⚠️ torrent_name es None, usando fallback: {history_data['torrent_name']}"
                 )
@@ -178,7 +181,7 @@ class OptimizationHistoryService:
             )
 
             db.add(entry)
-            
+
             logger.info(
                 f"[HistoryService] 💾 Guardando entrada: process_id={entry.process_id}, "
                 f"torrent_name={entry.torrent_name}, movie_name={entry.movie_name}, "

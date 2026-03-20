@@ -73,9 +73,9 @@ class TorrentOptimizer:
     # Estas son las rutas DENTRO del contenedor cine-platform/transmission
     # El mount es: /mnt/DATA_2TB/administracion-peliculas/downloads -> /downloads
     TORRENT_SEARCH_PATHS = [
-        '/downloads/',
-        '/downloads/complete/',
-        '/downloads/incomplete/'
+        "/downloads/",
+        "/downloads/complete/",
+        "/downloads/incomplete/",
     ]
 
     # Rutas legacy (deprecated - ya no se usan)
@@ -162,10 +162,15 @@ class TorrentOptimizer:
         """
         Añade una entrada al historial de optimizaciones.
         Delega al OptimizationHistoryService.
+
+        IMPORTANTE: Los errores se loguean pero no interrumpen el flujo.
+        El error debe ser visible en logs para diagnóstico.
         """
         progress = self._processes.get(process_id)
+        logger.info(
+            f"[TorrentOptimizer] === GUARDANDO HISTORIAL === process_id={process_id}, status={status}"
+        )
         try:
-            logger.info(f"[TorrentOptimizer] Guardando historial para process_id={process_id}, status={status}")
             self._history_service.add_entry(
                 process_id=process_id,
                 final_path=final_path,
@@ -175,14 +180,25 @@ class TorrentOptimizer:
                 transmission_client=self.transmission_client,
                 progress=progress,
             )
-            logger.info(f"[TorrentOptimizer] Historial guardado exitosamente para {process_id}")
-        except Exception as e:
-            # Log error pero no fallar la optimización por esto
-            import traceback
-            logger.error(
-                f"[TorrentOptimizer] ❌ Error guardando historial para {process_id}: {e}"
+            logger.info(
+                f"[TorrentOptimizer] ✅ HISTORIAL GUARDADO: process_id={process_id}"
             )
-            logger.error(f"[TorrentOptimizer] Traceback: {traceback.format_exc()}")
+        except Exception as e:
+            import traceback
+
+            logger.error("=" * 60)
+            logger.error(
+                f"[TorrentOptimizer] ❌❌❌ ERROR CRÍTICO: No se pudo guardar el historial"
+            )
+            logger.error(f"[TorrentOptimizer] ❌ process_id: {process_id}")
+            logger.error(f"[TorrentOptimizer] ❌ status: {status}")
+            logger.error(f"[TorrentOptimizer] ❌ error: {type(e).__name__}: {e}")
+            logger.error("[TorrentOptimizer] ❌❌❌ Traceback completo:")
+            logger.error(traceback.format_exc())
+            logger.error("=" * 60)
+            logger.warning(
+                f"[TorrentOptimizer] ⚠️ La optimización continuará pero NO estará en el historial"
+            )
 
     def _get_cleanup_service(self):
         """Obtiene el servicio de limpieza (inyección de dependencia)"""
@@ -195,7 +211,7 @@ class TorrentOptimizer:
     ) -> Optional[str]:
         """
         Busca el archivo en las rutas CORRECTAS (fallback).
-        
+
         IMPORTANTE: Este método IGNORA el downloadDir de Transmission y busca
         ÚNICAMENTE en las rutas configuradas en TORRENT_SEARCH_PATHS.
 
@@ -207,12 +223,25 @@ class TorrentOptimizer:
             Ruta completa del archivo si se encuentra, None si no
         """
         search_paths = self.TORRENT_SEARCH_PATHS
-        logger.info(f"[TorrentOptimizer] Fallback: buscando en rutas correctas: {search_paths}")
+        logger.info(
+            f"[TorrentOptimizer] Fallback: buscando en rutas correctas: {search_paths}"
+        )
 
         # Extraer nombre base sin extensión
         base_name = filename
-        for ext in ['.mkv', '.mp4', '.avi', '.mov', '.webm', '.m4v', '.wmv', '.flv', '.ts', '.m2ts']:
-            base_name = base_name.replace(ext, '')
+        for ext in [
+            ".mkv",
+            ".mp4",
+            ".avi",
+            ".mov",
+            ".webm",
+            ".m4v",
+            ".wmv",
+            ".flv",
+            ".ts",
+            ".m2ts",
+        ]:
+            base_name = base_name.replace(ext, "")
 
         # Intentar con el nombre exacto primero
         for base in search_paths:
@@ -251,9 +280,16 @@ class TorrentOptimizer:
                     if os.path.isdir(item_path):
                         # Buscar dentro del subdirectorio
                         for file in os.listdir(item_path):
-                            if base_name.lower() in file.lower() and file.lower().endswith(('.mkv', '.mp4', '.avi', '.mov', '.webm', '.m4v')):
+                            if (
+                                base_name.lower() in file.lower()
+                                and file.lower().endswith(
+                                    (".mkv", ".mp4", ".avi", ".mov", ".webm", ".m4v")
+                                )
+                            ):
                                 full_path = os.path.join(item_path, file)
-                                logger.info(f"[TorrentOptimizer] ✓ Archivo encontrado en subdirectorio: {full_path}")
+                                logger.info(
+                                    f"[TorrentOptimizer] ✓ Archivo encontrado en subdirectorio: {full_path}"
+                                )
                                 return full_path
             except Exception as e:
                 logger.warning(f"[TorrentOptimizer] Error listando {base}: {e}")

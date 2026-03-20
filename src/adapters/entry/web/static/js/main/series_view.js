@@ -1,5 +1,11 @@
 // Archivo para manejar la vista de series con navegación Serie > Temporada > Episodio
 
+// Función helper para añadir cache busting a URLs
+function addCacheBuster(url) {
+    const separator = url.includes('?') ? '&' : '?';
+    return `${url}${separator}_cb=${Date.now()}`;
+}
+
 // Caché para datos de series
 let seriesDataCache = {
     series: [],
@@ -21,12 +27,12 @@ async function loadAllSeries(forceRefresh = false) {
         
         
         // Intentar primero con /api/catalog/series
-        let response = await fetch('/api/catalog/series?limit=100&auto_sync=false');
+        let response = await fetch(addCacheBuster('/api/catalog/series?limit=100&auto_sync=false'));
         
         // Si falla, intentar con /api/series como fallback
         if (!response.ok) {
             console.warn('⚠️ /api/catalog/series falló, intentando /api/series...');
-            response = await fetch('/api/series?limit=100');
+            response = await fetch(addCacheBuster('/api/series?limit=100'));
         }
         
         if (!response.ok) {

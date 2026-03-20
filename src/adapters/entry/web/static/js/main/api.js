@@ -1,5 +1,11 @@
 // Depende de carousel.js
 
+// Función helper para añadir cache busting a URLs
+function addCacheBuster(url) {
+    const separator = url.includes('?') ? '&' : '?';
+    return `${url}${separator}_cb=${Date.now()}`;
+}
+
 // Caché en memoria para el contenido del catálogo (solo sesión actual)
 let contentMemoryCache = {
     data: null,
@@ -183,6 +189,9 @@ function fetchFromServer(forceRefresh = false) {
         
     }
 
+    // Añadir cache buster para evitar caching del navegador
+    url = addCacheBuster(url);
+
     fetch(url)
         .then(r => {
             if (!r.ok) {
@@ -243,7 +252,7 @@ function refreshInBackground() {
     // Refrescar en segundo plano después de 1 segundo
     setTimeout(() => {
         
-        fetch("/api/movies?refresh=true")
+        fetch(addCacheBuster("/api/movies?refresh=true"))
             .then(r => r.json())
             .then(data => {
                 // Solo actualizar caché en memoria si los datos son diferentes

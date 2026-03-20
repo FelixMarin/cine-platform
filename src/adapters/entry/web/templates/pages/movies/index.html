@@ -3,8 +3,8 @@
 {% block title %}Cine Platform{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/profile.css') }}?v={{ range(1, 10000) | random }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/notifications.css') }}?v={{ range(1, 10000) | random }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/profile.css') }}?v={{ get_file_version('css/profile.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/notifications.css') }}?v={{ get_file_version('css/notifications.css') }}">
 {% endblock %}
 
 {% block menu %}
@@ -149,16 +149,16 @@
 
 {% block extra_js %}
 <!-- Cargar módulos en orden -->
-<script src="{{ url_for('static', filename='js/main/cache.js') }}?v={{ range(1, 10000) | random }}" defer></script>
-<script src="{{ url_for('static', filename='js/main/categoryUtils.js') }}?v={{ range(1, 10000) | random }}" defer></script>
-<script src="{{ url_for('static', filename='js/main/cardCreators.js') }}?v={{ range(1, 10000) | random }}" defer></script>
-<script src="{{ url_for('static', filename='js/main/carousel.js') }}?v={{ range(1, 10000) | random }}" defer></script>
-<script src="{{ url_for('static', filename='js/main/series_view.js') }}?v={{ range(1, 10000) | random }}" defer></script>
-<script src="{{ url_for('static', filename='js/main/tabs.js') }}?v={{ range(1, 10000) | random }}" defer></script>
-<script src="{{ url_for('static', filename='js/main/utils.js') }}?v={{ range(1, 10000) | random }}" defer></script>
-<script src="{{ url_for('static', filename='js/main/api.js') }}?v={{ range(1, 10000) | random }}" defer></script>
-<script src="{{ url_for('static', filename='js/main/catalogService.js') }}?v={{ range(1, 10000) | random }}" defer></script>
-<script src="{{ url_for('static', filename='js/notifications.js') }}?v={{ range(1, 10000) | random }}" defer></script>
-<script src="{{ url_for('static', filename='js/profile.js') }}?v={{ range(1, 10000) | random }}" defer></script>
-<script src="{{ url_for('static', filename='js/main/init.js') }}?v={{ range(1, 10000) | random }}" defer></script>
+<script src="{{ url_for('static', filename='js/main/cache.js') }}?v={{ get_file_version('js/main/cache.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/main/categoryUtils.js') }}?v={{ get_file_version('js/main/categoryUtils.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/main/cardCreators.js') }}?v={{ get_file_version('js/main/cardCreators.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/main/carousel.js') }}?v={{ get_file_version('js/main/carousel.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/main/series_view.js') }}?v={{ get_file_version('js/main/series_view.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/main/tabs.js') }}?v={{ get_file_version('js/main/tabs.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/main/utils.js') }}?v={{ get_file_version('js/main/utils.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/main/api.js') }}?v={{ get_file_version('js/main/api.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/main/catalogService.js') }}?v={{ get_file_version('js/main/catalogService.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/notifications.js') }}?v={{ get_file_version('js/notifications.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/profile.js') }}?v={{ get_file_version('js/profile.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/main/init.js') }}?v={{ get_file_version('js/main/init.js') }}" defer></script>
 {% endblock %}

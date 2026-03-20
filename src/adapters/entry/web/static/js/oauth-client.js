@@ -3,6 +3,12 @@
  * Maneja tokens, refresh automático y llamadas API con autorización
  */
 
+// Función helper para añadir cache busting a URLs
+function addCacheBuster(url) {
+    const separator = url.includes('?') ? '&' : '?';
+    return `${url}${separator}_cb=${Date.now()}`;
+}
+
 const OAuthClient = {
     // Configuración
     config: {
@@ -38,7 +44,7 @@ const OAuthClient = {
 
     // Intercambiar código por token (POST desde el backend)
     async exchangeCodeForToken(code, codeVerifier, redirectUri) {
-        const response = await fetch('/api/auth/exchange-token', {
+        const response = await fetch(addCacheBuster('/api/auth/exchange-token'), {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -71,7 +77,7 @@ const OAuthClient = {
         }
 
         // El refresh se hace a través de nuestro backend
-        const response = await fetch('/api/auth/refresh-token', {
+        const response = await fetch(addCacheBuster('/api/auth/refresh-token'), {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -105,7 +111,7 @@ const OAuthClient = {
 
         try {
             // Se puede hacer también por backend
-            await fetch('/api/auth/revoke-token', {
+            await fetch(addCacheBuster('/api/auth/revoke-token'), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -128,7 +134,7 @@ const OAuthClient = {
 
     // Obtener info del usuario (también por backend)
     async getUserInfo() {
-        const response = await fetch('/api/auth/userinfo');
+        const response = await fetch(addCacheBuster('/api/auth/userinfo'));
         if (response.ok) {
             return response.json();
         }

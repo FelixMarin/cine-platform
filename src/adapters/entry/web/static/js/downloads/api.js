@@ -3,6 +3,13 @@
  */
 (function() {
     'use strict';
+    
+    // Función helper para añadir cache busting a URLs
+    function addCacheBuster(url) {
+        var separator = url.includes('?') ? '&' : '?';
+        return url + separator + '_cb=' + Date.now();
+    }
+    
     window.searchMovies = async function() {
         var q = document.getElementById('search-query').value.trim();
         if (!q) { window.showNotification('Error','Por favor ingresa un término de búsqueda','error'); return; }
@@ -51,6 +58,9 @@
             window.refreshDownloads();
         } catch(e) { window.showNotification('Error',e.message,'error'); }
     };
+    window.removeDownload = function(id) {
+        window.removeTorrent(id, false);
+    };
     window.refreshOptimizations = async function() {
         try {
             var r = await fetch(window.CONFIG.endpoints.torrentOptimizeActive,{credentials:'include'});
@@ -82,7 +92,7 @@
         var ls = function(sel) { if(!sel)return; sel.disabled=true; if(sel.options[0]) sel.options[0].textContent='Cargando...'; };
         ls(s); ls(ms);
         try {
-            var r = await fetch('/api/download/categories');
+            var r = await fetch(addCacheBuster('/api/download/categories'));
             var d = await r.json();
             if (!d.success) throw new Error(d.error);
             if (s) { while(s.options.length>1)s.remove(1); if(d.categories) d.categories.forEach(function(c){var o=document.createElement('option');o.value=c;o.textContent=fc(c);s.appendChild(o);}); s.disabled=false; if(s.options[0])s.options[0].textContent='Seleccionar...'; }

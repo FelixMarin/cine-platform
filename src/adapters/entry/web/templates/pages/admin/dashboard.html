@@ -3,7 +3,7 @@
 {% block title %}Panel de Administración - Cine Platform{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/admin/admin_panel.css') }}?v={{ range(1, 10000) | random }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/admin/admin_panel.css') }}?v={{ get_file_version('css/admin/admin_panel.css') }}">
 {% endblock %}
 
 {% block menu %}
@@ -64,5 +64,5 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="{{ url_for('static', filename='js/admin_panel.js') }}?v={{ range(1, 10000) | random }}" defer></script>
+<script src="{{ url_for('static', filename='js/admin_panel.js') }}?v={{ get_file_version('js/admin_panel.js') }}" defer></script>
 {% endblock %}

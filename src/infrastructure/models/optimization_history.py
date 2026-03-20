@@ -35,25 +35,27 @@ class OptimizationHistory(Base):
     output_filename = Column(String(500), nullable=True)
 
     # Fechas - USAR LOS NOMBRES CORRECTOS DE LA TABLA
-    download_started = Column('torrent_download_start', DateTime, nullable=True)
-    download_completed = Column('torrent_download_end', DateTime, nullable=True)
-    optimization_started = Column('optimization_started', DateTime, nullable=True)
-    optimization_completed = Column('optimization_completed', DateTime, nullable=True)
+    download_started = Column("torrent_download_start", DateTime, nullable=True)
+    download_completed = Column("torrent_download_end", DateTime, nullable=True)
+    optimization_started = Column("optimization_started", DateTime, nullable=True)
+    optimization_completed = Column("optimization_completed", DateTime, nullable=True)
 
     # Resultado
-    status = Column(String(20), nullable=False, index=True)  # 'completed', 'error', 'cancelled'
+    status = Column(
+        String(20), nullable=False, index=True
+    )  # 'completed', 'error', 'cancelled'
     error_message = Column(Text, nullable=True)
 
     # Tamaños y compresión - USAR NOMBRES CORRECTOS
-    optimized_size_bytes = Column('file_size_bytes', BigInteger, nullable=True)
+    optimized_size_bytes = Column("file_size_bytes", BigInteger, nullable=True)
     original_size_bytes = Column(BigInteger, nullable=True)
     compression_ratio = Column(Numeric(5, 2), nullable=True)
 
     # Tracking
     created_at = Column(DateTime, server_default=func.now(), index=True)
 
-    # Nota: app_user_id se guarda como integer simple
-    app_user_id = Column(Integer, nullable=True)
+    # app_user_id es NOT NULL en la tabla
+    app_user_id = Column(Integer, nullable=False)
 
     # Propiedades calculadas (no son columnas, se calculan al vuelo)
     @property
@@ -105,16 +107,26 @@ class OptimizationHistory(Base):
             "output_file": self.output_file,
             "output_filename": self.output_filename,
             # Usar las propiedades para mantener compatibilidad
-            "torrent_download_start": self.torrent_download_start.isoformat() if self.torrent_download_start else None,
-            "torrent_download_end": self.torrent_download_end.isoformat() if self.torrent_download_end else None,
-            "optimization_start": self.optimization_start.isoformat() if self.optimization_start else None,
-            "optimization_end": self.optimization_end.isoformat() if self.optimization_end else None,
+            "torrent_download_start": self.torrent_download_start.isoformat()
+            if self.torrent_download_start
+            else None,
+            "torrent_download_end": self.torrent_download_end.isoformat()
+            if self.torrent_download_end
+            else None,
+            "optimization_start": self.optimization_start.isoformat()
+            if self.optimization_start
+            else None,
+            "optimization_end": self.optimization_end.isoformat()
+            if self.optimization_end
+            else None,
             "download_duration_seconds": self.download_duration_seconds,
             "optimization_duration_seconds": self.optimization_duration_seconds,
             "status": self.status,
             "error_message": self.error_message,
             "file_size_bytes": self.file_size_bytes,
             "original_size_bytes": self.original_size_bytes,
-            "compression_ratio": float(self.compression_ratio) if self.compression_ratio else None,
+            "compression_ratio": float(self.compression_ratio)
+            if self.compression_ratio
+            else None,
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }

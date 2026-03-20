@@ -63,13 +63,27 @@ class OptimizationErrorHandler:
                     logger.warning(f"[ErrorHandler] Error limpiando {output_path}: {e}")
 
             if history_service:
-                history_service.add_entry(
-                    process_id=process_id,
-                    final_path="",
-                    pending=pending,
-                    status="error",
-                    error_message=error_message,
-                )
+                try:
+                    history_service.add_entry(
+                        process_id=process_id,
+                        final_path="",
+                        pending=pending,
+                        status="error",
+                        error_message=error_message,
+                    )
+                except Exception as hist_err:
+                    logger.error("=" * 60)
+                    logger.error(
+                        f"[ErrorHandler] ❌❌❌ ERROR guardando historial de error: {hist_err}"
+                    )
+                    logger.error("[ErrorHandler] ❌❌❌ Traceback:")
+                    import traceback
+
+                    logger.error(traceback.format_exc())
+                    logger.error("=" * 60)
+                    logger.warning(
+                        f"[ErrorHandler] ⚠️ El error de optimización NO estará en el historial"
+                    )
 
             logger.warning(
                 f"[ErrorHandler] ✓ Optimización fallida para {original_filename}. Error: {error_message}"

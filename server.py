@@ -60,11 +60,15 @@ def create_app():
 
     # Ruta base del proyecto (directorio que contiene server.py)
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-    
+
     app = Flask(
         __name__,
-        template_folder=os.path.join(BASE_DIR, "src", "adapters", "entry", "web", "templates"),
-        static_folder=os.path.join(BASE_DIR, "src", "adapters", "entry", "web", "static"),
+        template_folder=os.path.join(
+            BASE_DIR, "src", "adapters", "entry", "web", "templates"
+        ),
+        static_folder=os.path.join(
+            BASE_DIR, "src", "adapters", "entry", "web", "static"
+        ),
         static_url_path="/static",
     )
 
@@ -265,6 +269,45 @@ def create_app():
         from flask import session
 
         return dict(session=session)
+
+    @app.context_processor
+    def utility_processor():
+        """Proveedor de utilidades para las plantillas"""
+        import os
+        import hashlib
+
+        def get_file_version(filepath):
+            """Genera un hash del archivo para versionado de assets"""
+            full_path = (
+                os.path.join(app.static_folder, filepath)
+                if app.static_folder
+                else filepath
+            )
+            try:
+                with open(full_path, "rb") as f:
+                    return hashlib.md5(f.read()).hexdigest()[:8]
+            except:
+                return (
+                    str(int(os.path.getmtime(full_path)))
+                    if os.path.exists(full_path)
+                    else "1"
+                )
+
+        return dict(get_file_version=get_file_version)
+
+    @app.after_request
+    def add_no_cache_headers(response):
+        """Añadir headers anti-cache para prevenir caching de datos dinámicos"""
+        from flask import request
+
+        if request.path.startswith("/api/"):
+            response.headers["Cache-Control"] = (
+                "no-store, no-cache, must-revalidate, max-age=0"
+            )
+            response.headers["Pragma"] = "no-cache"
+            response.headers["Expires"] = "0"
+
+        return response
 
     return app
 

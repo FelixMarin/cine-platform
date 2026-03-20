@@ -7,7 +7,7 @@
     <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
 
     <!-- CSS del reproductor -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/play/play.css') }}?v={{ range(1, 10000) | random }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/play/play.css') }}?v={{ get_file_version('css/play/play.css') }}">
 </head>
 <body>
     <div class="container">
@@ -64,7 +64,7 @@
          style="display: none;">
     </div>
 
-    <script src="{{ url_for('static', filename='js/play/play.js') }}?v={{ range(1, 10000) | random }}" defer></script>
+    <script src="{{ url_for('static', filename='js/play/play.js') }}?v={{ get_file_version('js/play/play.js') }}" defer></script>
 
     <script>
     // 🚨 IMPORTANTE: El video debe empezar INMEDIATAMENTE

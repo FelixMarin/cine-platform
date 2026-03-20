@@ -1,5 +1,11 @@
 let isMenuCollapsed = false;
 
+// Función helper para añadir cache busting a URLs
+function addCacheBuster(url) {
+    const separator = url.includes('?') ? '&' : '?';
+    return `${url}${separator}_cb=${Date.now()}`;
+}
+
 function toggleMenu() {
     const menu = document.getElementById('sideMenu');
     const overlay = document.querySelector('.menu-overlay');
@@ -95,7 +101,7 @@ async function syncCatalog(button) {
     button.disabled = true;
 
     try {
-        const response = await fetch('/api/catalog/sync', {
+        const response = await fetch(addCacheBuster('/api/catalog/sync'), {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'

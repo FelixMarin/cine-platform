@@ -1,6 +1,12 @@
 // Cine Platform - Servicio de Catálogo con Base de Datos
 // Elimina localStorage y usa caché en memoria (solo sesión actual)
 
+// Función helper para añadir cache busting a URLs
+function addCacheBuster(url) {
+    const separator = url.includes('?') ? '&' : '?';
+    return `${url}${separator}_cb=${Date.now()}`;
+}
+
 const CatalogService = {
     // Caché en memoria (solo dura durante la sesión)
     _memoryCache: {
@@ -13,7 +19,7 @@ const CatalogService = {
 
     async searchOMDB(query, limit = 10) {
         const params = new URLSearchParams({ q: query, limit: limit.toString() });
-        const response = await fetch(`/api/omdb/search?${params}`);
+        const response = await fetch(addCacheBuster(`/api/omdb/search?${params}`));
         if (!response.ok) throw new Error('Error en búsqueda OMDB');
         return response.json();
     },
@@ -21,7 +27,7 @@ const CatalogService = {
     async lookupOMDB(imdbId, refresh = false) {
         const params = new URLSearchParams({ imdb_id: imdbId });
         if (refresh) params.append('refresh', 'true');
-        const response = await fetch(`/api/omdb/lookup?${params}`);
+        const response = await fetch(addCacheBuster(`/api/omdb/lookup?${params}`));
         if (!response.ok) throw new Error('Error en lookup OMDB');
         return response.json();
     },
@@ -33,7 +39,7 @@ const CatalogService = {
             return cachedUrl;
         }
 
-        const response = await fetch(`/api/omdb/poster/${imdbId}`);
+        const response = await fetch(addCacheBuster(`/api/omdb/poster/${imdbId}`));
         if (!response.ok) return null;
         const blob = await response.blob();
         const url = URL.createObjectURL(blob);
@@ -54,7 +60,7 @@ const CatalogService = {
 
         // Siempre consultar a la API (sin fallback a localStorage)
         const params = new URLSearchParams({ limit: limit.toString(), offset: offset.toString() });
-        const response = await fetch(`/api/catalog/movies?${params}`);
+        const response = await fetch(addCacheBuster(`/api/catalog/movies?${params}`));
         if (!response.ok) {
             // Si la API falla, no usamos localStorage como fallback
             throw new Error('Error obteniendo películas');
@@ -80,12 +86,12 @@ const CatalogService = {
         const params = new URLSearchParams({ limit: limit.toString(), offset: offset.toString() });
         
         // Intentar primero con /api/catalog/series
-        let response = await fetch(`/api/catalog/series?${params}`);
+        let response = await fetch(addCacheBuster(`/api/catalog/series?${params}`));
         
         // Si falla, intentar con /api/series como fallback
         if (!response.ok) {
             console.warn('⚠️ /api/catalog/series falló, intentando /api/series...');
-            response = await fetch(`/api/series?${params}`);
+            response = await fetch(addCacheBuster(`/api/series?${params}`));
         }
         
         if (!response.ok) {
@@ -102,13 +108,13 @@ const CatalogService = {
     },
 
     async getCatalogEntry(id) {
-        const response = await fetch(`/api/catalog/${id}`);
+        const response = await fetch(addCacheBuster(`/api/catalog/${id}`));
         if (!response.ok) throw new Error('Error obteniendo entrada');
         return response.json();
     },
 
     async createCatalogEntry(data) {
-        const response = await fetch('/api/catalog', {
+        const response = await fetch(addCacheBuster('/api/catalog'), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data)

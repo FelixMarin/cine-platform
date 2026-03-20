@@ -2,6 +2,13 @@
  * Downloads - UI Renderers
  */
 
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
 function renderDownloadsList(downloads) {
     const container = document.getElementById('downloads-list');
     if (!container) return;
@@ -25,26 +32,36 @@ function createDownloadItem(download) {
     item.dataset.id = download.id;
 
     const progress = download.progress || 0;
-    const statusClass = getStatusClass(download.status);
+    const status = download.status_display || download.status || 'unknown';
+    const statusClass = getStatusClass(status);
+    const name = download.title || download.name || 'Descarga';
+    const downloadSpeed = formatSpeed(download.download_speed || download.downloadSpeed || 0);
+    const uploadSpeed = formatSpeed(download.upload_speed || download.uploadSpeed || 0);
+    const eta = download.eta_formatted || download.etaFormatted || formatEta(download.eta);
+    const isActive = status === 'downloading' || status === 'seeding' || status === 'downloading' || status === 1;
+    const actionIcon = isActive ? '⏸️' : '▶️';
 
     item.innerHTML = `
-        <div class="download-info">
-            <h4>${escapeHtml(download.name)}</h4>
-            <div class="download-meta">
-                <span class="status ${statusClass}">${download.status}</span>
-                <span>${formatBytes(download.size_total)}</span>
-                <span>${formatSpeed(download.rate_download)}</span>
-            </div>
+        <div class="download-header">
+            <h4>${escapeHtml(name)}</h4>
+            <span class="status ${statusClass}">${status}</span>
         </div>
-        <div class="download-progress">
-            <div class="progress-bar">
-                <div class="progress-fill" style="width: ${progress}%"></div>
+        <div class="download-info-row">
+            <div class="download-progress">
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: ${progress}%"></div>
+                </div>
             </div>
-            <span class="progress-text">${progress.toFixed(1)}%</span>
-        </div>
-        <div class="download-actions">
-            <button onclick="cancelDownload(${download.id})" class="btn-cancel">Cancelar</button>
-            <button onclick="removeDownload(${download.id})" class="btn-remove">Eliminar</button>
+            <div class="download-stats">
+                <span class="stat-item"><span class="stat-icon">📊</span> ${progress.toFixed(1)}%</span>
+                <span class="stat-item"><span class="stat-icon">↓</span> ${downloadSpeed}</span>
+                <span class="stat-item"><span class="stat-icon">↑</span> ${uploadSpeed}</span>
+                <span class="stat-item"><span class="stat-icon">⏱️</span> ${eta}</span>
+            </div>
+            <div class="download-actions">
+                <button onclick="cancelDownload('${download.id}')" class="btn-action" title="Pausar/Reanudar">${actionIcon}</button>
+                <button onclick="removeDownload('${download.id}')" class="btn-action" title="Eliminar">🗑️</button>
+            </div>
         </div>
     `;
 
@@ -144,8 +161,33 @@ function formatSpeed(bytesPerSec) {
     return (bytesPerSec / Math.pow(k, i)).toFixed(1) + ' ' + sizes[i];
 }
 
+function formatEta(seconds) {
+    if (!seconds || seconds < 0) return '∞';
+    if (seconds < 60) return `${seconds}s`;
+    if (seconds < 3600) {
+        const mins = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        return `${mins}m ${secs}s`;
+    }
+    const hours = Math.floor(seconds / 3600);
+    const mins = Math.floor((seconds % 3600) / 60);
+    return `${hours}h ${mins}m`;
+}
+
+function formatDate(dateStr) {
+    if (!dateStr) return '-';
+    try {
+        const d = new Date(dateStr);
+        return d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    } catch (e) {
+        return dateStr;
+    }
+}
+
 window.renderDownloadsList = renderDownloadsList;
 window.renderOptimizationsList = renderOptimizationsList;
 window.renderHistoryList = renderHistoryList;
 window.cancelDownload = cancelDownload;
 window.removeDownload = removeDownload;
+window.formatEta = formatEta;
+window.formatDate = formatDate;

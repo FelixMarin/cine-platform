@@ -65,3 +65,5 @@ docker-compose.prod.yml
 migrations/
 
 scripts/update_poster.py
+
+backup-cine-untracked.sh

@@ -227,12 +227,12 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.16.0/umd/popper.min.js"></script>
 <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
 <!-- Módulos del optimizer -->
-<script src="{{ url_for('static', filename='js/optimizer/utils.js') }}?v={{ range(1, 10000) | random }}"></script>
-<script src="{{ url_for('static', filename='js/optimizer/menu.js') }}?v={{ range(1, 10000) | random }}"></script>
-<script src="{{ url_for('static', filename='js/optimizer/profiles.js') }}?v={{ range(1, 10000) | random }}"></script>
-<script src="{{ url_for('static', filename='js/optimizer/upload.js') }}?v={{ range(1, 10000) | random }}"></script>
-<script src="{{ url_for('static', filename='js/optimizer/progress.js') }}?v={{ range(1, 10000) | random }}"></script>
-<script src="{{ url_for('static', filename='js/optimizer/status.js') }}?v={{ range(1, 10000) | random }}"></script>
-<script src="{{ url_for('static', filename='js/optimizer/ui.js') }}?v={{ range(1, 10000) | random }}"></script>
-<script src="{{ url_for('static', filename='js/optimizer/main.js') }}?v={{ range(1, 10000) | random }}"></script>
+<script src="{{ url_for('static', filename='js/optimizer/utils.js') }}?v={{ get_file_version('js/optimizer/utils.js') }}"></script>
+<script src="{{ url_for('static', filename='js/optimizer/menu.js') }}?v={{ get_file_version('js/optimizer/menu.js') }}"></script>
+<script src="{{ url_for('static', filename='js/optimizer/profiles.js') }}?v={{ get_file_version('js/optimizer/profiles.js') }}"></script>
+<script src="{{ url_for('static', filename='js/optimizer/upload.js') }}?v={{ get_file_version('js/optimizer/upload.js') }}"></script>
+<script src="{{ url_for('static', filename='js/optimizer/progress.js') }}?v={{ get_file_version('js/optimizer/progress.js') }}"></script>
+<script src="{{ url_for('static', filename='js/optimizer/status.js') }}?v={{ get_file_version('js/optimizer/status.js') }}"></script>
+<script src="{{ url_for('static', filename='js/optimizer/ui.js') }}?v={{ get_file_version('js/optimizer/ui.js') }}"></script>
+<script src="{{ url_for('static', filename='js/optimizer/main.js') }}?v={{ get_file_version('js/optimizer/main.js') }}"></script>
 {% endblock %}
