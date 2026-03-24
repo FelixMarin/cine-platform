@@ -10,7 +10,7 @@
         maxResults: 20,
         endpoints: {
             categories: '/api/categories',
-            checkConnection: '/api/download-test',
+            checkConnection: '/status',
             search: '/api/search-movie',
             downloadTorrent: '/api/download-torrent',
             downloadUrl: '/api/download-url',

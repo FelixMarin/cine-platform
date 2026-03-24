@@ -15,13 +15,13 @@
      */
     window.checkConnection = async function() {
         try {
-            var endpoint = window.SEARCH_CONFIG ? window.SEARCH_CONFIG.endpoints.checkConnection : '/api/download-test';
+            var endpoint = window.SEARCH_CONFIG ? window.SEARCH_CONFIG.endpoints.checkConnection : '/status';
             var response = await fetch(endpoint);
             var data = await response.json();
 
-            // Mostrar estado de conexión (opcional)
-
-            if (!data.success) {
+            // El endpoint /status devuelve {status: "ok"}
+            // Verificar que el servidor está funcionando
+            if (!data.status || data.status !== 'ok') {
                 if (typeof window.showStatus === 'function') {
                     window.showStatus('Error de conexión con los servicios de descarga', 'error');
                 }
