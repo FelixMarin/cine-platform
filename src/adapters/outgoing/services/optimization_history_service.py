@@ -166,6 +166,8 @@ class OptimizationHistoryService:
                 input_file=history_data["input_file"],
                 output_file=history_data["output_file"],
                 output_filename=history_data["output_filename"],
+                download_started=history_data.get("torrent_download_start"),
+                download_completed=history_data.get("torrent_download_end"),
                 optimization_started=history_data["optimization_start"],
                 optimization_completed=history_data["optimization_end"],
                 download_duration_seconds=history_data["download_duration_seconds"],

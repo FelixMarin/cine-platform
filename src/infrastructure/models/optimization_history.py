@@ -90,7 +90,7 @@ class OptimizationHistory(Base):
             "optimization_duration_seconds": self.optimization_duration_seconds,
             "status": self.status,
             "error_message": self.error_message,
-            "file_size_bytes": self.file_size_bytes,
+            "file_size_bytes": self.optimized_size_bytes,
             "original_size_bytes": self.original_size_bytes,
             "compression_ratio": float(self.compression_ratio)
             if self.compression_ratio

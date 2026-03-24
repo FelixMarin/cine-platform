@@ -170,35 +170,18 @@ class TorrentOptimizer:
         logger.info(
             f"[TorrentOptimizer] === GUARDANDO HISTORIAL === process_id={process_id}, status={status}"
         )
-        try:
-            self._history_service.add_entry(
-                process_id=process_id,
-                final_path=final_path,
-                pending=pending,
-                status=status,
-                error_message=error_message,
-                transmission_client=self.transmission_client,
-                progress=progress,
-            )
-            logger.info(
-                f"[TorrentOptimizer] ✅ HISTORIAL GUARDADO: process_id={process_id}"
-            )
-        except Exception as e:
-            import traceback
-
-            logger.error("=" * 60)
-            logger.error(
-                f"[TorrentOptimizer] ❌❌❌ ERROR CRÍTICO: No se pudo guardar el historial"
-            )
-            logger.error(f"[TorrentOptimizer] ❌ process_id: {process_id}")
-            logger.error(f"[TorrentOptimizer] ❌ status: {status}")
-            logger.error(f"[TorrentOptimizer] ❌ error: {type(e).__name__}: {e}")
-            logger.error("[TorrentOptimizer] ❌❌❌ Traceback completo:")
-            logger.error(traceback.format_exc())
-            logger.error("=" * 60)
-            logger.warning(
-                f"[TorrentOptimizer] ⚠️ La optimización continuará pero NO estará en el historial"
-            )
+        self._history_service.add_entry(
+            process_id=process_id,
+            final_path=final_path,
+            pending=pending,
+            status=status,
+            error_message=error_message,
+            transmission_client=self.transmission_client,
+            progress=progress,
+        )
+        logger.info(
+            f"[TorrentOptimizer] ✅ HISTORIAL GUARDADO: process_id={process_id}"
+        )
 
     def _get_cleanup_service(self):
         """Obtiene el servicio de limpieza (inyección de dependencia)"""
