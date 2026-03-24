@@ -364,6 +364,7 @@ class CatalogRepository:
                         "plot": s.plot,
                         "poster_url": s.poster_url,
                         "imdb_rating": s.imdb_rating,
+                        "created_at": s.created_at.isoformat() if s.created_at else None,
                         "source": "omdb_entries",
                     }
                 )
@@ -387,6 +388,7 @@ class CatalogRepository:
                         "plot": s.plot,
                         "poster_url": s.poster_url,
                         "imdb_rating": s.imdb_rating,
+                        "created_at": s.created_at.isoformat() if s.created_at else None,
                         "source": "local_content",
                     }
                 )

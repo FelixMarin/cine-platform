@@ -222,6 +222,7 @@ def get_catalog_movies():
                     entry = omdb_by_key[key]
                     result_movies.append(
                         {
+                            "id": entry.id,
                             "title": entry.title,
                             "year": entry.year,
                             "genre": entry.genre,
@@ -230,10 +231,12 @@ def get_catalog_movies():
                             "poster_base64": _bytes_to_base64(entry.poster_image)
                             if entry.poster_image
                             else None,
+                            "imdb_id": entry.imdb_id,
                             "imdb_rating": entry.imdb_rating,
                             "director": entry.director,
                             "actors": entry.actors,
                             "file_path": movie.get("file_path"),
+                            "created_at": entry.created_at.isoformat() if entry.created_at else None,
                             "metadata_source": "omdb",
                         }
                     )
@@ -243,6 +246,7 @@ def get_catalog_movies():
                     entry = local_by_key[key]
                     result_movies.append(
                         {
+                            "id": entry.id,
                             "title": entry.title,
                             "year": entry.year,
                             "genre": entry.genre,
@@ -251,10 +255,12 @@ def get_catalog_movies():
                             "poster_base64": _bytes_to_base64(entry.poster_image)
                             if entry.poster_image
                             else None,
+                            "imdb_id": entry.imdb_id,
                             "imdb_rating": entry.imdb_rating,
                             "director": entry.director,
                             "actors": entry.actors,
                             "file_path": movie.get("file_path"),
+                            "created_at": entry.created_at.isoformat() if entry.created_at else None,
                             "metadata_source": "local",
                         }
                     )
@@ -273,6 +279,7 @@ def get_catalog_movies():
                         "director": None,
                         "actors": None,
                         "file_path": movie.get("file_path"),
+                        "created_at": None,
                         "metadata_source": "filesystem",
                     }
                 )
