@@ -32,9 +32,6 @@ outputs/*
 state.json
 state_base.json
 
-# Thumbnails (generated dynamically)
-thumbnails/
-
 # IDE
 .vscode/
 .idea/
@@ -57,7 +54,6 @@ k8s/
 .coveragerc
 htmlcov/
 
-*.txt
 .movie_index_cache.json
 
 docker-compose.prod.yml
