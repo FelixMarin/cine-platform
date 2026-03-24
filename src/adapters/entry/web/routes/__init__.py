@@ -7,6 +7,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 from src.adapters.entry.web.routes.catalog import catalog_bp, init_catalog_routes
+from src.adapters.entry.web.routes.catalog_movies import catalog_movies_bp
 from src.adapters.entry.web.routes.player import (
     player_bp,
     player_page_bp,
@@ -70,8 +71,12 @@ def register_all_blueprints(
     """
     # Registrar blueprints
     app.register_blueprint(main_page_bp)  # Página principal y favicon
-    app.register_blueprint(series_page_bp)  # Rutas de páginas de series (antes de otros para evitar conflictos)
+    app.register_blueprint(
+        series_page_bp
+    )  # Rutas de páginas de series (antes de otros para evitar conflictos)
     app.register_blueprint(catalog_bp)
+    app.register_blueprint(catalog_movies_bp)  # Nuevo endpoint /api/movies
+    # catalog_series_bp ya no se registra (sus endpoints están en series.py)
     app.register_blueprint(player_bp)
     app.register_blueprint(player_page_bp)  # Página de reproducción
     app.register_blueprint(auth_bp)
@@ -94,7 +99,6 @@ def register_all_blueprints(
     app.register_blueprint(history_bp)  # Historial de optimizaciones
     app.register_blueprint(sync_bp)  # Sincronización del catálogo
     app.register_blueprint(series_bp)  # Rutas de series (API)
-    # series_page_bp ya registrado arriba
 
     # Log de todas las rutas registradas
     logger.info("=== Rutas registradas ===")

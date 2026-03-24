@@ -139,6 +139,7 @@ def stream_video_by_path(file_path):
 
     Args:
         file_path: Ruta relativa al archivo (ej: data/movies/series/Doom Patrol/S01/...)
+                   o ruta absoluta (/mnt/DATA_2TB/audiovisual/...)
     """
     import time
     import logging
@@ -153,23 +154,34 @@ def stream_video_by_path(file_path):
 
     file_path = urllib.parse.unquote(file_path)
 
-    if ".." in file_path or file_path.startswith("/"):
+    if ".." in file_path:
         logger.warning(f"⚠️ Intento de path traversal detectado: {file_path}")
         return "Invalid path", 400
 
-    movies_base = "/data/movies"
-
-    original_path = file_path
-    clean_path = file_path
-
-    if clean_path.startswith("data/movies/"):
-        clean_path = clean_path[len("data/movies/") :]
-        logger.info(f"Ruta limpiada: '{original_path}' → '{clean_path}'")
-
-    if not clean_path.startswith("/"):
-        full_path = os.path.join(movies_base, clean_path)
+    # Manejar rutas absolutas del contenedor (/mnt/DATA_2TB/audiovisual/...)
+    # La ruta puede venir con o sin /
+    if file_path.startswith("/mnt/") or file_path.startswith("mnt/"):
+        original_path = file_path
+        if file_path.startswith("/"):
+            full_path = file_path
+        else:
+            full_path = "/" + file_path
+        logger.info(f"Ruta absoluta detectada: '{full_path}'")
+        clean_path = ""
     else:
-        full_path = clean_path
+        # Rutas relativas tradicionales
+        movies_base = "/data/movies"
+        original_path = file_path
+        clean_path = file_path
+
+        if clean_path.startswith("data/movies/"):
+            clean_path = clean_path[len("data/movies/") :]
+            logger.info(f"Ruta limpiada: '{original_path}' → '{clean_path}'")
+
+        if not clean_path.startswith("/"):
+            full_path = os.path.join(movies_base, clean_path)
+        else:
+            full_path = clean_path
 
     full_path = os.path.normpath(full_path)
 
@@ -239,11 +251,132 @@ def stream_video_by_path(file_path):
         logger.info(f"⏱️ Full request TOTAL: {total_time:.3f}s")
 
         # Enviar archivo completo
+        ext = os.path.splitext(full_path)[1].lower()
+        mimetype = "video/x-matroska" if ext == ".mkv" else "video/mp4"
+
         return send_file(
             full_path,
-            mimetype="video/mp4",
+            mimetype=mimetype,
             as_attachment=False,
             download_name=os.path.basename(full_path),
+        )
+
+
+@streaming_bp.route("/serie/<slug>/<int:season>/<int:episode>")
+def stream_serie_by_slug(slug: str, season: int, episode: int):
+    """
+    Streaming de episodio por slug de serie.
+    GET /api/streaming/serie/{slug}/{season}/{episode}
+
+    Args:
+        slug: Slug/título de la serie
+        season: Número de temporada
+        episode: Número de episodio
+    """
+    import time
+    import logging
+    import re
+    from flask import send_file, request, Response
+
+    logger = logging.getLogger(__name__)
+    start_total = time.time()
+
+    BUFFER_SIZE = 1024 * 1024  # 1MB buffer
+
+    series_folder = (
+        os.environ.get("MOVIES_FOLDER", "/mnt/DATA_2TB/audiovisual") + "/series"
+    )
+
+    logger.info(f"📺 Streaming serie: slug={slug}, S{season:02d}E{episode:02d}")
+
+    title = slug.replace("-", " ").replace("_", " ").strip()
+    title = title.title()
+
+    serie_path = None
+    for item in os.listdir(series_folder):
+        item_path = os.path.join(series_folder, item)
+        if os.path.isdir(item_path):
+            clean_item = item.replace(".", " ").strip().lower()
+            if (
+                clean_item == title.lower()
+                or title.lower() in clean_item
+                or clean_item in title.lower()
+            ):
+                serie_path = item_path
+                break
+
+    if not serie_path:
+        logger.warning(f"⚠️ Serie no encontrada: {title}")
+        return "Serie not found", 404
+
+    season_folder = f"S{season:02d}"
+    season_path = os.path.join(serie_path, season_folder)
+
+    if not os.path.isdir(season_path):
+        logger.warning(f"⚠️ Temporada no encontrada: {season_folder}")
+        return "Season not found", 404
+
+    pattern = re.compile(rf"[Ss]?\d+[Ee]?{episode:02d}", re.IGNORECASE)
+    file_path = None
+
+    for file in os.listdir(season_path):
+        if pattern.search(file):
+            ext = os.path.splitext(file)[1].lower()
+            if ext in {".mkv", ".mp4", ".avi", ".mov", ".flv", ".wmv"}:
+                file_path = os.path.join(season_path, file)
+                break
+
+    if not file_path:
+        logger.warning(f"⚠️ Episodio no encontrado: S{season:02d}E{episode:02d}")
+        return "Episode not found", 404
+
+    logger.info(f"✅ Archivo encontrado: {file_path}")
+
+    if not os.path.exists(file_path):
+        return "File not found", 404
+
+    file_size = os.path.getsize(file_path)
+    range_header = request.headers.get("Range")
+
+    ext = os.path.splitext(file_path)[1].lower()
+    mime_type = "video/x-matroska" if ext == ".mkv" else "video/mp4"
+
+    if range_header:
+        range_match = range_header.replace("bytes=", "").split("-")
+        start = int(range_match[0]) if range_match[0] else 0
+        end = int(range_match[1]) if range_match[1] else file_size - 1
+
+        if end >= file_size:
+            end = file_size - 1
+
+        chunk_size = end - start + 1
+
+        def generate_chunks():
+            with open(file_path, "rb") as f:
+                f.seek(start)
+                remaining = chunk_size
+                while remaining > 0:
+                    read_size = min(BUFFER_SIZE, remaining)
+                    chunk = f.read(read_size)
+                    if not chunk:
+                        break
+                    yield chunk
+                    remaining -= len(chunk)
+
+        headers = {
+            "Content-Range": f"bytes {start}-{end}/{file_size}",
+            "Accept-Ranges": "bytes",
+            "Content-Length": str(chunk_size),
+            "Content-Type": mime_type,
+        }
+
+        return Response(generate_chunks(), status=206, headers=headers)
+    else:
+        return send_file(
+            file_path,
+            mimetype=mime_type,
+            as_attachment=False,
+            download_name=os.path.basename(file_path),
         )
 
 
@@ -342,11 +475,14 @@ def stream_video_by_id(movie_id):
         logger.info(f"⏱️ Full request TOTAL: {total_time:.3f}s")
 
         # Enviar archivo completo
+        ext = os.path.splitext(full_path)[1].lower()
+        mimetype = "video/x-matroska" if ext == ".mkv" else "video/mp4"
+
         return send_file(
-            file_path,
-            mimetype="video/mp4",
+            full_path,
+            mimetype=mimetype,
             as_attachment=False,
-            download_name=os.path.basename(file_path),
+            download_name=os.path.basename(full_path),
         )
 
 
@@ -493,9 +629,12 @@ def stream_episode_by_id(episode_id):
         logger.info(f"⏱️ Full request TOTAL: {total_time:.3f}s")
 
         # Enviar archivo completo
+        ext = os.path.splitext(full_path)[1].lower()
+        mimetype = "video/x-matroska" if ext == ".mkv" else "video/mp4"
+
         return send_file(
-            file_path,
-            mimetype="video/mp4",
+            full_path,
+            mimetype=mimetype,
             as_attachment=False,
-            download_name=os.path.basename(file_path),
+            download_name=os.path.basename(full_path),
         )

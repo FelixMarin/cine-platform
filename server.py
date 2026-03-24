@@ -188,6 +188,8 @@ def create_app():
         profile_bp,
     )
 
+    from src.adapters.entry.web.routes import series_bp, series_page_bp
+ 
     # Importar blueprint de sincronización del catálogo
     from src.adapters.entry.web.routes.catalog_sync import sync_bp
 
@@ -236,6 +238,8 @@ def create_app():
 
     # Registrar blueprints
     app.register_blueprint(main_page_bp)  # Página principal y favicon
+    app.register_blueprint(series_page_bp)
+    app.register_blueprint(series_bp)    
     app.register_blueprint(catalog_bp)
     app.register_blueprint(player_bp)
     app.register_blueprint(player_page_bp)  # Página de reproducción
@@ -257,6 +261,7 @@ def create_app():
     app.register_blueprint(profile_bp)  # Rutas de perfil de usuario
     app.register_blueprint(history_bp)  # Historial de optimizaciones
     app.register_blueprint(sync_bp)  # Sincronización del catálogo
+
 
     logger.info("[ROUTER] Blueprints registrados correctamente")
 

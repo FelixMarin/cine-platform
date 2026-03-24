@@ -45,8 +45,8 @@ services:
       - OAUTH2_CLIENTS=${OAUTH2_CLIENTS:-CINE_PLATFORM,TRANSCRIBERAPP}      
       - CINE_PLATFORM_SECRET=${CINE_PLATFORM_SECRET:-cine-platform}
       - CINE_PLATFORM_REDIRECT_URI=${CINE_PLATFORM_REDIRECT_URI:-http://localhost:5000/oauth/callback}
-      - TRANSCRIBEAPP_SECRET=${TRANSCRIBEAPP_SECRET:-transcriberapp}
-      - TRANSCRIBEAPP_REDIRECT_URI=${TRANSCRIBEAPP_REDIRECT_URI:-http://localhost:9000/oauth/callback}
+      - TRANSCRIBERAPP_SECRET=${TRANSCRIBERAPP_SECRET:-transcriberapp}
+      - TRANSCRIBERAPP_REDIRECT_URI=${TRANSCRIBERAPP_REDIRECT_URI:-http://localhost:9000/oauth/callback}
       # Database
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/oauth2_dev
       - SPRING_DATASOURCE_USERNAME=oauth2_user
@@ -85,7 +85,7 @@ services:
       - TZ=Europe/Madrid
     volumes:
       - prowlarr-config:/config
-      - /mnt/DATA_2TB/audiovisual/mkv:/downloads
+      - ${MOVIES_FOLDER}/mkv:/downloads
     networks:
       - cine-network
 
@@ -101,7 +101,7 @@ services:
       - TZ=Europe/Madrid
     volumes:
       - jackett-config:/config
-      - /mnt/DATA_2TB/audiovisual/mkv:/downloads
+      - ${MOVIES_FOLDER}/mkv:/downloads
     networks:
       - cine-network
 
@@ -121,9 +121,9 @@ services:
       - USER=${TRANSMISSION_USERNAME}
       - PASS=${TRANSMISSION_PASSWORD}
     volumes:
-      - /mnt/DATA_2TB/administracion-peliculas/transmission/config:/config
-      - /mnt/DATA_2TB/administracion-peliculas/downloads:/downloads
-      - /mnt/DATA_2TB/audiovisual/mkv:/watch
+      - ${ADMIN_FOLDER}/transmission/config:/config
+      - ${ADMIN_FOLDER}/downloads:/downloads
+      - ${MOVIES_FOLDER}/mkv:/watch
     networks:
       - cine-network
 
@@ -145,10 +145,10 @@ services:
     ports:
       - "8082:8080"
     volumes:
-      - /mnt/DATA_2TB/administracion-peliculas/ffmpeg/temp:/shared/temp
-      - /mnt/DATA_2TB/administracion-peliculas/ffmpeg/uploads:/shared/uploads
-      - /mnt/DATA_2TB/administracion-peliculas/ffmpeg/outputs:/shared/outputs
-      - /mnt/DATA_2TB/administracion-peliculas/downloads:/shared/input
+      - ${ADMIN_FOLDER}/ffmpeg/temp:/shared/temp
+      - ${ADMIN_FOLDER}/ffmpeg/uploads:/shared/uploads
+      - ${ADMIN_FOLDER}/ffmpeg/outputs:/shared/outputs
+      - ${ADMIN_FOLDER}/downloads:/shared/input
     networks:
       - cine-network
     healthcheck:
@@ -247,34 +247,34 @@ services:
       OAUTH2_USERINFO_ENDPOINT: /user/me
       OAUTH2_CLIENT_ID: ${OAUTH2_CLIENT_ID}
       OAUTH2_CLIENT_SECRET: ${OAUTH2_CLIENT_SECRET}
-      MOVIES_BASE_PATH: /mnt/DATA_2TB/audiovisual/mkv
+      MOVIES_BASE_PATH: ${MOVIES_FOLDER}/mkv
       # Indexers
-      PROWLARR_URL: http://prowlarr:9696
+      PROWLARR_URL: ${PROWLARR_URL}
       PROWLARR_API_KEY: ${PROWLARR_API_KEY}
-      JACKETT_URL: http://jackett:9117
+      JACKETT_URL: ${JACKETT_URL}
       JACKETT_API_KEY: ${JACKETT_API_KEY}
-      TRANSMISSION_URL: http://transmission:9091/transmission/rpc
+      TRANSMISSION_URL: ${TRANSMISSION_URL}
       TRANSMISSION_USERNAME: ${TRANSMISSION_USERNAME}
       TRANSMISSION_PASSWORD: ${TRANSMISSION_PASSWORD}
       TRANSMISSION_DOWNLOAD_DIR: /downloads
       # FFmpeg API
-      FFMPEG_API_URL: http://ffmpeg-api:8080
+      FFMPEG_API_URL: ${FFMPEG_API_URL}
     volumes:
       - ./static:/app/static
-      - /mnt/DATA_2TB/administracion-peliculas/ffmpeg/uploads:/app/uploads
-      - /mnt/DATA_2TB/administracion-peliculas/ffmpeg/temp:/app/temp
-      - /mnt/DATA_2TB/administracion-peliculas/ffmpeg/outputs:/app/outputs
-      - /mnt/DATA_2TB/administracion-peliculas/ffmpeg/logs:/app/logs
+      - ${ADMIN_FOLDER}/ffmpeg/uploads:/app/uploads
+      - ${ADMIN_FOLDER}/ffmpeg/temp:/app/temp
+      - ${ADMIN_FOLDER}/ffmpeg/outputs:/app/outputs
+      - ${ADMIN_FOLDER}/ffmpeg/logs:/app/logs
       - ${MOVIES_FOLDER}:/data/movies
-      - /mnt/DATA_2TB/audiovisual/mkv:/mnt/DATA_2TB/audiovisual/mkv
-      - /mnt/DATA_2TB/administracion-peliculas:/mnt/DATA_2TB/administracion-peliculas
-      - /mnt/DATA_2TB/administracion-peliculas/downloads:/downloads
+      - ${MOVIES_FOLDER}/mkv:${MOVIES_FOLDER}/mkv
+      - ${ADMIN_FOLDER}:${ADMIN_FOLDER}
+      - ${ADMIN_FOLDER}/downloads:/downloads
     extra_hosts:
       - "host.docker.internal:host-gateway"
     networks:
       - cine-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5000/api/auth/check"]
+      test: ["CMD-SHELL", "curl -f http://localhost:${FLASK_PORT:-5000}/api/${HEALTH_CHECK_ENDPOINT:-auth/check}"]
       interval: 30s
       timeout: 10s
       retries: 3

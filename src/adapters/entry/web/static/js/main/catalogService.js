@@ -85,14 +85,8 @@ const CatalogService = {
         // Siempre consultar a la API (sin fallback a localStorage)
         const params = new URLSearchParams({ limit: limit.toString(), offset: offset.toString() });
         
-        // Intentar primero con /api/catalog/series
-        let response = await fetch(addCacheBuster(`/api/catalog/series?${params}`));
-        
-        // Si falla, intentar con /api/series como fallback
-        if (!response.ok) {
-            console.warn('⚠️ /api/catalog/series falló, intentando /api/series...');
-            response = await fetch(addCacheBuster(`/api/series?${params}`));
-        }
+        // Usar el endpoint /api/catalog/series
+        const response = await fetch(addCacheBuster(`/api/catalog/series?${params}`));
         
         if (!response.ok) {
             // Si la API falla, no usamos localStorage como fallback

@@ -457,9 +457,10 @@ def download_from_url():
 def follow_indexer_redirect(url, max_redirects=5):
     """Sigue redirecciones de indexadores para obtener la URL real"""
     import requests
+
     session = requests.Session()
     session.max_redirects = max_redirects
-    
+
     try:
         # HEAD request es más ligero
         response = session.head(url, allow_redirects=True, timeout=10)
@@ -546,7 +547,7 @@ def download_remove(torrent_id):
 def optimize_status():
     """
     Obtiene el estado de las optimizaciones activas
-    
+
     Este endpoint es usado por el frontend para mostrar el progreso
     en tiempo real de las optimizaciones de torrents.
     """
@@ -558,27 +559,31 @@ def optimize_status():
     try:
         active = _torrent_optimizer.list_active()
         jobs = []
-        
+
         for opt in active:
             # Obtener datos detallados del proceso
             status = _torrent_optimizer.get_api_progress(opt.process_id)
-            
-            jobs.append({
-                "id": opt.process_id,
-                "input_path": opt.input_file,
-                "progress": opt.progress,
-                "status": opt.status,
-                "category": getattr(opt, 'category', 'default'),
-                "profile": getattr(opt, 'profile', 'balanced'),
-                "start_time": opt.start_time,
-                # Métricas de ffmpeg-api
-                "fps": status.get('fps', 0) if status else 0,
-                "bitrate": status.get('bitrate', 0) if status else 0,
-                "current_time": status.get('current_time', 0) if status else 0,
-                "eta": status.get('eta', 0) if status else 0,
-                "size_formatted": status.get('size_formatted', '0 B') if status else '0 B',
-                "elapsed": status.get('elapsed', 0) if status else 0
-            })
+
+            jobs.append(
+                {
+                    "id": opt.process_id,
+                    "input_path": opt.input_file,
+                    "progress": opt.progress,
+                    "status": opt.status,
+                    "category": getattr(opt, "category", "default"),
+                    "profile": getattr(opt, "profile", "balanced"),
+                    "start_time": opt.start_time,
+                    # Métricas de ffmpeg-api
+                    "fps": status.get("fps", 0) if status else 0,
+                    "bitrate": status.get("bitrate", 0) if status else 0,
+                    "current_time": status.get("current_time", 0) if status else 0,
+                    "eta": status.get("eta", 0) if status else 0,
+                    "size_formatted": status.get("size_formatted", "0 B")
+                    if status
+                    else "0 B",
+                    "elapsed": status.get("elapsed", 0) if status else 0,
+                }
+            )
 
         return jsonify(
             {
@@ -591,21 +596,6 @@ def optimize_status():
     except Exception as e:
         logger.error(f"[API] Error obteniendo optimizaciones: {str(e)}")
         return jsonify({"success": False, "error": str(e)}), 500
-
-
-# ============================================================================
-# ENDPOINT: Estado de optimizaciones (compatibilidad con frontend)
-# ============================================================================
-
-
-@download_api_bp.route("/optimizer/status", methods=["GET"])
-@require_role("admin")
-def optimize_status_api():
-    """
-    Endpoint de compatibilidad para el frontend
-    El frontend espera /api/optimizer/status con formato active_jobs
-    """
-    return optimize_status()
 
 
 # ============================================================================

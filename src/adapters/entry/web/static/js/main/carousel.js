@@ -267,7 +267,7 @@ async function renderSeries(series) {
         card.onclick = async () => {
             try {
                 // Llamar a la API para obtener las temporadas
-                const response = await fetch(`/api/series/${serie.id}/seasons`);
+                const response = await fetch(`/api/${serie.id}/seasons`);
                 if (!response.ok) {
                     throw new Error('Error al obtener las temporadas');
                 }

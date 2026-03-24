@@ -17,6 +17,7 @@ from flask import (
 )
 from src.adapters.entry.web.middleware.auth_middleware import require_auth
 from src.adapters.outgoing.services.translation import translate_plot_async
+from src.infrastructure.models.catalog import OmdbEntry, LocalContent
 
 # Importar casos de uso (se inicializan después)
 from src.core.use_cases.player import (
@@ -162,14 +163,34 @@ def play_serie_episode(serie_id, season, episode):
         )
 
         with get_catalog_repository_session() as db:
-            repo = get_catalog_repository(db)
-            serie = repo.get_local_content_by_id(serie_id)
-
-            if not serie or serie.type != "series":
-                logger.warning(f"Serie no encontrada: {serie_id}")
-                return "Serie no encontrada", 404
-
-            serie_folder = serie.file_path
+            # 1. Buscar la serie en omdb_entries por ID
+            serie = db.query(OmdbEntry).filter(
+                OmdbEntry.id == serie_id,
+                OmdbEntry.type == "series"
+            ).first()
+            
+            if not serie:
+                # Fallback: buscar en local_content
+                repo = get_catalog_repository(db)
+                serie = repo.get_local_content_by_id(serie_id)
+                if not serie or serie.type != "series":
+                    logger.warning(f"Serie no encontrada: {serie_id}")
+                    return "Serie no encontrada", 404
+            
+            # 2. Buscar la ruta física en local_content por título o imdb_id
+            local_content = db.query(LocalContent).filter(
+                LocalContent.title == serie.title,
+                LocalContent.type == "series"
+            ).first()
+            
+            if not local_content and serie.imdb_id:
+                local_content = db.query(LocalContent).filter(
+                    LocalContent.imdb_id == serie.imdb_id,
+                    LocalContent.type == "series"
+                ).first()
+            
+            serie_folder = local_content.file_path if local_content else None
+            
             if not serie_folder or not os.path.exists(serie_folder):
                 logger.error(f"Ruta de serie no válida: {serie_folder}")
                 return "Ruta de serie no válida", 404

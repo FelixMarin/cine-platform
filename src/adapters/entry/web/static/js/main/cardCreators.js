@@ -133,7 +133,7 @@ function createMediaCard(media) {
         card.onclick = async () => {
             try {
                 // Llamar a la API para obtener las temporadas
-                const response = await fetch(`/api/series/${media.id}/seasons`);
+                const response = await fetch(`/api/${media.id}/seasons`);
                 if (!response.ok) {
                     throw new Error('Error al obtener las temporadas');
                 }
@@ -370,7 +370,7 @@ async function createSerieCard(episodio, preloadedPoster = null) {
         card.onclick = async () => {
             try {
                 // Llamar a la API para obtener las temporadas
-                const response = await fetch(`/api/series/${episodio.id}/seasons`);
+                const response = await fetch(`/api/${episodio.id}/seasons`);
                 if (!response.ok) {
                     throw new Error('Error al obtener las temporadas');
                 }

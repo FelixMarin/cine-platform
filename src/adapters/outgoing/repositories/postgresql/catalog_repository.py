@@ -47,7 +47,7 @@ def get_catalog_repository_session():
 class CatalogRepository:
     """
     Repositorio para el catálogo de cine.
-    
+
     IMPORTANTE: Ahora acepta una sesión en el constructor.
     Para usar correctamente, emplea get_catalog_repository_session() como context manager.
     """
@@ -119,11 +119,11 @@ class CatalogRepository:
     def get_exact_match(self, title: str, year: Optional[int]) -> Optional[OmdbEntry]:
         """
         Busca una entrada que coincida EXACTAMENTE con el título y año (como OMDB).
-        
+
         Args:
             title: Título exacto (sin comodines)
             year: Año exacto (opcional)
-        
+
         Returns:
             OmdbEntry o None
         """
@@ -131,31 +131,33 @@ class CatalogRepository:
         query = db.query(OmdbEntry).filter(
             func.lower(OmdbEntry.title) == func.lower(title.strip())
         )
-        
+
         if year:
             query = query.filter(OmdbEntry.year == str(year))
-        
+
         return query.first()
 
-    def get_exact_match_by_cleaned_title(self, raw_title: str, year: Optional[int]) -> Optional[OmdbEntry]:
+    def get_exact_match_by_cleaned_title(
+        self, raw_title: str, year: Optional[int]
+    ) -> Optional[OmdbEntry]:
         """
         Extrae el título limpio (sin años entre paréntesis) y busca coincidencia exacta.
-        
+
         Args:
             raw_title: Título que puede incluir (2025) al final
             year: Año opcional
-        
+
         Returns:
             OmdbEntry o None
         """
         # Extraer año del título si está entre paréntesis
-        year_match = re.search(r'\((\d{4})\)', raw_title)
+        year_match = re.search(r"\((\d{4})\)", raw_title)
         if year_match and not year:
             year = int(year_match.group(1))
-        
+
         # Limpiar título: quitar (año) y limpiar espacios
-        clean_title = re.sub(r'\s*\(\d{4}\)\s*$', '', raw_title).strip()
-        
+        clean_title = re.sub(r"\s*\(\d{4}\)\s*$", "", raw_title).strip()
+
         return self.get_exact_match(clean_title, year)
 
     # ELIMINADO: Búsqueda de fallback con ILIKE que causaba thumbnails incorrectos
@@ -164,11 +166,11 @@ class CatalogRepository:
     #     """
     #     BÚSQUEDA DE FALLBACK: solo usar ILIKE cuando no hay coincidencia exacta.
     #     Útil para depuración y para encontrar entradas cuando no hay coincidencia exacta.
-    #     
+    #
     #     Args:
     #         title: Título a buscar
     #         limit: Límite de resultados
-    #     
+    #
     #     Returns:
     #         Lista de OmdbEntry que coinciden parcialmente
     #     """
@@ -186,15 +188,15 @@ class CatalogRepository:
     ) -> OmdbEntry:
         """Crea o actualiza una entrada de OMDB"""
         db = self._get_db()
-        
+
         # Campos que deben ser convertidos a entero
-        integer_fields = {'metascore', 'totalseasons'}
+        integer_fields = {"metascore", "totalseasons"}
         # Campos que deben ser convertidos a float
-        float_fields = {'imdbrating'}
+        float_fields = {"imdbrating"}
 
         def convert_value(key, value):
             """Convierte valores de OMDB handles 'N/A' correctly"""
-            if value is None or value == '' or value == 'N/A':
+            if value is None or value == "" or value == "N/A":
                 return None
             key_lower = key.lower()
             if key_lower in integer_fields:
@@ -218,7 +220,10 @@ class CatalogRepository:
 
             if existing:
                 for key, value in data.items():
-                    if hasattr(existing, key.lower()) and key not in ["id", "created_at"]:
+                    if hasattr(existing, key.lower()) and key not in [
+                        "id",
+                        "created_at",
+                    ]:
                         # Convertir valores para campos numéricos
                         converted_value = convert_value(key, value)
                         setattr(existing, key.lower(), converted_value)
@@ -253,11 +258,11 @@ class CatalogRepository:
     def update_plot_es(self, imdb_id: str, plot_es: str):
         """
         Actualiza el campo plot_es (plot traducido al español) para una entrada de OMDB.
-        
+
         Args:
             imdb_id: ID de IMDB de la película/serie
             plot_es: Plot traducido al español
-        
+
         Returns:
             True si se actualizó correctamente, False si no se encontró la entrada
         """
@@ -266,13 +271,17 @@ class CatalogRepository:
             entry = db.query(OmdbEntry).filter(OmdbEntry.imdb_id == imdb_id).first()
             if entry:
                 # Verificar que la columna existe (migración puede no estar aplicada)
-                if hasattr(entry, 'plot_es'):
+                if hasattr(entry, "plot_es"):
                     entry.plot_es = plot_es
                     db.commit()
-                    logger.info(f"✅ plot_es actualizado para '{entry.title}' (imdb_id: {imdb_id})")
+                    logger.info(
+                        f"✅ plot_es actualizado para '{entry.title}' (imdb_id: {imdb_id})"
+                    )
                     return True
                 else:
-                    logger.warning("⚠️ Columna plot_es no existe en la tabla (migración no aplicada)")
+                    logger.warning(
+                        "⚠️ Columna plot_es no existe en la tabla (migración no aplicada)"
+                    )
                     return False
             else:
                 logger.warning(f"⚠️ No se encontró entrada OMDB con imdb_id: {imdb_id}")
@@ -327,6 +336,81 @@ class CatalogRepository:
         return self.list_local_content(
             content_type="series", limit=limit, offset=offset
         )
+
+    def list_all_series_combined(self, limit: int = 100, offset: int = 0) -> List[Dict]:
+        """
+        Lista series combinadas de omdb_entries y local_content.
+        Las series con IMDB vienen de omdb_entries, las demás de local_content.
+        """
+        db = self._get_db()
+
+        series_list = []
+        seen_titles = set()
+
+        omdb_series = db.query(OmdbEntry).filter(OmdbEntry.type == "series").all()
+        for s in omdb_series:
+            title_normalized = s.title.lower() if s.title else ""
+            if title_normalized and title_normalized not in seen_titles:
+                seen_titles.add(title_normalized)
+                series_list.append(
+                    {
+                        "id": s.id,
+                        "imdb_id": s.imdb_id,
+                        "title": s.title,
+                        "year": s.year,
+                        "type": "series",
+                        "total_seasons": s.total_seasons,
+                        "genre": s.genre,
+                        "plot": s.plot,
+                        "poster_url": s.poster_url,
+                        "imdb_rating": s.imdb_rating,
+                        "source": "omdb_entries",
+                    }
+                )
+
+        local_series = (
+            db.query(LocalContent).filter(LocalContent.type == "series").all()
+        )
+        for s in local_series:
+            title_normalized = s.title.lower() if s.title else ""
+            if title_normalized and title_normalized not in seen_titles:
+                seen_titles.add(title_normalized)
+                series_list.append(
+                    {
+                        "id": s.id,
+                        "imdb_id": s.imdb_id,
+                        "title": s.title,
+                        "year": s.year,
+                        "type": "series",
+                        "total_seasons": s.total_seasons,
+                        "genre": s.genre,
+                        "plot": s.plot,
+                        "poster_url": s.poster_url,
+                        "imdb_rating": s.imdb_rating,
+                        "source": "local_content",
+                    }
+                )
+
+        series_list.sort(key=lambda x: x.get("title", "").lower())
+
+        if offset > 0:
+            series_list = series_list[offset:]
+        if limit:
+            series_list = series_list[:limit]
+
+        return series_list
+
+    def list_omdb_entries(
+        self, content_type: str = None, limit: int = 100, offset: int = 0
+    ) -> List[OmdbEntry]:
+        """Lista entradas de OMDB"""
+        db = self._get_db()
+        query = db.query(OmdbEntry)
+
+        if content_type:
+            query = query.filter(OmdbEntry.type == content_type)
+
+        return query.order_by(OmdbEntry.title).limit(limit).offset(offset).all()
 
     def create_local_content(self, data: dict) -> LocalContent:
         """Crea contenido local"""
@@ -438,7 +522,9 @@ class CatalogRepository:
                 try:
                     imdb_id = movie_data.get("imdb_id") or movie_data.get("imdbID")
                     if not imdb_id:
-                        results["errors"].append(f"Sin imdb_id: {movie_data.get('title')}")
+                        results["errors"].append(
+                            f"Sin imdb_id: {movie_data.get('title')}"
+                        )
                         continue
 
                     existing = self.get_omdb_entry_by_imdb_id(imdb_id)
@@ -544,7 +630,7 @@ def get_catalog_repository_session():
     """
     Context manager para obtener una sesión de base de datos.
     Garantiza que la sesión se cierre correctamente.
-    
+
     Uso:
     ```python
     with get_catalog_repository_session() as db:
@@ -568,14 +654,14 @@ def get_catalog_repository_session():
 def get_catalog_repository(db_session: Session = None) -> CatalogRepository:
     """
     Factory para obtener el repositorio.
-    
+
     Args:
-        db_session: Sesión existente (opcional). Si no se provee, 
+        db_session: Sesión existente (opcional). Si no se provee,
                    el repositorio creará su propia sesión.
-    
+
     Returns:
         CatalogRepository: Instancia del repositorio
-    
+
     Uso recomendado con context manager:
     ```python
     with get_catalog_repository() as repo:

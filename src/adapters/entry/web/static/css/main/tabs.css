@@ -114,7 +114,6 @@
 .tabs-container,
 .downloads-tabs-container {
     position: relative;
-    width: 100%;
 }
 
 /* Indicador visual de contenido desplazable a la derecha */

@@ -24,16 +24,8 @@ async function loadAllSeries(forceRefresh = false) {
     }
 
     try {
-        
-        
-        // Intentar primero con /api/catalog/series
-        let response = await fetch(addCacheBuster('/api/catalog/series?limit=100&auto_sync=false'));
-        
-        // Si falla, intentar con /api/series como fallback
-        if (!response.ok) {
-            console.warn('⚠️ /api/catalog/series falló, intentando /api/series...');
-            response = await fetch(addCacheBuster('/api/series?limit=100'));
-        }
+        // Usar el endpoint /api/catalog/series
+        const response = await fetch(addCacheBuster('/api/catalog/series?limit=100'));
         
         if (!response.ok) {
             console.error('❌ Error响应:', response.status, response.statusText);
@@ -74,7 +66,7 @@ async function loadSerieSeasons(serieId) {
     }
 
     try {
-        const response = await fetch(`/api/series/${serieId}/seasons`);
+        const response = await fetch(`/api/${serieId}/seasons`);
         const data = await response.json();
         
         if (!seriesDataCache.seriesDetail[serieId]) {
@@ -100,7 +92,7 @@ async function loadSeasonEpisodes(serieId, season) {
     }
 
     try {
-        const response = await fetch(`/api/series/${serieId}/season/${season}/episodes`);
+        const response = await fetch(`/api/${serieId}/season/${season}/episodes`);
         const data = await response.json();
         
         if (!seriesDataCache.seriesDetail[serieId]) {
@@ -157,11 +149,11 @@ async function createSerieCardView(serie) {
     card.onmouseover = () => card.style.transform = 'scale(1.05)';
     card.onmouseout = () => card.style.transform = 'scale(1)';
     
-    // Imagen
+    // Imagen - priorizar poster_base64
     const img = document.createElement('img');
     img.style.cssText = 'width: 100%; height: 270px; object-fit: cover;';
     img.alt = serie.title || 'Serie';
-    img.src = serie.poster_url || '/static/images/default.jpg';
+    img.src = serie.poster_base64 || serie.poster_url || '/static/images/default.jpg';
     img.onerror = () => { img.src = '/static/images/default.jpg'; };
     
     // Título
