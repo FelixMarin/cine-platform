@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.5">
+    <title>{% block title %}Cine Platform{% endblock %}</title>
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
+    <!-- Estilos principales -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main/main.css') }}?v={{ get_file_version('css/main/main.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/menu/menu.css') }}?v={{ get_file_version('css/menu/menu.css') }}">
+    {% block extra_css %}{% endblock %}
+</head>
+
+<body class="dark-mode">
+
+    <!-- Botón hamburguesa para móvil -->
+    <button class="menu-toggle" onclick="toggleMenu()" aria-label="Abrir menú">☰</button>
+
+    <!-- Overlay para móvil -->
+    <div class="menu-overlay" onclick="toggleMenu()" aria-hidden="true"></div>
+
+    <!-- Menú lateral -->
+    {% block menu %}{% endblock %}
+
+    <!-- Contenido principal -->
+    <main class="main-content" id="mainContent" role="main">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Notificaciones -->
+    <div id="notificationContainer" class="notification-container"></div>
+
+    <!-- Scripts comunes (sin defer para que estén disponibles en DOMContentLoaded) -->
+    <script src="{{ url_for('static', filename='js/main/menu.js') }}?v={{ get_file_version('js/main/menu.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/main/utils.js') }}?v={{ get_file_version('js/main/utils.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/main/tabs.js') }}?v={{ get_file_version('js/main/tabs.js') }}"></script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

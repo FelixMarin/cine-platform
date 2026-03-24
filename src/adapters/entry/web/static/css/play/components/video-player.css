@@ -1,0 +1,26 @@
+/* ============================================
+   VIDEO PLAYER - Play
+   ============================================ */
+
+.video-wrapper {
+    background: #000;
+    border-radius: var(--border-radius-lg);
+    overflow: hidden;
+    box-shadow: var(--shadow);
+    margin-top: var(--spacing-xl);
+}
+
+video { 
+    width: 100%;
+    display: block;
+    background: #000;
+}
+
+.video-controls {
+    padding: var(--spacing-lg) var(--spacing-xl);
+    background: var(--bg-secondary);
+    display: flex;
+    gap: var(--spacing-xl);
+    align-items: center;
+    flex-wrap: wrap;
+}

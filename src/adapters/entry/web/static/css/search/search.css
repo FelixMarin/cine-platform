@@ -1,0 +1,40 @@
+/* ============================================
+   SEARCH.CSS - Punto de entrada principal
+   ============================================ */
+/* Este archivo importa todos los módulos CSS */
+
+/* Base */
+@import url('./base/variables.css');
+@import url('./base/animations.css');
+
+/* Layout */
+@import url('./layout/header.css');
+@import url('./layout/panel.css');
+@import url('./layout/results-section.css');
+
+/* Componentes */
+@import url('./components/tabs.css');
+@import url('./components/forms/input-group.css');
+@import url('./components/forms/input.css');
+@import url('./components/forms/button.css');
+@import url('./components/forms/category.css');
+@import url('./components/forms/status.css');
+@import url('./components/cards/result-card.css');
+@import url('./components/cards/result-header.css');
+@import url('./components/cards/result-meta.css');
+@import url('./components/empty-state.css');
+
+/* Features */
+@import url('./features/connection-status.css');
+
+/* Modales */
+@import url('./modals/modal-base.css');
+@import url('./modals/modal-header.css');
+@import url('./modals/modal-body.css');
+@import url('./modals/download-info.css');
+@import url('./modals/progress.css');
+@import url('./modals/download-stats.css');
+@import url('./modals/modal-actions.css');
+
+/* Responsive */
+@import url('./responsive/mobile.css');

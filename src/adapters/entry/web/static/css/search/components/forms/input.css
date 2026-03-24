@@ -1,0 +1,23 @@
+/* ============================================
+   INPUT - Search
+   ============================================ */
+
+.search-input {
+    flex: 1;
+    padding: 14px 18px;
+    background: #0f0f1a;
+    border: 1px solid var(--search-border);
+    border-radius: var(--border-radius-md);
+    color: var(--search-text);
+    font-size: var(--font-size-xl);
+    transition: border-color 0.3s ease;
+}
+
+.search-input:focus {
+    outline: none;
+    border-color: var(--search-accent);
+}
+
+.search-input::placeholder {
+    color: var(--search-text-muted);
+}

@@ -1,0 +1,27 @@
+/* ============================================
+   PROGRESS - Search
+   ============================================ */
+
+.progress-container {
+    background: #0f0f1a;
+    border-radius: 10px;
+    height: 24px;
+    overflow: hidden;
+    margin-bottom: var(--spacing-md);
+}
+
+.progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, var(--search-accent) 0%, var(--search-accent-hover) 100%);
+    border-radius: 10px;
+    width: 0%;
+    transition: width 0.5s ease;
+}
+
+.progress-text {
+    text-align: center;
+    color: var(--search-text);
+    font-size: var(--font-size-3xl);
+    font-weight: 600;
+    margin: 0 0 var(--spacing-lg);
+}

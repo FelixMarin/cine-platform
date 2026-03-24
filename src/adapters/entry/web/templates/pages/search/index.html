@@ -1,0 +1,136 @@
+{% extends "base/layout.html" %}
+
+{% block title %}Buscar y Descargar - Cine Platform{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/search/search.css') }}">
+{% endblock %}
+
+{% block menu %}
+{% include "components/menu.html" %}
+{% endblock %}
+
+{% block content %}
+<!-- Header -->
+<header class="search-header">
+    <h1>🔍 Buscar y Descargar</h1>
+</header>
+
+<!-- Panel de búsqueda -->
+<section class="search-panel" aria-label="Panel de búsqueda">
+
+    <!-- Tabs de modo -->
+    <div class="search-tabs" role="tablist">
+        <button class="search-tab active" data-mode="search" role="tab" aria-selected="true" onclick="setSearchMode('search')">
+            🔎 Buscar película
+        </button>
+        <button class="search-tab" data-mode="url" role="tab" aria-selected="false" onclick="setSearchMode('url')">
+            🔗 URL directa
+        </button>
+    </div>
+
+    <!-- Buscador -->
+    <div class="search-form">
+        <!-- Modo búsqueda -->
+        <div id="search-mode-input" class="search-input-group">
+            <input
+                type="text"
+                id="search-query"
+                class="search-input"
+                placeholder="Buscar película (ej: The Matrix 1999)..."
+                aria-label="Buscar película"
+                onkeypress="handleSearchKeypress(event)"
+            >
+            <button class="search-button" onclick="performSearch()" aria-label="Buscar">
+                <span>🔍</span> Buscar
+            </button>
+        </div>
+
+        <!-- Modo URL -->
+        <div id="url-mode-input" class="search-input-group" style="display: none;">
+            <input
+                type="text"
+                id="torrent-url"
+                class="search-input"
+                placeholder="Pegar URL magnet o torrent..."
+                aria-label="URL del torrent"
+            >
+            <button class="search-button" onclick="startUrlDownload()" aria-label="Iniciar descarga">
+                <span>⬇️</span> Descargar
+            </button>
+        </div>
+
+        <!-- Selector de categoría -->
+        <div class="category-selector">
+            <label for="category-select">Categoría:</label>
+            <select id="category-select" class="category-dropdown" aria-label="Seleccionar categoría">
+                <option value="">Seleccionar categoría...</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- Estado de búsqueda -->
+    <div id="search-status" class="search-status" aria-live="polite"></div>
+
+</section>
+
+<!-- Resultados -->
+<section class="results-section" aria-label="Resultados de búsqueda">
+    <div id="results-container" class="results-grid">
+        <!-- Los resultados se insertan aquí dinámicamente -->
+    </div>
+</section>
+
+<!-- Modal de progreso de descarga -->
+<div id="download-modal" class="modal" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 id="modal-title">⬇️ Descarga en progreso</h2>
+            <button class="modal-close" onclick="closeDownloadModal()" aria-label="Cerrar">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="download-info">
+                <p id="download-name" class="download-name"></p>
+                <p id="download-category" class="download-category"></p>
+            </div>
+            <div class="progress-container">
+                <div id="progress-bar" class="progress-bar"></div>
+            </div>
+            <p id="progress-text" class="progress-text">0%</p>
+            <div class="download-stats">
+                <span id="download-speed">Velocidad: --</span>
+                <span id="download-eta">Tiempo restante: --</span>
+            </div>
+            <div class="download-actions">
+                <button class="btn-secondary" onclick="closeDownloadModal()">Cerrar</button>
+                <button class="btn-primary" onclick="viewDownloads()">Ver descargas</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/search.js') }}"></script>
+<script>
+    // Inicializar categorías al cargar la página
+    document.addEventListener('DOMContentLoaded', function() {
+        loadCategories();
+        checkConnection();
+    });
+
+    // Toggle menu
+    function toggleMenu() {
+        const menu = document.getElementById('sideMenu');
+        const overlay = document.querySelector('.menu-overlay');
+        menu.classList.toggle('open');
+        overlay.classList.toggle('open');
+    }
+
+    // Toggle collapse
+    function toggleCollapse() {
+        const menu = document.getElementById('sideMenu');
+        menu.classList.toggle('collapsed');
+    }
+</script>
+{% endblock %}

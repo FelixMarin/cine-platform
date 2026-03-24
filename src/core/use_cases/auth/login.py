@@ -1,9 +1,24 @@
 """
 Caso de uso - Autenticación
 """
-from typing import Optional, Dict, Tuple
+from typing import Optional, Dict, Tuple, List
 from src.core.ports.services.auth_service import IAuthService
 from src.core.ports.repositories.user_repository import IUserRepository
+
+
+def determine_user_role(roles: List[str]) -> str:
+    """
+    Determina el rol del usuario basándose en los roles del token JWT.
+    
+    Args:
+        roles: Lista de roles del token JWT (ej: ['ROLE_USER', 'ROLE_ADMIN'])
+        
+    Returns:
+        'admin' si tiene ROLE_ADMIN, 'user' en caso contrario
+    """
+    if 'ROLE_ADMIN' in roles:
+        return 'admin'
+    return 'user'
 
 
 class LoginUseCase:
@@ -88,6 +103,33 @@ class LoginUseCase:
     def get_user_from_token(self, token: str) -> Optional[Dict]:
         """Obtiene el usuario desde un token"""
         return self._auth_service.get_user_from_token(token)
+    
+    def login_with_oauth_token(self, token: str) -> Tuple[bool, Optional[Dict]]:
+        """
+        Login usando el token JWT del OAuth2 server.
+        Extrae los roles del token y determina el rol del usuario.
+        
+        Args:
+            token: JWT token del OAuth2 server
+            
+        Returns:
+            Tupla (success, user_data)
+        """
+        # Intentar usar el método del auth_service si está disponible
+        if hasattr(self._auth_service, 'extract_roles_from_token'):
+            user_role, roles = self._auth_service.extract_roles_from_token(token)
+            
+            user_data = {
+                'id': 1,  # ID generado
+                'username': 'oauth_user',
+                'email': '',
+                'role': user_role,
+                'roles': roles  # Lista completa de roles del token
+            }
+            return True, user_data
+        
+        # Fallback: si no hay método disponible
+        return False, None
 
 
 class LogoutUseCase:

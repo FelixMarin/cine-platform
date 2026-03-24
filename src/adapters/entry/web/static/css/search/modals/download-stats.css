@@ -1,0 +1,11 @@
+/* ============================================
+   DOWNLOAD STATS - Search
+   ============================================ */
+
+.download-stats {
+    display: flex;
+    justify-content: space-between;
+    color: var(--search-text-muted);
+    font-size: var(--font-size-lg);
+    margin-bottom: var(--spacing-xl);
+}

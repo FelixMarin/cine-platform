@@ -71,7 +71,7 @@ class TranslationService:
             # Verificar si ya está en español (básico)
             text_lower = text.lower()
             if 'español' in text_lower or 'spanish' in text_lower:
-                logger.debug(f"📝 Texto ya parece estar en español, retornando original")
+                logger.info(f"📝 Texto ya parece estar en español, retornando original")
                 return text, False
             
             # Intentar traducción
@@ -113,7 +113,7 @@ class TranslationService:
         
         if cache_key in _translate_cache:
             text_hash = _get_text_hash(text)
-            logger.debug(f"✅ Usando traducción cacheada para texto hash: {text_hash}")
+            logger.info(f"✅ Usando traducción cacheada para texto hash: {text_hash}")
             return _translate_cache[cache_key]
         
         # Traducir
@@ -123,7 +123,7 @@ class TranslationService:
         if result and result != text:
             _translate_cache[cache_key] = result
             text_hash = _get_text_hash(text)
-            logger.debug(f"💾 Guardando en caché traducción (hash: {text_hash})")
+            logger.info(f"💾 Guardando en caché traducción (hash: {text_hash})")
         
         return result
 
@@ -140,7 +140,7 @@ def _translate_with_cache_cached(text: str, target_lang: str) -> str:
     
     if cache_key in _translate_cache:
         text_hash = _get_text_hash(text)
-        logger.debug(f"✅ Usando traducción cacheada para texto hash: {text_hash}")
+        logger.info(f"✅ Usando traducción cacheada para texto hash: {text_hash}")
         return _translate_cache[cache_key]
     
     # Traducir
@@ -152,7 +152,7 @@ def _translate_with_cache_cached(text: str, target_lang: str) -> str:
     if result and result != text:
         _translate_cache[cache_key] = result
         text_hash = _get_text_hash(text)
-        logger.debug(f"💾 Guardando en caché traducción (hash: {text_hash})")
+        logger.info(f"💾 Guardando en caché traducción (hash: {text_hash})")
     
     return result
 

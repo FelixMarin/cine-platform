@@ -1,0 +1,39 @@
+/* ============================================
+   MODAL ACTIONS - Search
+   ============================================ */
+
+.download-actions {
+    display: flex;
+    gap: var(--spacing-md);
+}
+
+.btn-primary,
+.btn-secondary {
+    flex: 1;
+    padding: 12px 20px;
+    border-radius: var(--border-radius-md);
+    font-size: var(--font-size-lg);
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.btn-primary {
+    background: var(--search-accent);
+    border: none;
+    color: white;
+}
+
+.btn-primary:hover {
+    background: var(--search-accent-hover);
+}
+
+.btn-secondary {
+    background: transparent;
+    border: 1px solid var(--search-border);
+    color: var(--search-text);
+}
+
+.btn-secondary:hover {
+    background: rgba(255, 255, 255, 0.05);
+}

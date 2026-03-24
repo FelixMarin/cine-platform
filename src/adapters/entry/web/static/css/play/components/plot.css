@@ -1,0 +1,14 @@
+/* ============================================
+   PLOT - Play
+   ============================================ */
+
+.plot {
+    font-size: var(--font-size-lg);
+    line-height: 1.8;
+    color: var(--text-primary);
+    margin-bottom: var(--spacing-xxl);
+    background: var(--bg-card);
+    padding: var(--spacing-xl);
+    border-radius: var(--border-radius-md);
+    border-left: 4px solid var(--accent-color);
+}

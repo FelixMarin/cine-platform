@@ -2,8 +2,12 @@
 Middleware de autenticación para Flask
 Protege las rutas que requieren autenticación
 """
+import logging
 from functools import wraps
 from flask import session, redirect, url_for, jsonify, request
+
+# Logger para este módulo
+logger = logging.getLogger(__name__)
 
 
 def require_auth(f):
@@ -13,12 +17,15 @@ def require_auth(f):
     """
     @wraps(f)
     def decorated_function(*args, **kwargs):
+        # Solo loggear si hay error de autenticación
+        if request.path == '/login':
+            return f(*args, **kwargs)
+        
         if not session.get('logged_in', False):
-            # Si es una solicitud AJAX/API, devolver 401
             if request.is_json or request.path.startswith('/api/'):
                 return jsonify({'error': 'Autenticación requerida', 'code': 'AUTH_REQUIRED'}), 401
-            # Si es una página web, redirigir al login
-            return redirect(url_for('auth.login_page'))
+            return redirect('/login')
+        
         return f(*args, **kwargs)
     return decorated_function
 
@@ -36,13 +43,14 @@ def require_role(*roles):
             if not session.get('logged_in', False):
                 if request.is_json or request.path.startswith('/api/'):
                     return jsonify({'error': 'Autenticación requerida', 'code': 'AUTH_REQUIRED'}), 401
-                return redirect(url_for('auth.login_page'))
+                return redirect('/login')
             
             user_role = session.get('user_role', '')
+            
             if user_role not in roles:
                 if request.is_json or request.path.startswith('/api/'):
                     return jsonify({'error': 'Permisos insuficientes', 'code': 'FORBIDDEN'}), 403
-                return redirect(url_for('auth.login_page'))
+                return redirect('/login')
             
             return f(*args, **kwargs)
         return decorated_function
@@ -61,6 +69,7 @@ def get_current_user():
             'id': session.get('user_id'),
             'email': session.get('email'),
             'username': session.get('username'),
-            'role': session.get('user_role')
+            'role': session.get('user_role'),
+            'roles': session.get('user_roles', [])
         }
     return None

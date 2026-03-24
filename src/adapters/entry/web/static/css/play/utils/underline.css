@@ -1,0 +1,11 @@
+/* ============================================
+   UNDERLINE - Play
+   ============================================ */
+
+.underline {
+    width: 100px;
+    height: 4px;
+    background: var(--accent-color);
+    margin-bottom: var(--spacing-xl);
+    border-radius: 2px;
+}

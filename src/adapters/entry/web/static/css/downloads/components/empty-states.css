@@ -1,0 +1,24 @@
+/* ============================================
+   ESTADOS VACÍOS - Downloads
+   ============================================ */
+
+.empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text-secondary);
+}
+
+.empty-icon {
+    font-size: var(--font-size-7xl);
+    margin-bottom: 20px;
+    opacity: 0.5;
+}
+
+.empty-state h3 {
+    margin: 0 0 10px;
+    color: var(--text-primary);
+}
+
+.empty-state p {
+    margin: 0;
+}

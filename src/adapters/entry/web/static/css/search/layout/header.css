@@ -1,0 +1,16 @@
+/* ============================================
+   HEADER - Search
+   ============================================ */
+
+.search-header {
+    padding: 20px 30px;
+    background: linear-gradient(135deg, var(--search-bg) 0%, #0f0f23 100%);
+    border-bottom: 1px solid var(--search-border);
+}
+
+.search-header h1 {
+    margin: 0;
+    color: var(--search-text);
+    font-size: var(--font-size-6xl);
+    font-weight: 600;
+}

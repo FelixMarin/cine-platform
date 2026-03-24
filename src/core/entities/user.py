@@ -14,6 +14,21 @@ class UserRole(Enum):
     GUEST = "guest"
 
 
+def determine_user_role(roles: List[str]) -> str:
+    """
+    Determina el rol del usuario basándose en los roles del token JWT.
+    
+    Args:
+        roles: Lista de roles del token JWT (ej: ['ROLE_USER', 'ROLE_ADMIN'])
+        
+    Returns:
+        'admin' si tiene ROLE_ADMIN, 'user' en caso contrario
+    """
+    if 'ROLE_ADMIN' in roles:
+        return 'admin'
+    return 'user'
+
+
 class UserPreferences:
     """Preferencias del usuario"""
     
@@ -52,6 +67,7 @@ class User:
     email: str = ""
     username: str = ""
     role: UserRole = UserRole.USER
+    roles: List[str] = field(default_factory=list)  # Lista completa de roles del token JWT
     is_active: bool = True
     
     # Preferencias
@@ -93,6 +109,7 @@ class User:
             'email': self.email,
             'username': self.username,
             'role': self.role.value if isinstance(self.role, UserRole) else self.role,
+            'roles': self.roles,  # Lista completa de roles del token JWT
             'is_active': self.is_active,
             'is_admin': self.is_admin,
             'preferences': self.preferences.to_dict() if self.preferences else {},
@@ -111,4 +128,7 @@ class User:
             data['preferences'] = UserPreferences.from_dict(data['preferences'])
         if 'role' in data and isinstance(data['role'], str):
             data['role'] = UserRole(data['role'])
+        # Soporte para lista de roles del token JWT
+        if 'roles' not in data:
+            data['roles'] = []
         return cls(**{k: v for k, v in data.items() if k in cls.__dataclass_fields__})

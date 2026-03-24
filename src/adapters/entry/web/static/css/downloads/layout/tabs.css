@@ -1,0 +1,77 @@
+/* ============================================
+   TABS - Downloads
+   ============================================ */
+
+.downloads-tabs {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    white-space: nowrap;
+    background: var(--secondary-bg);
+    border-bottom: 1px solid var(--border-color);
+    padding: 0 30px;
+    padding-bottom: 2px;
+    gap: 0;
+    scroll-behavior: smooth;
+}
+
+/* Scrollbar personalizada para WebKit */
+.downloads-tabs::-webkit-scrollbar {
+    height: 4px;
+}
+
+.downloads-tabs::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.05);
+    border-radius: 4px;
+}
+
+.downloads-tabs::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 4px;
+}
+
+.downloads-tabs::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 0, 0, 0.3);
+}
+
+.download-tab {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 15px 25px;
+    background: transparent;
+    border: none;
+    border-bottom: 3px solid transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: var(--font-size-xl);
+    font-weight: 500;
+    white-space: nowrap;
+    transition: all 0.3s ease;
+}
+
+.download-tab:hover {
+    color: var(--text-primary);
+    background: rgba(233, 69, 96, 0.1);
+}
+
+.download-tab.active {
+    color: var(--accent-primary);
+    border-bottom-color: var(--accent-primary);
+}
+
+/* Contenido de tabs */
+.download-tab-content {
+    display: none;
+    padding-top: 20px;
+    animation: fadeIn 0.3s ease;
+}
+
+.download-tab-content.active {
+    display: block;
+}

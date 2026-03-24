@@ -1,0 +1,27 @@
+/* ============================================
+   CAST - Play
+   ============================================ */
+
+.cast-section {
+    margin-top: var(--spacing-xxl);
+}
+
+.cast-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-md);
+}
+
+.cast-item {
+    background: var(--bg-card);
+    padding: var(--spacing-sm) var(--spacing-lg);
+    border-radius: var(--border-radius-xl);
+    font-size: var(--font-size-md);
+    border: 1px solid var(--border-color);
+    transition: all 0.3s ease;
+}
+
+.cast-item:hover {
+    background: var(--accent-color);
+    border-color: var(--accent-hover);
+}

@@ -1,0 +1,31 @@
+/* ============================================
+   DOWNLOADS.CSS - Punto de entrada principal
+   ============================================ */
+/* Este archivo importa todos los módulos CSS */
+
+/* Base */
+@import url('./base/variables.css');
+@import url('./base/animations.css');
+
+/* Layout */
+@import url('./layout/header.css');
+@import url('./layout/tabs.css');
+@import url('./layout/section-header.css');
+
+/* Componentes */
+@import url('./components/cards.css');
+@import url('./components/meta.css');
+@import url('./components/progress.css');
+@import url('./components/buttons.css');
+@import url('./components/button-states.css');
+@import url('./components/empty-states.css');
+@import url('./components/notifications.css');
+@import url('./components/metrics.css');
+
+/* Features */
+@import url('./features/spanish-filter.css');
+@import url('./features/search-status.css');
+@import url('./features/history.css');
+
+/* Responsive */
+@import url('./responsive/mobile.css');

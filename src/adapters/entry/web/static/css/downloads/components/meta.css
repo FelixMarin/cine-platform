@@ -1,0 +1,18 @@
+/* ============================================
+   METADATA - Downloads
+   ============================================ */
+
+.process-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    margin-bottom: 15px;
+    color: var(--text-secondary);
+    font-size: var(--font-size-md);
+}
+
+.process-meta-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}

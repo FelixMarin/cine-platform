@@ -1,0 +1,27 @@
+/* ============================================
+   ANIMATIONS - Search
+   ============================================ */
+
+/* Transiciones comunes */
+.search-button,
+.search-tab,
+.result-card,
+.btn-download,
+.btn-primary,
+.btn-secondary,
+.category-dropdown,
+.search-input,
+.modal-close,
+.connection-status {
+    transition: all 0.3s ease;
+}
+
+.search-button:hover,
+.btn-download:hover,
+.btn-primary:hover {
+    transition: background 0.3s ease;
+}
+
+.progress-bar {
+    transition: width 0.5s ease;
+}

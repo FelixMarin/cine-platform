@@ -61,6 +61,11 @@ class TestAllBlueprints(unittest.TestCase):
         self.template_dir = os.path.join(os.path.dirname(__file__), 'templates')
         os.makedirs(self.template_dir, exist_ok=True)
         
+        # Crear estructura de directorios para templates
+        os.makedirs(os.path.join(self.template_dir, 'base'), exist_ok=True)
+        os.makedirs(os.path.join(self.template_dir, 'pages', 'admin'), exist_ok=True)
+        os.makedirs(os.path.join(self.template_dir, 'pages', 'movies'), exist_ok=True)
+        
         # Crear todos los templates necesarios
         for template in ['login.html', 'index.html', 'play.html', 'optimizer.html', 'admin_panel.html', '403.html']:
             template_path = os.path.join(self.template_dir, template)
@@ -70,10 +75,29 @@ class TestAllBlueprints(unittest.TestCase):
                         f.write('{{ error }} {{ csrf_token }}')
                     elif template == '403.html':
                         f.write('<h1>403 - Acceso Denegado</h1>')
+                    elif template == 'play.html':
+                        f.write('{% extends "base/layout.html" %}\n{% block content %}{% endblock %}')
                     else:
                         f.write(f"<!-- {template} -->")
         
+        # Crear plantilla base que mockea get_file_version
+        base_layout = os.path.join(self.template_dir, 'base', 'layout.html')
+        with open(base_layout, 'w', encoding='utf-8') as f:
+            f.write('{% block content %}{% endblock %}')
+        
+        # Crear plantillas que heredan de base
+        for page in ['admin/dashboard.html', 'movies/index.html', 'movies/play.html']:
+            page_path = os.path.join(self.template_dir, 'pages', page)
+            os.makedirs(os.path.dirname(page_path), exist_ok=True)
+            with open(page_path, 'w', encoding='utf-8') as f:
+                f.write('{% extends "base/layout.html" %}\n{% block content %}{% endblock %}')
+        
         self.app.template_folder = self.template_dir
+        
+        # Agregar función get_file_version al contexto de Jinja2
+        @self.app.template_filter('get_file_version')
+        def mock_get_file_version(filename):
+            return '1.0.0'
         
         # Importar función de registro de blueprints
         from src.adapters.entry.web.routes import register_all_blueprints

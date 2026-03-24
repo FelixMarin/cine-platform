@@ -1,0 +1,14 @@
+/* ============================================
+   ESTADO DE BÚSQUEDA - Downloads
+   ============================================ */
+
+.search-status {
+    padding: 8px 15px;
+    color: var(--text-secondary);
+    font-size: var(--font-size-md);
+    margin-top: 10px;
+}
+
+.search-status:empty {
+    display: none;
+}

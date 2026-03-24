@@ -1,0 +1,164 @@
+{% extends "base/layout.html" %}
+
+{% block title %}Cine Platform{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/profile.css') }}?v={{ get_file_version('css/profile.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/notifications.css') }}?v={{ get_file_version('css/notifications.css') }}">
+{% endblock %}
+
+{% block menu %}
+{% include "components/menu.html" %}
+{% endblock %}
+
+{% block content %}
+<!-- Tabs ocultos (compatibilidad) -->
+<div class="tabs" style="display: none;">
+    <a id="moviesTab" class="tab-link active" onclick="showTab('movies')">Películas</a>
+    <a id="seriesTab" class="tab-link" onclick="showTab('series')">Series</a>
+</div>
+
+<!-- ========================= -->
+<!--      SECCIÓN PELÍCULAS    -->
+<!-- ========================= -->
+<section id="movies" class="tab-content" style="display: block;" role="tabpanel" aria-labelledby="moviesTab">
+    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 25px;">
+        <h2 style="border-left: 6px solid var(--accent-color); padding-left: 15px; margin-bottom: 0;">Películas</h2>
+        {% if session['user_role'] == 'admin' %}
+        <button onclick="syncCatalog(this)" class="refresh-btn" title="Sincronizar catálogo">
+            <svg class="refresh-icon" viewBox="0 0 24 24" width="20" height="20">
+                <path d="M17.65 6.35A8 8 0 1 0 19 12h-2a6 6 0 1 1-2.35-4.65l2.5 2.5H12v2h8v-8h-2v3.5z"/>
+            </svg>
+            <span class="refresh-text">Actualizar</span>
+        </button>
+        {% endif %}
+        <!-- Header con icono de perfil -->
+        <div class="profile-header">
+            <div class="profile-dropdown" id="profileDropdown">
+                <button class="profile-button" onclick="toggleProfileMenu()">
+                    <img src="{{ session.get('avatar_url') or url_for('static', filename='images/default.jpg') }}"
+                        alt="Perfil"
+                        class="profile-avatar"
+                        id="avatar-img"
+                        onerror="this.src='{{ url_for('static', filename='images/default.jpg') }}'">
+                    <span class="profile-name">{{ session.get('display_name') or session.get('username') or 'Usuario' }}</span>
+                    <span class="profile-arrow">▼</span>
+                </button>
+
+                <!-- Menú desplegable -->
+                <div class="dropdown-menu" id="profileMenu">
+                    <div class="dropdown-header">
+                        <strong>{{ session.get('display_name') or session.get('username') or 'Usuario' }}</strong>
+                        <span class="dropdown-email">{{ session.get('email') or '' }}</span>
+                    </div>
+
+                    <div class="dropdown-divider"></div>
+
+                    <button class="dropdown-item" onclick="showProfileModal(); return false;">
+                        <span class="dropdown-icon">👤</span>
+                        Mi Perfil
+                    </button>
+
+                    <button class="dropdown-item" onclick="showSettingsModal(); return false;">
+                        <span class="dropdown-icon">⚙️</span>
+                        Configuración
+                    </button>
+
+                    <button class="dropdown-item" onclick="showWatchlistModal(); return false;">
+                        <span class="dropdown-icon">📋</span>
+                        Mi Watchlist
+                    </button>
+
+                    <div class="dropdown-divider"></div>
+
+                    <a href="/logout" class="dropdown-item logout">
+                        <span class="dropdown-icon">🚪</span>
+                        Cerrar Sesión
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- El JS insertará aquí las categorías en carruseles -->
+    <div id="moviesContainer" class="categories-container"></div>
+</section>
+
+<!-- ========================= -->
+<!--        SECCIÓN SERIES     -->
+<!-- ========================= -->
+<section id="series" class="tab-content" style="display: none;" role="tabpanel" aria-labelledby="seriesTab">
+    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 25px;">
+        <h2 style="border-left: 6px solid var(--accent-color); padding-left: 15px; margin-bottom: 0;">Series</h2>
+        {% if session['user_role'] == 'admin' %}
+        <button onclick="syncCatalog(this)" class="refresh-btn" title="Sincronizar catálogo">
+            <svg class="refresh-icon" viewBox="0 0 24 24" width="20" height="20">
+                <path d="M17.65 6.35A8 8 0 1 0 19 12h-2a6 6 0 1 1-2.35-4.65l2.5 2.5H12v2h8v-8h-2v3.5z"/>
+            </svg>
+            <span class="refresh-text">Actualizar</span>
+        </button>
+        {% endif %}
+    </div>
+
+    <!-- El JS insertará aquí las series en carruseles -->
+    <div id="seriesContainer"></div>
+</section>
+
+<!-- Modal de perfil -->
+<div id="profileModal" class="modal" style="display: none;">
+    <div class="modal-content profile-modal">
+        <div class="modal-header">
+            <h2>Mi Perfil</h2>
+            <button class="close-btn" onclick="closeProfileModal()">&times;</button>
+        </div>
+        <div class="modal-body" id="profileModalBody">
+            <div class="loading-spinner">Cargando...</div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de configuración -->
+<div id="settingsModal" class="modal" style="display: none;">
+    <div class="modal-content settings-modal">
+        <div class="modal-header">
+            <h2>Configuración</h2>
+            <button class="close-btn" onclick="closeSettingsModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <p>Próximamente...</p>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de watchlist -->
+<div id="watchlistModal" class="modal" style="display: none;">
+    <div class="modal-content watchlist-modal">
+        <div class="modal-header">
+            <h2>Mi Watchlist</h2>
+            <button class="close-btn" onclick="closeWatchlistModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <p>Próximamente...</p>
+        </div>
+    </div>
+</div>
+
+<!-- Overlay para modales -->
+<div id="modalOverlay" class="modal-overlay" style="display: none;" onclick="closeAllModals()"></div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Cargar módulos en orden -->
+<script src="{{ url_for('static', filename='js/main/cache.js') }}?v={{ get_file_version('js/main/cache.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/main/categoryUtils.js') }}?v={{ get_file_version('js/main/categoryUtils.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/main/cardCreators.js') }}?v={{ get_file_version('js/main/cardCreators.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/main/carousel.js') }}?v={{ get_file_version('js/main/carousel.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/main/series_view.js') }}?v={{ get_file_version('js/main/series_view.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/main/tabs.js') }}?v={{ get_file_version('js/main/tabs.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/main/utils.js') }}?v={{ get_file_version('js/main/utils.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/main/api.js') }}?v={{ get_file_version('js/main/api.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/main/catalogService.js') }}?v={{ get_file_version('js/main/catalogService.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/notifications.js') }}?v={{ get_file_version('js/notifications.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/profile.js') }}?v={{ get_file_version('js/profile.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/main/init.js') }}?v={{ get_file_version('js/main/init.js') }}" defer></script>
+{% endblock %}

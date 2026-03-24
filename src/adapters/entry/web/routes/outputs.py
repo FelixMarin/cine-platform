@@ -22,7 +22,7 @@ def download_file(filename):
 
 
 # Ruta adicional /download que redirige a /outputs/ para compatibilidad
-download_bp = Blueprint('download', __name__)
+download_bp = Blueprint('downloads', __name__)
 
 @download_bp.route('/download/<path:filename>')
 @require_role('admin')

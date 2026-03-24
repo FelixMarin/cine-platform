@@ -4,39 +4,62 @@ import os
 import queue
 from unittest.mock import MagicMock
 
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
 
 @pytest.fixture(autouse=True)
 def setup_environment(monkeypatch):
     """Configurar entorno para tests"""
-    
+
     # Variables de entorno necesarias
-    os.environ.setdefault('MOVIES_FOLDER', '/mnt/DATA_2TB/audiovisual')
-    os.environ.setdefault('SERIES_FOLDER', '/mnt/DATA_2TB/audiovisual/series')
-    os.environ.setdefault('UPLOAD_FOLDER', '/tmp/cineplatform/uploads')
-    os.environ.setdefault('OUTPUT_FOLDER', '/tmp/cineplatform/outputs')
-    os.environ.setdefault('THUMBNAIL_FOLDER', '/tmp/cineplatform/thumbnails')
-    os.environ.setdefault('LOG_FOLDER', '/tmp/cineplatform/logs')
-    os.environ.setdefault('POSTGRES_HOST', 'localhost')
-    os.environ.setdefault('POSTGRES_PORT', '5432')
-    os.environ.setdefault('POSTGRES_DB', 'cineplatform')
-    os.environ.setdefault('POSTGRES_USER', 'postgres')
-    os.environ.setdefault('POSTGRES_PASSWORD', '')
-    os.environ.setdefault('OMDB_API_KEY', '')
-    os.environ.setdefault('OMDB_LANGUAGE', 'es')
-    os.environ.setdefault('OAUTH2_URL', 'http://localhost')
-    os.environ.setdefault('OAUTH2_CLIENT_ID', 'test')
-    os.environ.setdefault('OAUTH2_CLIENT_SECRET', 'test')
-    os.environ.setdefault('SECRET_KEY', 'test-secret-key')
-    os.environ.setdefault('DEBUG', 'false')
-    os.environ.setdefault('FFMPEG_THREADS', '4')
-    os.environ.setdefault('USE_POSTGRESQL', 'false')
-    os.environ.setdefault('MAX_CONTENT_LENGTH', '100000000')
-    os.environ.setdefault('SESSION_COOKIE_DOMAIN', 'localhost')
-    os.environ.setdefault('SESSION_COOKIE_HTTPONLY', 'true')
-    os.environ.setdefault('SESSION_COOKIE_SAMESITE', 'Lax')
-    os.environ.setdefault('SESSION_COOKIE_SECURE', 'false')
-    os.environ.setdefault('SESSION_COOKIE_PATH', '/')
-    os.environ.setdefault('APP_ENV', 'development')
-    
+    os.environ.setdefault("MOVIES_FOLDER", "/mnt/DATA_2TB/audiovisual")
+    os.environ.setdefault("SERIES_FOLDER", "/mnt/DATA_2TB/audiovisual/series")
+    os.environ.setdefault("UPLOAD_FOLDER", "/tmp/cineplatform/uploads")
+    os.environ.setdefault("OUTPUT_FOLDER", "/tmp/cineplatform/outputs")
+    os.environ.setdefault("THUMBNAIL_FOLDER", "/tmp/cineplatform/thumbnails")
+    os.environ.setdefault("LOG_FOLDER", "/tmp/cineplatform/logs")
+    os.environ.setdefault("POSTGRES_HOST", "localhost")
+    os.environ.setdefault("POSTGRES_PORT", "5432")
+    os.environ.setdefault("POSTGRES_DB", "cineplatform")
+    os.environ.setdefault("POSTGRES_USER", "postgres")
+    os.environ.setdefault("POSTGRES_PASSWORD", "")
+    os.environ.setdefault("OMDB_API_KEY", "")
+    os.environ.setdefault("OMDB_LANGUAGE", "es")
+    os.environ.setdefault("OAUTH2_URL", "http://localhost")
+    os.environ.setdefault("OAUTH2_CLIENT_ID", "test")
+    os.environ.setdefault("OAUTH2_CLIENT_SECRET", "test")
+    os.environ.setdefault("SECRET_KEY", "test-secret-key")
+    os.environ.setdefault("DEBUG", "false")
+    os.environ.setdefault("FFMPEG_THREADS", "4")
+    os.environ.setdefault("USE_POSTGRESQL", "false")
+    os.environ.setdefault("MAX_CONTENT_LENGTH", "100000000")
+    os.environ.setdefault("SESSION_COOKIE_DOMAIN", "localhost")
+    os.environ.setdefault("SESSION_COOKIE_HTTPONLY", "true")
+    os.environ.setdefault("SESSION_COOKIE_SAMESITE", "Lax")
+    os.environ.setdefault("SESSION_COOKIE_SECURE", "false")
+    os.environ.setdefault("SESSION_COOKIE_PATH", "/")
+    os.environ.setdefault("APP_ENV", "development")
+
+    # Transmission variables
+    os.environ.setdefault(
+        "TRANSMISSION_RPC_URL", "http://localhost:9091/transmission/rpc"
+    )
+    os.environ.setdefault("TRANSMISSION_USERNAME", "transmission")
+    os.environ.setdefault("TRANSMISSION_PASSWORD", "transmission")
+
+    # Jackett variables
+    os.environ.setdefault("JACKETT_API_KEY", "")
+    os.environ.setdefault("JACKETT_URL", "http://localhost:9117")
+
+    # Cine App Database (test)
+    os.environ.setdefault("CINE_DB_HOST", "postgres")
+    os.environ.setdefault("CINE_DB_PORT", "5432")
+    os.environ.setdefault("CINE_DB_NAME", "cine_app_db_test")
+    os.environ.setdefault("CINE_DB_USER", "cine_app_user")
+    os.environ.setdefault("CINE_DB_PASSWORD", "cine_app_dev_password")
+    os.environ.setdefault("CINE_DB_SCHEMA", "public")
+    os.environ.setdefault("CINE_DB_POOL_SIZE", "5")
+    os.environ.setdefault("CINE_DB_MAX_OVERFLOW", "10")
+    os.environ.setdefault("CINE_DB_POOL_TIMEOUT", "30")
+
     return

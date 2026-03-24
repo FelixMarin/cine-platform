@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
+# /src/adapters/entry/cli/commands/optimize_movie.py
 """
 OPTIMIZE MOVIE — Versión auto-perfil + MKV streaming
 
-- Usa SIEMPRE /usr/local/bin/ffmpeg y /usr/local/bin/ffprobe
+- Usa contenedor Docker ffmpeg-cuda con GPU NVIDIA
 - Detecta tipo de vídeo (codec, resolución, 10-bit, HDR)
 - Elige automáticamente el "perfil" (bitrate, escala, codec, CPU/GPU)
 - Salida SIEMPRE en MKV optimizado para streaming
@@ -14,10 +15,17 @@ import sys
 import time
 import subprocess
 import json
+import tempfile
 
-FFMPEG_BIN = "/usr/local/bin/ffmpeg"
-FFPROBE_BIN = "/usr/local/bin/ffprobe"
+# Configuración del contenedor FFmpeg
+FFMPEG_CONTAINER = "ffmpeg-cuda"
+FFMPEG_CMD = ["docker", "exec", FFMPEG_CONTAINER, "ffmpeg"]
+FFPROBE_CMD = ["docker", "exec", FFMPEG_CONTAINER, "ffprobe"]
 
+# Directorios compartidos (deben coincidir con el docker-compose)
+SHARED_UPLOADS = "/shared/uploads"
+SHARED_OUTPUT = "/shared/outputs"
+SHARED_TEMP = "/shared/temp"
 
 class FFmpegInfo:
     PIX_FMT_10BIT = {
@@ -28,19 +36,36 @@ class FFmpegInfo:
     HDR_PRIMARIES = {"bt2020"}
     HDR_MATRIX = {"bt2020nc"}
 
+    def _map_to_shared_path(self, local_path: str) -> str:
+        """Convierte una ruta local a su equivalente en el contenedor"""
+        if "/mnt/DATA_2TB/audiovisual/mkv" in local_path:
+            return local_path.replace("/mnt/DATA_2TB/audiovisual/mkv", "/shared/outputs")
+        elif "/app/uploads" in local_path:
+            return local_path.replace("/app/uploads", "/shared/uploads")
+        elif "/app/temp" in local_path:
+            return local_path.replace("/app/temp", "/shared/temp")
+        elif "/app/outputs" in local_path:
+            return local_path.replace("/app/outputs", "/shared/outputs")
+        else:
+            # Si no está mapeado, usar temp
+            filename = os.path.basename(local_path)
+            return f"{SHARED_TEMP}/{filename}"
+
     def probe(self, path: str) -> dict:
-        cmd = [
-            FFMPEG_BIN.replace("ffmpeg", "ffprobe"),
+        """Ejecuta ffprobe en el contenedor"""
+        shared_path = self._map_to_shared_path(path)
+        cmd = FFPROBE_CMD + [
             "-v", "quiet",
             "-print_format", "json",
             "-show_format",
             "-show_streams",
-            path,
+            shared_path,
         ]
         try:
             r = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=30)
             return json.loads(r.stdout) if r.returncode == 0 else {}
-        except Exception:
+        except Exception as e:
+            print(f"⚠️ Error en ffprobe: {e}")
             return {}
 
     def get_info(self, path: str) -> dict:
@@ -53,6 +78,7 @@ class FFmpegInfo:
 
         info = {
             "path": path,
+            "shared_path": self._map_to_shared_path(path),
             "filename": os.path.basename(path),
             "size": int(fmt.get("size", 0)),
             "duration": float(fmt.get("duration", 0.0) or 0.0),
@@ -63,7 +89,7 @@ class FFmpegInfo:
             "is_hdr": False,
             "width": None,
             "height": None,
-            "resolution_class": None,  # SD / HD / FHD / UHD / 4K+
+            "resolution_class": None,
             "fps": None,
         }
 
@@ -114,9 +140,10 @@ class FFmpegInfo:
         return info
 
     def nvenc_available(self) -> bool:
+        """Verifica si el contenedor tiene codecs NVENC"""
         try:
-            r = subprocess.run([FFMPEG_BIN, "-hide_banner", "-encoders"],
-                               stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=10)
+            cmd = FFMPEG_CMD + ["-hide_banner", "-encoders"]
+            r = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=10)
             return "h264_nvenc" in r.stdout
         except Exception:
             return False
@@ -177,7 +204,7 @@ class PipelineSelector:
                     vf_filters.append("zscale=t=bt709:m=bt709:p=bt709")
                 vf_filters.append("format=nv12")
                 if res_class in ("UHD", "4K+"):
-                    vf_filters.append("scale=1920:1080")
+                    vf_filters.append("scale_cuda=1920:1080")
                 vcodec_out = "h264_nvenc"
                 vparams = ["-preset", "p4", "-b:v", base_bitrate]
                 desc = "HEVC Main10 HDR → GPU H.264 8-bit SDR"
@@ -263,10 +290,20 @@ class FFmpegRunner:
         self.pipeline = pipeline
 
     def run(self, input_path: str, output_path: str) -> bool:
-        cmd = [FFMPEG_BIN, "-y", "-hide_banner", "-progress", "pipe:1", "-i", input_path]
+        """Ejecuta FFmpeg en el contenedor"""
+        # Convertir rutas locales a rutas en el contenedor
+        input_shared = self.info["shared_path"]
+        output_shared = self._map_to_shared_path(output_path)
 
-        # Preservar TODOS los streams
-        cmd.extend(["-map", "0"])
+        # Asegurar directorio de salida
+        os.makedirs(os.path.dirname(output_path), exist_ok=True)
+
+        # Construir comando para ejecutar en contenedor
+        cmd = FFMPEG_CMD + [
+            "-y", "-hide_banner", "-progress", "pipe:1",
+            "-i", input_shared,
+            "-map", "0"  # Preservar todos los streams
+        ]
 
         if self.pipeline["vf"]:
             cmd.extend(["-vf", self.pipeline["vf"]])
@@ -282,17 +319,19 @@ class FFmpegRunner:
 
         # MKV optimizado para streaming
         cmd.extend(["-f", "matroska", "-movflags", "+faststart", "-max_interleave_delta", "0"])
-        cmd.append(output_path)
+        cmd.append(output_shared)
 
-        print("\n🧩 Comando FFmpeg:")
+        print("\n🧩 Comando FFmpeg (en contenedor):")
         print(" ", " ".join(cmd))
         print("\n🚀 Iniciando optimización...\n")
 
+        # Ejecutar proceso
         proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, bufsize=1)
 
         duration = self.info.get("duration", 0.0) or 0.0
         start = time.time()
 
+        # Monitorear progreso
         while True:
             line = proc.stdout.readline()
             if not line:
@@ -332,6 +371,30 @@ class FFmpegRunner:
             print(stderr[:800])
             return False
 
+    def _map_to_shared_path(self, local_path: str) -> str:
+        """Convierte ruta local a ruta en contenedor"""
+        if "/mnt/DATA_2TB/audiovisual/mkv" in local_path:
+            return local_path.replace("/mnt/DATA_2TB/audiovisual/mkv", "/shared/outputs")
+        elif "/app/uploads" in local_path:
+            return local_path.replace("/app/uploads", "/shared/uploads")
+        elif "/app/temp" in local_path:
+            return local_path.replace("/app/temp", "/shared/temp")
+        elif "/app/outputs" in local_path:
+            return local_path.replace("/app/outputs", "/shared/outputs")
+        else:
+            filename = os.path.basename(local_path)
+            return f"/shared/temp/{filename}"
+
+
+def check_container():
+    """Verifica que el contenedor ffmpeg-cuda está corriendo"""
+    try:
+        r = subprocess.run(["docker", "ps", "--filter", f"name={FFMPEG_CONTAINER}", "--format", "{{.Names}}"],
+                          capture_output=True, text=True)
+        return FFMPEG_CONTAINER in r.stdout
+    except:
+        return False
+
 
 def main():
     parser = argparse.ArgumentParser(description="Optimizar película a MKV streaming (auto-perfil)")
@@ -340,6 +403,12 @@ def main():
     parser.add_argument("--cpu", action="store_true", help="Forzar CPU (ignorar GPU aunque exista)")
     parser.add_argument("--info", action="store_true", help="Solo mostrar información del vídeo y salir")
     args = parser.parse_args()
+
+    # Verificar contenedor
+    if not check_container():
+        print(f"❌ El contenedor '{FFMPEG_CONTAINER}' no está corriendo.")
+        print("   Ejecuta: docker-compose up -d en el directorio de ffmpeg-cuda")
+        return 1
 
     if not os.path.exists(args.input):
         print(f"❌ El archivo de entrada no existe: {args.input}")
@@ -370,10 +439,8 @@ def main():
     # Si el usuario fuerza CPU, ignoramos GPU
     if args.cpu:
         pipeline["use_gpu"] = False
-        # Si el pipeline había elegido NVENC, lo adaptamos a CPU
         if pipeline["vcodec_out"] == "h264_nvenc":
             pipeline["vcodec_out"] = "libx264"
-            # Reemplazar preset p4 por medium si estaba
             vparams = pipeline["vparams"]
             if "-preset" in vparams:
                 idx = vparams.index("-preset")

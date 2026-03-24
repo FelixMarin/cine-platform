@@ -1,0 +1,32 @@
+/* ============================================
+   POSTER - Play
+   ============================================ */
+
+.movie-poster {
+    flex-shrink: 0;
+    width: 200px;
+    border-radius: var(--border-radius-md);
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+}
+
+.movie-poster img {
+    width: 100%;
+    height: auto;
+    display: block;
+}
+
+.movie-poster-placeholder {
+    width: 200px;
+    height: 300px;
+    background: linear-gradient(135deg, var(--bg-card), var(--bg-secondary));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--border-radius-md);
+    color: var(--text-secondary);
+    font-size: var(--font-size-md);
+    text-align: center;
+    padding: var(--spacing-xl);
+    border: 2px dashed var(--border-color);
+}

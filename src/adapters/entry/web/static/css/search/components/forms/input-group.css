@@ -1,0 +1,14 @@
+/* ============================================
+   INPUT GROUP - Search
+   ============================================ */
+
+.search-form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-lg);
+}
+
+.search-input-group {
+    display: flex;
+    gap: var(--spacing-sm);
+}

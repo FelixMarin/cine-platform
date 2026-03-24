@@ -1,0 +1,30 @@
+/* ============================================
+   RESULT HEADER - Search
+   ============================================ */
+
+.result-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: var(--spacing-md);
+}
+
+.result-title {
+    color: var(--search-text);
+    font-size: var(--font-size-2xl);
+    font-weight: 600;
+    margin: 0;
+    flex: 1;
+    line-height: 1.4;
+}
+
+.result-indexer {
+    background: rgba(233, 69, 96, 0.2);
+    color: var(--search-accent);
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-radius: var(--border-radius-sm);
+    font-size: var(--font-size-xs);
+    font-weight: 500;
+    white-space: nowrap;
+    margin-left: var(--spacing-md);
+}

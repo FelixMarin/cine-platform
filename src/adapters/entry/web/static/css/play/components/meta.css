@@ -1,0 +1,22 @@
+/* ============================================
+   META - Play
+   ============================================ */
+
+.movie-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-xl);
+    margin-bottom: var(--spacing-xl);
+    color: var(--text-secondary);
+}
+
+.meta-item {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+}
+
+.rating {
+    color: var(--rating-gold);
+    font-weight: bold;
+}

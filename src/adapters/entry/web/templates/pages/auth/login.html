@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+    <title>Login - Cine Platform</title>
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
+
+    <!-- CSS del login -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/login/login.css') }}">
+</head>
+
+<body>
+    <div class="login-box" id="login-container">
+        <h2 class="menu-title-full">Cine<span>Platform</span></h2>
+
+        {% if error %}
+            <p class="error-msg">{{ error }}</p>
+        {% endif %}
+
+        <!-- Botón único de OAuth2 -->
+        <button type="button" id="oauth-login-btn" class="oauth-btn">
+            Iniciar sesión con OAuth2
+        </button>
+
+        <!-- Información adicional (opcional) -->
+        <p class="info-text">
+            Usa tu cuenta de OAuth2 para acceder a Cine Platform
+        </p>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/oauth-client.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/login.js') }}"></script>
+    <script>
+        // Configuración desde el servidor
+        const APP_CONFIG = {
+            clientId: '{{ client_id }}',
+            oauth2Url: '{{ oauth2_url }}',
+            redirectUri: '{{ redirect_uri }}',
+            scopes: 'openid profile read write'
+        };
+
+        // Inicializar cliente OAuth2
+        OAuthClient.init({
+            serverUrl: APP_CONFIG.oauth2Url,
+            clientId: APP_CONFIG.clientId,
+            clientSecret: '{{ client_secret }}'
+        });
+    </script>
+</body>
+</html>

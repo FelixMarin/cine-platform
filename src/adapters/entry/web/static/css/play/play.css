@@ -1,0 +1,32 @@
+/* ============================================
+   PLAY.CSS - Punto de entrada principal
+   ============================================ */
+/* Este archivo importa todos los módulos CSS */
+
+/* Base */
+@import url('./base/variables.css');
+@import url('./base/reset.css');
+@import url('./base/typography.css');
+
+/* Layout */
+@import url('./layout/container.css');
+@import url('./layout/sections.css');
+
+/* Componentes */
+@import url('./components/video-player.css');
+@import url('./components/buttons.css');
+@import url('./components/poster.css');
+@import url('./components/meta.css');
+@import url('./components/genres.css');
+@import url('./components/plot.css');
+@import url('./components/details-grid.css');
+@import url('./components/ratings.css');
+@import url('./components/cast.css');
+
+/* Utilidades */
+@import url('./utils/header.css');
+@import url('./utils/no-info.css');
+@import url('./utils/underline.css');
+
+/* Responsive */
+@import url('./responsive/mobile.css');

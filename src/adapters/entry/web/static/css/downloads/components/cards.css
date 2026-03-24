@@ -1,0 +1,196 @@
+/* ============================================
+   TARJETAS DE PROCESO - Downloads
+   ============================================ */
+
+/* Listas de procesos */
+.process-list {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+/* Tarjeta de proceso */
+.process-card {
+    background: var(--secondary-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius-lg);
+    padding: 18px;
+    transition: all 0.3s ease;
+}
+
+.process-card:hover {
+    border-color: var(--accent-primary);
+    box-shadow: var(--shadow-sm);
+}
+
+.process-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 12px;
+}
+
+.process-title {
+    color: var(--text-primary);
+    font-size: var(--font-size-xl);
+    font-weight: 600;
+    margin: 0;
+    flex: 1;
+    word-break: break-word;
+}
+
+.process-status {
+    padding: 4px 10px;
+    border-radius: var(--border-radius-xl);
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    text-transform: uppercase;
+}
+
+.process-status.downloading {
+    background: rgba(76, 175, 80, 0.2);
+    color: var(--success);
+}
+
+.process-status.completed {
+    background: rgba(33, 150, 243, 0.2);
+    color: var(--info);
+}
+
+.process-status.pending {
+    background: rgba(255, 152, 0, 0.2);
+    color: var(--warning);
+}
+
+.process-status.failed {
+    background: rgba(244, 67, 54, 0.2);
+    color: var(--error);
+}
+
+.process-status.running {
+    background: rgba(233, 69, 96, 0.2);
+    color: var(--accent-primary);
+}
+
+/* ============================================
+   DOWNLOAD ITEM - Nuevo layout horizontal
+   ============================================ */
+
+.download-item {
+    background: var(--secondary-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius-lg);
+    padding: 14px 18px;
+    transition: all 0.3s ease;
+}
+
+.download-item:hover {
+    border-color: var(--accent-primary);
+    box-shadow: var(--shadow-sm);
+}
+
+.download-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+    gap: 10px;
+}
+
+.download-header h4 {
+    color: var(--text-primary);
+    font-size: var(--font-size-lg);
+    font-weight: 600;
+    margin: 0;
+    flex: 1;
+    word-break: break-word;
+}
+
+.download-header .status {
+    padding: 4px 10px;
+    border-radius: var(--border-radius-xl);
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.download-info-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.download-progress {
+    flex: 2;
+    min-width: 150px;
+}
+
+.download-progress .progress-bar {
+    height: 12px;
+    background: var(--tertiary-bg);
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.download-progress .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent-primary) 0%, var(--accent-hover) 100%);
+    border-radius: 6px;
+    transition: width 0.3s ease;
+}
+
+.download-stats {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.stat-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+
+.stat-icon {
+    width: 16px;
+    text-align: center;
+}
+
+.download-actions {
+    display: flex;
+    gap: 8px;
+    margin-left: auto;
+}
+
+.btn-action {
+    background: var(--tertiary-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius-sm);
+    padding: 6px 10px;
+    font-size: var(--font-size-md);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-action:hover {
+    background: var(--accent-primary);
+    border-color: var(--accent-primary);
+    transform: translateY(-1px);
+}
+
+.btn-action.btn-cancel:hover {
+    background: var(--error);
+    border-color: var(--error);
+}
+
+.btn-action.btn-remove:hover {
+    background: var(--remove-warning);
+    border-color: var(--remove-warning);
+    color: #000;
+}

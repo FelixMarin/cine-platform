@@ -2,6 +2,8 @@
 __pycache__/
 *.py[cod]
 *$py.class
+.pytest_cache
+.ruff_cache
 
 # Virtual environments
 env/
@@ -15,7 +17,7 @@ venv.bak/
 .env
 .env.local
 .env.dev
-
+.env.prod
 
 # Logs
 logs/*
@@ -49,6 +51,7 @@ pb_data/
 
 # K3s
 k3s/cine-secret.yaml
+k8s/
 
 .coverage
 .coveragerc
@@ -56,3 +59,11 @@ htmlcov/
 
 *.txt
 .movie_index_cache.json
+
+docker-compose.prod.yml
+
+migrations/
+
+scripts/update_poster.py
+
+backup-cine-untracked.sh

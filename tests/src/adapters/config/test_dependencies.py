@@ -4,6 +4,7 @@ Tests para configuración de dependencias
 import pytest
 import sys
 import os
+from unittest.mock import patch, MagicMock
 
 project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))))
 sys.path.insert(0, project_root)
@@ -47,10 +48,16 @@ class TestDependencies:
         dependencies._movie_repository = original_movie_repo
         dependencies._progress_repository = original_progress_repo
     
-    def test_init_services(self):
+    @patch('src.adapters.config.dependencies.OAuth2Client')
+    def test_init_services(self, mock_oauth):
         """Test de inicialización de servicios"""
+        # Configurar el mock de OAuth2Client para que no falle
+        mock_oauth_instance = MagicMock()
+        mock_oauth.return_value = mock_oauth_instance
+        
         original_metadata = dependencies._metadata_service
         original_encoder = dependencies._encoder_service
+        original_oauth = dependencies._oauth_service
         
         dependencies.init_services()
         
@@ -61,9 +68,15 @@ class TestDependencies:
         # Restaurar
         dependencies._metadata_service = original_metadata
         dependencies._encoder_service = original_encoder
+        dependencies._oauth_service = original_oauth
     
-    def test_init_use_cases(self):
+    @patch('src.adapters.config.dependencies.OAuth2Client')
+    def test_init_use_cases(self, mock_oauth):
         """Test de inicialización de casos de uso"""
+        # Configurar el mock de OAuth2Client para que no falle
+        mock_oauth_instance = MagicMock()
+        mock_oauth.return_value = mock_oauth_instance
+        
         # Primero inicializar repositorios y servicios
         original_movie_repo = dependencies._movie_repository
         dependencies.init_repositories(use_postgresql=False)
@@ -80,12 +93,18 @@ class TestDependencies:
         dependencies._list_movies_use_case = original_use_case
         dependencies._movie_repository = original_movie_repo
     
-    def test_init_all(self):
+    @patch('src.adapters.config.dependencies.OAuth2Client')
+    def test_init_all(self, mock_oauth):
         """Test de inicialización completa"""
+        # Configurar el mock de OAuth2Client para que no falle
+        mock_oauth_instance = MagicMock()
+        mock_oauth.return_value = mock_oauth_instance
+        
         original_movie_repo = dependencies._movie_repository
         original_progress_repo = dependencies._progress_repository
         original_metadata = dependencies._metadata_service
         original_encoder = dependencies._encoder_service
+        original_oauth = dependencies._oauth_service
         original_use_cases = [
             dependencies._list_movies_use_case,
             dependencies._track_progress_use_case,
@@ -106,6 +125,7 @@ class TestDependencies:
         dependencies._progress_repository = original_progress_repo
         dependencies._metadata_service = original_metadata
         dependencies._encoder_service = original_encoder
+        dependencies._oauth_service = original_oauth
         for i, use_case in enumerate(original_use_cases):
             if i == 0:
                 dependencies._list_movies_use_case = use_case

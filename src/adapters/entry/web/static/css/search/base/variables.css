@@ -1,0 +1,63 @@
+/* ============================================
+   VARIABLES CSS - Search
+   ============================================ */
+
+:root {
+    /* Colores principales */
+    --search-bg: #1a1a2e;
+    --search-card-bg: #16213e;
+    
+    /* Colores de acento */
+    --search-accent: #e94560;
+    --search-accent-hover: #ff6b6b;
+    
+    /* Colores de texto */
+    --search-text: #eaeaea;
+    --search-text-muted: #a0a0a0;
+    
+    /* Colores de borde */
+    --search-border: #2a2a4a;
+    
+    /* Colores de estado */
+    --search-success: #4caf50;
+    --search-warning: #ff9800;
+    --search-error: #f44336;
+    
+    /* Colores especiales */
+    --search-blue: #64b5f6;
+    
+    /* Sombras */
+    --search-shadow-sm: 0 8px 25px rgba(0, 0, 0, 0.3);
+    --search-shadow-md: 0 20px 60px rgba(0, 0, 0, 0.5);
+    
+    /* Bordes y radios */
+    --border-radius-sm: 4px;
+    --border-radius-md: 8px;
+    --border-radius-lg: 12px;
+    --border-radius-xl: 16px;
+    
+    /* Espaciados */
+    --spacing-xs: 4px;
+    --spacing-sm: 8px;
+    --spacing-md: 10px;
+    --spacing-lg: 12px;
+    --spacing-xl: 15px;
+    --spacing-xxl: 18px;
+    --spacing-3xl: 20px;
+    --spacing-4xl: 25px;
+    --spacing-5xl: 30px;
+    --spacing-6xl: 60px;
+    
+    /* Fuentes */
+    --font-size-xs: 0.75rem;
+    --font-size-sm: 0.85rem;
+    --font-size-md: 0.9rem;
+    --font-size-lg: 0.95rem;
+    --font-size-xl: 1rem;
+    --font-size-2xl: 1.05rem;
+    --font-size-3xl: 1.1rem;
+    --font-size-4xl: 1.2rem;
+    --font-size-5xl: 1.3rem;
+    --font-size-6xl: 1.8rem;
+    --font-size-7xl: 4rem;
+}

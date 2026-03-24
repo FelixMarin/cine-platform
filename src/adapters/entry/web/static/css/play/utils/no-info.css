@@ -1,0 +1,13 @@
+/* ============================================
+   NO INFO - Play
+   ============================================ */
+
+.no-info {
+    text-align: center;
+    color: var(--text-secondary);
+    padding: var(--spacing-xxxxl) var(--spacing-xl);
+    font-style: italic;
+    background: var(--bg-card);
+    border-radius: var(--border-radius-lg);
+    border: 1px solid var(--border-color);
+}
