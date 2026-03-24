@@ -34,11 +34,15 @@ class OptimizationHistory(Base):
     output_file = Column(String(500), nullable=True)
     output_filename = Column(String(500), nullable=True)
 
-    # Fechas - USAR LOS NOMBRES CORRECTOS DE LA TABLA
+    # Fechas - Coinciden con nombres de columnas en la tabla SQL
     download_started = Column("torrent_download_start", DateTime, nullable=True)
     download_completed = Column("torrent_download_end", DateTime, nullable=True)
-    optimization_started = Column("optimization_started", DateTime, nullable=True)
-    optimization_completed = Column("optimization_completed", DateTime, nullable=True)
+    optimization_started = Column("optimization_start", DateTime, nullable=True)
+    optimization_completed = Column("optimization_end", DateTime, nullable=True)
+
+    # Duraciones en segundos
+    download_duration_seconds = Column(Integer, nullable=True)
+    optimization_duration_seconds = Column(Integer, nullable=True)
 
     # Resultado
     status = Column(
@@ -57,42 +61,10 @@ class OptimizationHistory(Base):
     # app_user_id es NOT NULL en la tabla
     app_user_id = Column(Integer, nullable=False)
 
-    # Propiedades calculadas (no son columnas, se calculan al vuelo)
-    @property
-    def torrent_download_start(self):
-        return self.download_started
+    # movie_name - este campo falta en el script SQL pero existe en la tabla
+    movie_name = Column(String(255), nullable=True)
 
-    @property
-    def torrent_download_end(self):
-        return self.download_completed
 
-    @property
-    def optimization_start(self):
-        return self.optimization_started
-
-    @property
-    def optimization_end(self):
-        return self.optimization_completed
-
-    @property
-    def file_size_bytes(self):
-        return self.optimized_size_bytes
-
-    @property
-    def download_duration_seconds(self):
-        """Calcula duración de descarga en segundos"""
-        if self.download_started and self.download_completed:
-            delta = self.download_completed - self.download_started
-            return int(delta.total_seconds())
-        return None
-
-    @property
-    def optimization_duration_seconds(self):
-        """Calcula duración de optimización en segundos"""
-        if self.optimization_started and self.optimization_completed:
-            delta = self.optimization_completed - self.optimization_started
-            return int(delta.total_seconds())
-        return None
 
     def to_dict(self):
         """Convierte el modelo a diccionario"""
@@ -107,17 +79,17 @@ class OptimizationHistory(Base):
             "output_file": self.output_file,
             "output_filename": self.output_filename,
             # Usar las propiedades para mantener compatibilidad
-            "torrent_download_start": self.torrent_download_start.isoformat()
-            if self.torrent_download_start
+            "torrent_download_start": self.download_started.isoformat()
+            if self.download_started
             else None,
-            "torrent_download_end": self.torrent_download_end.isoformat()
-            if self.torrent_download_end
+            "torrent_download_end": self.download_completed.isoformat()
+            if self.download_completed
             else None,
-            "optimization_start": self.optimization_start.isoformat()
-            if self.optimization_start
+            "optimization_start": self.optimization_started.isoformat()
+            if self.optimization_started
             else None,
-            "optimization_end": self.optimization_end.isoformat()
-            if self.optimization_end
+            "optimization_end": self.optimization_completed.isoformat()
+            if self.optimization_completed
             else None,
             "download_duration_seconds": self.download_duration_seconds,
             "optimization_duration_seconds": self.optimization_duration_seconds,

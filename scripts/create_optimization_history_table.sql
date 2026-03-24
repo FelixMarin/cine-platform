@@ -6,12 +6,13 @@ CREATE TABLE IF NOT EXISTS optimization_history (
     process_id VARCHAR(36) UNIQUE NOT NULL,
     torrent_id INTEGER,
     torrent_name VARCHAR(500) NOT NULL,
+    movie_name VARCHAR(255),  -- Añadido este campo
     category VARCHAR(100) NOT NULL,
     input_file VARCHAR(500),
     output_file VARCHAR(500),
     output_filename VARCHAR(500),
     
-    -- Fechas y duraciones
+    -- Fechas - nombres correctos
     torrent_download_start TIMESTAMP,
     torrent_download_end TIMESTAMP,
     optimization_start TIMESTAMP NOT NULL,
@@ -34,7 +35,7 @@ CREATE TABLE IF NOT EXISTS optimization_history (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     
     -- Usuario
-    app_user_id INTEGER
+    app_user_id INTEGER NOT NULL  -- Añadido NOT NULL
 );
 
 -- Crear índices si no existen

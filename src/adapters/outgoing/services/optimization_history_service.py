@@ -166,15 +166,15 @@ class OptimizationHistoryService:
                 input_file=history_data["input_file"],
                 output_file=history_data["output_file"],
                 output_filename=history_data["output_filename"],
-                optimization_start=history_data["optimization_start"],
-                optimization_end=history_data["optimization_end"],
+                optimization_started=history_data["optimization_start"],
+                optimization_completed=history_data["optimization_end"],
                 download_duration_seconds=history_data["download_duration_seconds"],
                 optimization_duration_seconds=history_data[
                     "optimization_duration_seconds"
                 ],
                 status=history_data["status"],
                 error_message=history_data["error_message"],
-                file_size_bytes=history_data["file_size_bytes"],
+                optimized_size_bytes=history_data["file_size_bytes"],
                 original_size_bytes=history_data["original_size_bytes"],
                 compression_ratio=history_data["compression_ratio"],
                 app_user_id=history_data["app_user_id"],
