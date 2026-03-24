@@ -16,4 +16,24 @@
     box-shadow: var(--shadow);
     align-items: center;
     justify-content: center;
+    transition: transform 0.2s ease, background 0.2s ease;
+}
+
+.menu-toggle:hover {
+    background: var(--accent-hover);
+    transform: scale(1.05);
+}
+
+/* Estado abierto del botón - cambia a X */
+.menu-toggle.active {
+    background: var(--danger-color);
+    font-size: 0; /* Ocultar el icono original ☰ */
+}
+
+.menu-toggle.active::after {
+    content: "\00d7"; /* X multiplicación */
+    font-size: 28px;
+    font-weight: bold;
+    line-height: 1;
+    position: absolute;
 }

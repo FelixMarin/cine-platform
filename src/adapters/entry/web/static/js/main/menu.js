@@ -9,10 +9,16 @@ function addCacheBuster(url) {
 function toggleMenu() {
     const menu = document.getElementById('sideMenu');
     const overlay = document.querySelector('.menu-overlay');
+    const toggleBtn = document.querySelector('.menu-toggle');
 
     if (menu && overlay) {
         menu.classList.toggle('open');
         overlay.classList.toggle('active');
+        
+        // Cambiar estado del botón hamburguesa
+        if (toggleBtn) {
+            toggleBtn.classList.toggle('active');
+        }
     }
 }
 
@@ -177,3 +183,51 @@ window.toggleCollapse = toggleCollapse;
 window.loadSavedPreferences = loadSavedPreferences;
 window.refreshWithAnimation = refreshWithAnimation;
 window.syncCatalog = syncCatalog;
+
+// ===== MEJORAS RESPONSIVE MÓVIL =====
+
+// Cerrar menú al hacer click en un elemento del menú (móvil)
+document.addEventListener('DOMContentLoaded', function() {
+    const menuItems = document.querySelectorAll('.menu-item, .menu-logout');
+    const menu = document.getElementById('sideMenu');
+    const toggleBtn = document.querySelector('.menu-toggle');
+    const overlay = document.querySelector('.menu-overlay');
+    
+    if (menuItems) {
+        menuItems.forEach(item => {
+            item.addEventListener('click', function(e) {
+                // Solo cerrar en móvil (ancho <= 768px)
+                if (window.innerWidth <= 768) {
+                    // Permitir la navegación primero, luego cerrar
+                    setTimeout(() => {
+                        if (menu && menu.classList.contains('open')) {
+                            menu.classList.remove('open');
+                            if (overlay) overlay.classList.remove('active');
+                            if (toggleBtn) toggleBtn.classList.remove('active');
+                        }
+                    }, 100);
+                }
+            });
+        });
+    }
+    
+    // Cerrar menú al redimensionar a escritorio
+    window.addEventListener('resize', function() {
+        if (window.innerWidth > 768 && menu && menu.classList.contains('open')) {
+            menu.classList.remove('open');
+            if (overlay) overlay.classList.remove('active');
+            if (toggleBtn) toggleBtn.classList.remove('active');
+        }
+    });
+    
+    // Cerrar menú con la tecla Escape
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && menu && menu.classList.contains('open')) {
+            if (window.innerWidth <= 768) {
+                menu.classList.remove('open');
+                if (overlay) overlay.classList.remove('active');
+                if (toggleBtn) toggleBtn.classList.remove('active');
+            }
+        }
+    });
+});

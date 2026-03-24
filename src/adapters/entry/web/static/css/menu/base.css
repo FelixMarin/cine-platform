@@ -60,8 +60,46 @@
     background: rgba(0, 0, 0, 0.7);
     z-index: 999;
     backdrop-filter: blur(3px);
+    opacity: 0;
+    transition: opacity 0.3s ease;
 }
 
 .menu-overlay.active {
     display: block;
+    opacity: 1;
+}
+
+/* Botón de cerrar dentro del menú (solo móvil) */
+.menu-close-btn {
+    display: none;
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    background: var(--danger-color);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 36px;
+    height: 36px;
+    font-size: 24px;
+    font-weight: bold;
+    cursor: pointer;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    box-shadow: var(--shadow);
+    transition: transform 0.2s ease, background 0.2s ease;
+    z-index: 1001;
+}
+
+.menu-close-btn:hover {
+    background: #c62828;
+    transform: scale(1.1);
+}
+
+/* Mostrar botón de cerrar solo en móvil */
+@media (max-width: 768px) {
+    .menu-close-btn {
+        display: flex;
+    }
 }

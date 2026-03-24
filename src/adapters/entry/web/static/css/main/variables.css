@@ -6,6 +6,7 @@
     --bg-card: #2c2c2c;          /* Tarjetas y elementos */
     --accent-color: #e50914;      /* Rojo característico del login */
     --accent-hover: #b20710;      /* Rojo hover del login */
+    --danger-color: #f44336;      /* Rojo para errores/acciones peligrosas */
     --border-color: #444;         /* Bordes */
     --text-primary: #ffffff;      /* Texto blanco */
     --text-secondary: #cccccc;    /* Texto gris claro */
