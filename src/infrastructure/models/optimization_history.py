@@ -61,11 +61,6 @@ class OptimizationHistory(Base):
     # app_user_id es NOT NULL en la tabla
     app_user_id = Column(Integer, nullable=False)
 
-    # movie_name - este campo falta en el script SQL pero existe en la tabla
-    movie_name = Column(String(255), nullable=True)
-
-
-
     def to_dict(self):
         """Convierte el modelo a diccionario"""
         return {

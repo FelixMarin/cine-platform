@@ -1,5 +1,43 @@
 // Archivo para manejar la vista de series con navegación Serie > Temporada > Episodio
 
+// Pila de navegación para series
+const seriesNavigationStack = [];
+
+// Función para navegar y guardar en el historial
+function navigateToSeriesView(viewType, data) {
+    seriesNavigationStack.push({ type: viewType, data: data });
+    
+    if (viewType === 'seasons') {
+        history.pushState({ view: 'seasons', serieId: data.serieId }, '', `/series/${data.serieId}/seasons`);
+    } else if (viewType === 'episodes') {
+        history.pushState({ view: 'episodes', serieId: data.serieId, seasonNum: data.seasonNum }, '', `/series/${data.serieId}/season/${data.seasonNum}`);
+    }
+}
+
+// Manejar el botón de volver del navegador
+function handleSeriesPopState(event) {
+    if (seriesNavigationStack.length > 0) {
+        seriesNavigationStack.pop();
+        
+        if (seriesNavigationStack.length > 0) {
+            const lastState = seriesNavigationStack[seriesNavigationStack.length - 1];
+            if (lastState.type === 'seasons') {
+                showSerieDetail(lastState.data.serieId, lastState.data.serieTitle, true);
+            } else if (lastState.type === 'episodes') {
+                showSeasonEpisodes(lastState.data.serieId, lastState.data.serieTitle, lastState.data.seasonNum, true);
+            }
+        } else {
+            renderSeriesView();
+        }
+    } else {
+        // Si no hay más estados, navegar a la vista principal
+        window.location.href = '/';
+    }
+}
+
+// Inicializar el manejo del botón de volver
+window.addEventListener('popstate', handleSeriesPopState);
+
 // Función helper para añadir cache busting a URLs
 function addCacheBuster(url) {
     const separator = url.includes('?') ? '&' : '?';
@@ -114,6 +152,9 @@ async function renderSeriesView() {
     const container = document.getElementById('seriesContainer');
     if (!container) return;
 
+    // Limpiar la pila de navegación al volver a la vista principal
+    seriesNavigationStack.length = 0;
+    
     container.innerHTML = '<div class="loading">Cargando series...</div>';
     
     // Invalidar caché para asegurar que se carguen las series
@@ -178,7 +219,7 @@ async function createSerieCardView(serie) {
 }
 
 // Mostrar detalle de una serie (temporadas)
-async function showSerieDetail(serieId, serieTitleOrData) {
+async function showSerieDetail(serieId, serieTitleOrData, skipHistory = false) {
     const container = document.getElementById('seriesContainer');
     if (!container) return;
 
@@ -195,15 +236,19 @@ async function showSerieDetail(serieId, serieTitleOrData) {
         serieTitle = serieTitleOrData || '';
     }
     
+    // Agregar al historial si no se está restaurando desde el historial
+    if (!skipHistory) {
+        navigateToSeriesView('seasons', { serieId, serieTitle });
+    }
+    
     // Breadcrumb
     const breadcrumb = document.createElement('div');
     breadcrumb.className = 'series-breadcrumb';
     breadcrumb.style.cssText = 'margin-bottom: 20px;';
     breadcrumb.innerHTML = `
-        <a href="#" onclick="renderSeriesView(); return false;" style="color: var(--accent-color);">Series</a>
-        <span style="margin: 0 10px;">›</span>
+        <a href="#" onclick="goBackInSeries(); return false;" style="color: var(--accent-color); cursor: pointer;">‹ Volver</a>
+        <span style="margin: 0 10px;">|</span>
         <span>${serieTitle}</span>
-        <button onclick="renderSeriesView()" style="margin-left: auto; padding: 8px 16px; background: var(--accent-color); color: white; border: none; border-radius: 4px; cursor: pointer;">Volver</button>
     `;
 
     container.innerHTML = '';
@@ -262,21 +307,25 @@ function createSeasonCard(serieId, serieTitle, season) {
 }
 
 // Mostrar episodios de una temporada
-async function showSeasonEpisodes(serieId, serieTitle, seasonNum) {
+async function showSeasonEpisodes(serieId, serieTitle, seasonNum, skipHistory = false) {
     const container = document.getElementById('seriesContainer');
     if (!container) return;
 
+    // Agregar al historial si no se está restaurando desde el historial
+    if (!skipHistory) {
+        navigateToSeriesView('episodes', { serieId, serieTitle, seasonNum });
+    }
+    
     // Breadcrumb
     const breadcrumb = document.createElement('div');
     breadcrumb.className = 'series-breadcrumb';
     breadcrumb.style.cssText = 'margin-bottom: 20px;';
     breadcrumb.innerHTML = `
-        <a href="#" onclick="renderSeriesView(); return false;" style="color: var(--accent-color);">Series</a>
-        <span style="margin: 0 10px;">›</span>
-        <a href="#" onclick="showSerieDetail(${serieId}, '${serieTitle}'); return false;" style="color: var(--accent-color);">${serieTitle}</a>
+        <a href="#" onclick="goBackInSeries(); return false;" style="color: var(--accent-color); cursor: pointer;">‹ Volver</a>
+        <span style="margin: 0 10px;">|</span>
+        <a href="#" onclick="showSerieDetail(${serieId}, '${serieTitle}', true); return false;" style="color: var(--accent-color);">${serieTitle}</a>
         <span style="margin: 0 10px;">›</span>
         <span>Temporada ${seasonNum}</span>
-        <button onclick="showSerieDetail(${serieId}, '${serieTitle}')" style="margin-left: auto; padding: 8px 16px; background: var(--accent-color); color: white; border: none; border-radius: 4px; cursor: pointer;">Volver</button>
     `;
 
     container.innerHTML = '';
@@ -369,11 +418,32 @@ function detectSeriesRoute() {
     return false;
 }
 
+// Función para volver atrás en la navegación de series
+function goBackInSeries() {
+    if (seriesNavigationStack.length > 0) {
+        seriesNavigationStack.pop();
+        
+        if (seriesNavigationStack.length > 0) {
+            const lastState = seriesNavigationStack[seriesNavigationStack.length - 1];
+            if (lastState.type === 'seasons') {
+                showSerieDetail(lastState.data.serieId, lastState.data.serieTitle, true);
+            } else if (lastState.type === 'episodes') {
+                showSeasonEpisodes(lastState.data.serieId, lastState.data.serieTitle, lastState.data.seasonNum, true);
+            }
+        } else {
+            renderSeriesView();
+        }
+    } else {
+        renderSeriesView();
+    }
+}
+
 // Exponer funciones globalmente
 window.renderSeriesView = renderSeriesView;
 window.showSerieDetail = showSerieDetail;
 window.showSeasonEpisodes = showSeasonEpisodes;
 window.initSeriesView = initSeriesView;
 window.detectSeriesRoute = detectSeriesRoute;
+window.goBackInSeries = goBackInSeries;
 
 

@@ -104,7 +104,7 @@
         
         // URL download button
         var udb = document.getElementById('url-download-btn');
-        if (udb) udb.addEventListener('click', window.downloadFromUrl);
+        if (udb) udb.addEventListener('click', function(e) { e.preventDefault(); window.startUrlDownload(); });
         
         // Modal download button
         var dmb = document.getElementById('download-url-btn');
