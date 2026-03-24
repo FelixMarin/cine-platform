@@ -639,43 +639,6 @@ def get_categories():
 
 
 # ============================================================================
-# ENDPOINT: Test de conexión
-# ============================================================================
-
-
-@download_api_bp.route("/download-test", methods=["GET"])
-@require_role("admin")
-def download_test():
-    """Prueba la conexión con servicios"""
-    results = {"prowlarr": False, "transmission": False, "ffmpeg_worker": False}
-
-    try:
-        if _prowlarr_client:
-            results["prowlarr"] = _prowlarr_client.test_connection()
-    except Exception as e:
-        logger.warning(f"[API] Error probando Prowlarr: {e}")
-
-    try:
-        if _transmission_client:
-            results["transmission"] = _transmission_client.test_connection()
-    except Exception as e:
-        logger.warning(f"[API] Error probando Transmission: {e}")
-
-    try:
-        if _torrent_optimizer:
-            results["ffmpeg_worker"] = _torrent_optimizer.check_gpu_available()
-    except Exception as e:
-        logger.warning(f"[API] Error probando FFmpeg worker: {e}")
-
-    return jsonify(
-        {
-            "success": results["prowlarr"] and results["transmission"],
-            "services": results,
-        }
-    )
-
-
-# ============================================================================
 # PÁGINAS HTML
 # ============================================================================
 

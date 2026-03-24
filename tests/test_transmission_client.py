@@ -41,6 +41,7 @@ class TestTransmissionClient:
         # Mock de la respuesta de Transmission
         mock_response = MagicMock()
         mock_response.status_code = 200
+        mock_response.text = '{"result": "success"}'  # Agregar text attribute
         mock_response.json.return_value = {
             'result': 'success',
             'arguments': {
@@ -75,6 +76,7 @@ class TestTransmissionClient:
         # Mock de la respuesta de Transmission
         mock_response = MagicMock()
         mock_response.status_code = 200
+        mock_response.text = '{"result": "success"}'  # Agregar text attribute
         mock_response.json.return_value = {
             'result': 'success',
             'arguments': {
@@ -110,6 +112,7 @@ class TestTransmissionClient:
         # Mock de la respuesta de Transmission
         mock_response = MagicMock()
         mock_response.status_code = 200
+        mock_response.text = '{"result": "success"}'  # Agregar text attribute
         mock_response.json.return_value = {
             'result': 'success',
             'arguments': {
@@ -151,6 +154,7 @@ class TestTransmissionClient:
         # Mock de la respuesta de Transmission
         mock_transmission_response = MagicMock()
         mock_transmission_response.status_code = 200
+        mock_transmission_response.text = '{"result": "success"}'  # Agregar text attribute
         mock_transmission_response.json.return_value = {
             'result': 'success',
             'arguments': {
@@ -187,6 +191,7 @@ class TestTransmissionClient:
         # Mock de la respuesta de Transmission
         mock_response = MagicMock()
         mock_response.status_code = 200
+        mock_response.text = '{"result": "success"}'  # Agregar text attribute
         mock_response.json.return_value = {
             'result': 'success',
             'arguments': {
@@ -214,6 +219,7 @@ class TestTransmissionClient:
         # Mock de la respuesta de Transmission
         mock_response = MagicMock()
         mock_response.status_code = 200
+        mock_response.text = '{"result": "success"}'  # Agregar text attribute
         mock_response.json.return_value = {
             'result': 'success',
             'arguments': {
@@ -247,13 +253,15 @@ class TestTransmissionClient:
         # Mock de la respuesta de Transmission
         mock_response = MagicMock()
         mock_response.status_code = 200
+        mock_response.text = '{"result": "success"}'  # Agregar text attribute
         mock_response.json.return_value = {
             'result': 'success',
             'arguments': {
                 'torrent-added': {
                     'id': 129,
                     'name': 'test',
-                    'hashString': 'testhash'
+                    'hashString': 'testhash',
+                    'labels': [category]
                 }
             }
         }
@@ -282,13 +290,15 @@ class TestTransmissionClient:
         # Mock de la respuesta de Transmission
         mock_response = MagicMock()
         mock_response.status_code = 200
+        mock_response.text = '{"result": "success"}'  # Agregar text attribute
         mock_response.json.return_value = {
             'result': 'success',
             'arguments': {
                 'torrent-added': {
                     'id': 130,
                     'name': 'test',
-                    'hashString': 'testhash'
+                    'hashString': 'testhash',
+                    'download-dir': download_dir
                 }
             }
         }
@@ -314,6 +324,7 @@ class TestTransmissionClient:
         # Mock de la respuesta de Transmission
         mock_response = MagicMock()
         mock_response.status_code = 200
+        mock_response.text = '{"result": "success"}'  # Agregar text attribute
         mock_response.json.return_value = {
             'result': 'success',
             'arguments': {
@@ -362,6 +373,7 @@ class TestTransmissionClientEdgeCases:
         # Mock
         mock_response = MagicMock()
         mock_response.status_code = 200
+        mock_response.text = '{"result": "success"}'  # Agregar text attribute
         mock_response.json.return_value = {
             'result': 'success',
             'arguments': {
@@ -396,6 +408,7 @@ class TestTransmissionClientEdgeCases:
             # Mock de Transmission
             mock_transmission_response = MagicMock()
             mock_transmission_response.status_code = 200
+            mock_transmission_response.text = '{"result": "success"}'  # Agregar text attribute
             mock_transmission_response.json.return_value = {
                 'result': 'success',
                 'arguments': {
@@ -535,6 +548,7 @@ class TestProwlarrRedirects:
         # Mock de la respuesta de Transmission
         mock_transmission_response = MagicMock()
         mock_transmission_response.status_code = 200
+        mock_transmission_response.text = '{"result": "success"}'  # Agregar text attribute
         mock_transmission_response.json.return_value = {
             'result': 'success',
             'arguments': {
@@ -585,6 +599,7 @@ class TestProwlarrRedirects:
         # Mock de la respuesta de Transmission
         mock_transmission_response = MagicMock()
         mock_transmission_response.status_code = 200
+        mock_transmission_response.text = '{"result": "success"}'  # Agregar text attribute
         mock_transmission_response.json.return_value = {
             'result': 'success',
             'arguments': {
@@ -628,6 +643,7 @@ class TestProwlarrRedirects:
         # Mock de Transmission
         mock_transmission_response = MagicMock()
         mock_transmission_response.status_code = 200
+        mock_transmission_response.text = '{"result": "success"}'  # Agregar text attribute
         mock_transmission_response.json.return_value = {
             'result': 'success',
             'arguments': {

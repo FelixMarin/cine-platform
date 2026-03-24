@@ -195,14 +195,6 @@ def get_optimize_status(process_id):
         return jsonify({"success": False, "error": str(e)}), 500
 
 
-# ============================================================================
-# ENDPOINT: Listar optimizaciones activas
-# ============================================================================
-@torrent_optimize_bp.route("/active", methods=["GET"])
-def active_redirect():
-    """Redirige al endpoint correcto"""
-    return redirect("/api/optimize-torrent/active")
-
 @torrent_optimize_bp.route("/optimize-torrent/active", methods=["GET"])
 @require_role("admin")
 def list_active_optimizations():

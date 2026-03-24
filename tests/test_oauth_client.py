@@ -20,7 +20,8 @@ class TestOAuth2Client(unittest.TestCase):
             "OAUTH2_TOKEN_ENDPOINT": "/oauth/token",
             "OAUTH2_AUTHORIZE_ENDPOINT": "/oauth2/authorize",
             "OAUTH2_USERINFO_ENDPOINT": "/user/me",
-            "OAUTH2_REDIRECT_URI": "http://localhost:5000/oauth/callback"
+            "OAUTH2_REDIRECT_URI": "http://localhost:5000/oauth/callback",
+            "PUBLIC_REDIRECT_URI": "http://localhost:5000/oauth/callback"
         }
 
     @patch.dict(os.environ, {}, clear=True)

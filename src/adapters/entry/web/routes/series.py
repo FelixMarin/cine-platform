@@ -97,20 +97,6 @@ def get_all_series():
         return jsonify({"error": str(e)}), 500
 
 
-@series_bp.route("/diagnostico", methods=["GET"])
-def diagnostico():
-    """Endpoint de diagnóstico para verificar que el blueprint funciona"""
-    logger.info("[DIAGNOSTICO] Endpoint alcanzado!")
-    return jsonify({"status": "ok", "blueprint": "series_bp funcionando"})
-
-
-@series_bp.route("/test/<int:serie_id>", methods=["GET"])
-def test_seasons(serie_id):
-    """Versión mínima de prueba"""
-    logger.info(f"[TEST] serie_id={serie_id}")
-    return jsonify({"test": True, "id": serie_id, "message": "Endpoint funcionando"})
-
-
 @series_bp.route("/<int:serie_id>/seasons", methods=["GET"])
 def get_serie_seasons(serie_id):
     """
