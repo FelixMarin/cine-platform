@@ -12,6 +12,8 @@ const CONFIG = {
         downloadsActive: '/api/downloads/active',
         downloadStatus: (id) => `/api/downloads/${id}/status`,
         downloadCancel: (id) => `/api/downloads/${id}/cancel`,
+        downloadStop: (id) => `/api/download-stop/${id}`,
+        downloadStart: (id) => `/api/download-start/${id}`,
         downloadRemove: (id) => `/api/download-remove/${id}`,
         optimizeStart: '/api/optimizer/optimize',
         optimizeStatus: '/api/optimizer/status',

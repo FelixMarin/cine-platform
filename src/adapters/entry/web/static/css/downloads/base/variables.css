@@ -29,6 +29,7 @@
     --optimize-start: #4f46e5;
     --optimize-end: #06b6d4;
     --remove-warning: #ffc107;
+    --pause-warning: #ffc107;
     
     /* Sombras */
     --shadow-sm: 0 4px 15px rgba(0, 0, 0, 0.2);

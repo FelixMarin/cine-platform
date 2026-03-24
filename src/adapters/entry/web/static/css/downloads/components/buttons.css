@@ -28,6 +28,17 @@
     color: white;
 }
 
+/* Botón de pausar/reanudar descarga */
+.btn-pause {
+    background: rgba(255, 193, 7, 0.2);
+    color: var(--pause-warning);
+}
+
+.btn-pause:hover {
+    background: var(--pause-warning);
+    color: #000;
+}
+
 .btn-view {
     background: var(--accent-primary);
     color: white;

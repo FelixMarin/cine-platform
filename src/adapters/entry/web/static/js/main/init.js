@@ -93,8 +93,14 @@ function initializeApp() {
     } else {
         // Ruta normal - mostrar pestañas
         // Verificar que showTab existe antes de llamar
+        
+        // Leer el parámetro de la URL para determinar la pestaña inicial
+        const urlParams = new URLSearchParams(window.location.search);
+        const tabParam = urlParams.get('tab');
+        const initialTab = (tabParam === 'series') ? 'series' : 'movies';
+        
         if (typeof window.showTab === 'function') {
-            window.showTab('movies');
+            window.showTab(initialTab);
         }
         // Cargar contenido
         if (typeof window.loadContent === 'function') {
@@ -103,13 +109,17 @@ function initializeApp() {
     }
 }
 
-// Segundo event listener para asegurar que la pestaña activa sea 'movies'
+// Segundo event listener para asegurar que la pestaña activa sea correcta
 document.addEventListener('DOMContentLoaded', function () {
     setTimeout(() => {
+        const urlParams = new URLSearchParams(window.location.search);
+        const tabParam = urlParams.get('tab');
+        const tabToShow = (tabParam === 'series') ? 'series' : 'movies';
+        
         const activeTab = document.querySelector('.menu-item.active');
-        if (!activeTab || activeTab.getAttribute('data-tab') !== 'movies') {
+        if (!activeTab || activeTab.getAttribute('data-tab') !== tabToShow) {
             if (typeof window.showTab === 'function') {
-                window.showTab('movies');
+                window.showTab(tabToShow);
             }
         }
     }, 100); // Pequeño delay para asegurar que showTab está disponible

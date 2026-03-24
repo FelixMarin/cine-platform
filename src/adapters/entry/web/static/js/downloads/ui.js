@@ -65,9 +65,18 @@
                 var ic = p >= 99.9 || sv === 'seeding' || sv === 6 || sv === 'completed';
                 var if_ = (p >= 0 && sv === 'failed') || sv === '0' || sv === 'failed';
                 var isc = ic || sv === 'stopped' || sv === '0' || sv === 'completed';
+                var isPaused = sv === 'stopped' || sv === 0 || sv === 'paused';
                 var pp = p > 100 ? 100 : p;
                 var btns = '';
-                if (!ic && !if_) btns += '<button class="btn-process btn-cancel" onclick="cancelDownload(\''+d.id+'\')">❌ Cancelar</button>';
+                // Si está pausado, mostrar botón de reanudar
+                if (isPaused && !ic && !if_) {
+                    btns += '<button class="btn-process btn-pause" onclick="resumeDownload(\''+d.id+'\')">▶️ Reanudar</button>';
+                    btns += '<button class="btn-process btn-cancel" onclick="cancelDownload(\''+d.id+'\')">❌ Cancelar</button>';
+                } else if (!ic && !if_) {
+                    // Si está descargando, mostrar botón de pausa
+                    btns += '<button class="btn-process btn-pause" onclick="pauseDownload(\''+d.id+'\')">⏸️ Pausar</button>';
+                    btns += '<button class="btn-process btn-cancel" onclick="cancelDownload(\''+d.id+'\')">❌ Cancelar</button>';
+                }
                 if (ic) {
                     var os = window.getOptimizationState(d.id);
                     var io = window.hasActiveOptimization(d.id);

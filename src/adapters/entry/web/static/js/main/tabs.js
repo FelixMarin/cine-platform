@@ -88,8 +88,16 @@
      * Cambiar entre pestañas (Películas/Series)
      */
     function showTab(tabName) {
-        // Ocultar todos los contenidos de pestañas
+        // Verificar si hay pestañas en la página actual
         const contents = document.querySelectorAll('.tab-content');
+        
+        // Si no hay pestañas en la página actual, navegar a la página principal
+        if (contents.length === 0) {
+            window.location.href = '/?tab=' + tabName;
+            return;
+        }
+        
+        // Ocultar todos los contenidos de pestañas
         contents.forEach(content => {
             content.style.display = 'none';
         });

@@ -47,6 +47,24 @@
             window.refreshDownloads();
         } catch(e) { window.showNotification('Error',e.message,'error'); }
     };
+    window.pauseDownload = async function(id) {
+        try {
+            var r = await fetch(window.CONFIG.endpoints.downloadStop(id), {method:'POST'});
+            var d = await r.json();
+            if (!r.ok) throw new Error(d.error || 'Error');
+            window.showNotification('Descarga pausada','La descarga ha sido pausada','success');
+            window.refreshDownloads();
+        } catch(e) { window.showNotification('Error',e.message,'error'); }
+    };
+    window.resumeDownload = async function(id) {
+        try {
+            var r = await fetch(window.CONFIG.endpoints.downloadStart(id), {method:'POST'});
+            var d = await r.json();
+            if (!r.ok) throw new Error(d.error || 'Error');
+            window.showNotification('Descarga reanudada','La descarga ha sido reanudada','success');
+            window.refreshDownloads();
+        } catch(e) { window.showNotification('Error',e.message,'error'); }
+    };
     window.removeTorrent = async function(id, del) {
         del = del || false;
         if (!confirm(del ? '¿Eliminar torrent y archivos?' : '¿Eliminar el torrent?')) return;
