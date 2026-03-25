@@ -35,13 +35,13 @@ class TestPostProcessor:
     def test_get_final_path_action(self, temp_dirs):
         processor, movies_folder, _ = temp_dirs
         path = processor.get_final_path("Acción", "movie.mkv")
-        assert "action" in path
+        assert "accion" in path
         assert path.endswith("movie.mkv")
 
     def test_get_final_path_animation(self, temp_dirs):
         processor, movies_folder, _ = temp_dirs
         path = processor.get_final_path("Animación", "movie.mkv")
-        assert "animation" in path
+        assert "animacion" in path
 
     def test_get_final_path_unknown_category(self, temp_dirs):
         processor, movies_folder, _ = temp_dirs
@@ -221,21 +221,22 @@ class TestProcessCompletedOptimization:
 class TestCategoryPaths:
     def test_category_paths_all_categories(self):
         expected = {
-            "Acción": "action",
-            "Animación": "animation",
-            "Aventura": "adventure",
-            "Ciencia Ficción": "sci-fi",
-            "Comedia": "comedy",
-            "Documental": "documentary",
+            "Acción": "accion",
+            "Animación": "animacion",
+            "Aventura": "aventura",
+            "Ciencia Ficción": "sci_fi",
+            "Comedia": "comedia",
+            "Documental": "documental",
             "Drama": "drama",
-            "Familia": "family",
-            "Fantasía": "fantasy",
-            "Historia": "history",
-            "Música": "music",
-            "Misterio": "mystery",
+            "Familia": "familia",
+            "Fantasía": "fantasia",
+            "Historia": "historia",
+            "Música": "musica",
+            "Misterio": "misterio",
             "Romance": "romance",
-            "Suspense": "thriller",
-            "Terror": "horror",
+            "Suspense": "suspense",
+            "Terror": "terror",
             "Western": "western",
+            "Otro": "otros",
         }
         assert PostProcessor.CATEGORY_PATHS == expected

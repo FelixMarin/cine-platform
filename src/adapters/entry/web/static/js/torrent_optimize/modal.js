@@ -33,19 +33,19 @@
                     '<div class="form-group">' +
                         '<label for="optimize-category">Categoría:</label>' +
                         '<select id="optimize-category" class="form-control">' +
-                            '<option value="Acción">Acción</option>' +
-                            '<option value="Comedia">Comedia</option>' +
-                            '<option value="Drama">Drama</option>' +
-                            '<option value="Terror">Terror</option>' +
-                            '<option value="Ciencia Ficción">Ciencia Ficción</option>' +
-                            '<option value="Animación">Animación</option>' +
-                            '<option value="Documental">Documental</option>' +
-                            '<option value="Otro">Otro</option>' +
-                            '<option value="Aventura">Aventura</option>' +
-                            '<option value="Familia">Familia</option>' +
-                            '<option value="Fantasía">Fantasía</option>' +
-                            '<option value="Suspense">Suspense</option>' +
-                            '<option value="Romance">Romance</option>' +
+                            '<option value="action">Acción</option>' +
+                            '<option value="comedia">Comedia</option>' +
+                            '<option value="drama">Drama</option>' +
+                            '<option value="terror">Terror</option>' +
+                            '<option value="sci_fi">Ciencia Ficción</option>' +
+                            '<option value="animacion">Animación</option>' +
+                            '<option value="documental">Documental</option>' +
+                            '<option value="otro">Otro</option>' +
+                            '<option value="aventura">Aventura</option>' +
+                            '<option value="familia">Familia</option>' +
+                            '<option value="fantasia">Fantasía</option>' +
+                            '<option value="suspense">Suspense</option>' +
+                            '<option value="romance">Romance</option>' +
                         '</select>' +
                     '</div>' +
                     

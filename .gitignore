@@ -61,6 +61,6 @@ docker-compose.swarm.yml
 
 migrations/
 
-scripts/update_poster.py
+scripts/update_poster*.py
 
 backup-cine-untracked.sh

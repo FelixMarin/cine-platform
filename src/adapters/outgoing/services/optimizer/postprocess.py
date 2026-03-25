@@ -21,7 +21,7 @@ class PostProcessor:
         "Acción": "accion",
         "Animación": "animacion",
         "Aventura": "aventura",
-        "Ciencia Ficción": "ciencia-ficcion",
+        "Ciencia Ficción": "sci_fi",
         "Comedia": "comedia",
         "Documental": "documental",
         "Drama": "drama",
