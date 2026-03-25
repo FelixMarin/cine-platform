@@ -168,20 +168,38 @@ class TorrentOptimizer:
         """
         progress = self._processes.get(process_id)
         logger.info(
-            f"[TorrentOptimizer] === GUARDANDO HISTORIAL === process_id={process_id}, status={status}"
+            f"[TorrentOptimizer] === _add_to_history() - GUARDANDO HISTORIAL === process_id={process_id}, status={status}"
         )
-        self._history_service.add_entry(
-            process_id=process_id,
-            final_path=final_path,
-            pending=pending,
-            status=status,
-            error_message=error_message,
-            transmission_client=self.transmission_client,
-            progress=progress,
-        )
+        logger.info(f"[TorrentOptimizer] _add_to_history - final_path={final_path}")
         logger.info(
-            f"[TorrentOptimizer] ✅ HISTORIAL GUARDADO: process_id={process_id}"
+            f"[TorrentOptimizer] _add_to_history - pending keys: {list(pending.keys())}"
         )
+
+        try:
+            self._history_service.add_entry(
+                process_id=process_id,
+                final_path=final_path,
+                pending=pending,
+                status=status,
+                error_message=error_message,
+                transmission_client=self.transmission_client,
+                progress=progress,
+            )
+            logger.info(
+                f"[TorrentOptimizer] ✅ _add_to_history - HISTORIAL GUARDADO EXITOSAMENTE: process_id={process_id}"
+            )
+        except Exception as e:
+            logger.error(
+                f"[TorrentOptimizer] ❌ _add_to_history - ERROR al guardar historial: {type(e).__name__}: {e}"
+            )
+            import traceback
+
+            logger.error(
+                f"[TorrentOptimizer] _add_to_history - Traceback:\n{traceback.format_exc()}"
+            )
+            logger.warning(
+                f"[TorrentOptimizer] _add_to_history - CONTINUANDO a pesar del error (el archivo ya está movido)"
+            )
 
     def _get_cleanup_service(self):
         """Obtiene el servicio de limpieza (inyección de dependencia)"""
@@ -809,7 +827,9 @@ class TorrentOptimizer:
                 return
 
             # Añadir al historial de optimizaciones
+            logger.info(f"[TorrentOptimizer] ===== LLAMANDO _add_to_history() =====")
             self._add_to_history(process_id, final_path, pending, "completed")
+            logger.info(f"[TorrentOptimizer] ===== _add_to_history() RETORNÓ =====")
 
             # Actualizar la base de datos del catálogo
             try:

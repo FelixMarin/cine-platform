@@ -40,6 +40,15 @@ class OptimizationHistoryService:
             transmission_client: Cliente de Transmission para obtener info de torrents
             progress: Objeto OptimizationProgress con datos de tiempo
         """
+        logger.info(f"[HistoryService] ===== add_entry() INICIADO =====")
+        logger.info(
+            f"[HistoryService] process_id={process_id}, final_path={final_path}"
+        )
+        logger.info(f"[HistoryService] status={status}, error_message={error_message}")
+        logger.info(
+            f"[HistoryService] pending keys: {list(pending.keys()) if pending else 'None'}"
+        )
+
         db = None
         try:
             user_id = pending.get("user_id")
@@ -132,13 +141,18 @@ class OptimizationHistoryService:
 
             # Validar campos requeridos antes de guardar
             if not history_data["torrent_name"]:
-                # Usar el nombre del archivo de entrada como fallback
                 source_path = pending.get("source_path", "")
                 history_data["torrent_name"] = (
                     os.path.basename(source_path) or "Unknown"
                 )
                 logger.warning(
                     f"[HistoryService] ⚠️ torrent_name es None, usando fallback: {history_data['torrent_name']}"
+                )
+
+            if not history_data.get("movie_name"):
+                history_data["movie_name"] = history_data["torrent_name"]
+                logger.warning(
+                    f"[HistoryService] ⚠️ movie_name es None, usando fallback: {history_data['movie_name']}"
                 )
 
             if not history_data["category"]:
@@ -189,7 +203,10 @@ class OptimizationHistoryService:
                 f"torrent_name={entry.torrent_name}, movie_name={entry.movie_name}, "
                 f"category={entry.category}, status={entry.status}"
             )
+
+            logger.info(f"[HistoryService] 🔄 Ejecutando db.commit()...")
             db.commit()
+            logger.info(f"[HistoryService] ✅ db.commit() completado exitosamente")
 
             logger.info(
                 f"[HistoryService] ✅ Entrada añadida al historial (id={entry.id}, process_id={process_id})"
@@ -201,17 +218,30 @@ class OptimizationHistoryService:
             )
             import traceback
 
-            logger.error(f"[HistoryService] Traceback: {traceback.format_exc()}")
+            logger.error(
+                f"[HistoryService] Traceback completo:\n{traceback.format_exc()}"
+            )
+            logger.error(f"[HistoryService] 🔍 Stack trace: {traceback.print_stack()}")
             if db:
                 try:
+                    logger.error(f"[HistoryService] 🔄 Ejecutando rollback...")
                     db.rollback()
+                    logger.error(f"[HistoryService] ✅ Rollback completado")
                 except Exception as rollback_err:
                     logger.error(f"[HistoryService] Error en rollback: {rollback_err}")
+            logger.error(
+                f"[HistoryService] ❌ Re-lanzando excepción para que el caller la maneje"
+            )
             # Re-lanzar la excepción para que el caller pueda manejarla
             raise
         finally:
+            logger.info(f"[HistoryService] finally: cerrando conexión a BD")
             if db:
                 try:
                     db.close()
-                except Exception:
-                    pass
+                    logger.info(f"[HistoryService] ✅ Conexión cerrada")
+                except Exception as close_err:
+                    logger.error(
+                        f"[HistoryService] Error cerrando conexión: {close_err}"
+                    )
+            logger.info(f"[HistoryService] ===== add_entry() FINALIZADO =====")

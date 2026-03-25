@@ -33,14 +33,19 @@
                     '<div class="form-group">' +
                         '<label for="optimize-category">Categoría:</label>' +
                         '<select id="optimize-category" class="form-control">' +
-                            '<option value="action">Acción</option>' +
-                            '<option value="comedy">Comedia</option>' +
-                            '<option value="drama">Drama</option>' +
-                            '<option value="horror">Terror</option>' +
-                            '<option value="sci-fi">Ciencia Ficción</option>' +
-                            '<option value="animation">Animación</option>' +
-                            '<option value="documentary">Documental</option>' +
-                            '<option value="other">Otro</option>' +
+                            '<option value="Acción">Acción</option>' +
+                            '<option value="Comedia">Comedia</option>' +
+                            '<option value="Drama">Drama</option>' +
+                            '<option value="Terror">Terror</option>' +
+                            '<option value="Ciencia Ficción">Ciencia Ficción</option>' +
+                            '<option value="Animación">Animación</option>' +
+                            '<option value="Documental">Documental</option>' +
+                            '<option value="Otro">Otro</option>' +
+                            '<option value="Aventura">Aventura</option>' +
+                            '<option value="Familia">Familia</option>' +
+                            '<option value="Fantasía">Fantasía</option>' +
+                            '<option value="Suspense">Suspense</option>' +
+                            '<option value="Romance">Romance</option>' +
                         '</select>' +
                     '</div>' +
                     
