@@ -8,6 +8,8 @@
 
     <!-- CSS del reproductor -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/play/play.css') }}?v={{ get_file_version('css/play/play.css') }}">
+    <!-- CSS de comentarios -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/play/comments.css') }}?v={{ get_file_version('css/play/comments.css') }}">
 </head>
 <body>
     <div class="container">
@@ -66,6 +68,25 @@
             <p>🎬 No se encontró información adicional para esta película</p>
             <p class="no-info-sub">Puedes seguir viendo la película sin problemas</p>
         </div>
+
+        <!-- Sección de comentarios -->
+        <section class="comments-section" id="commentsSection" style="display: none;">
+            <h3>💬 Comentarios <span id="commentCount">0</span></h3>
+            
+            <div class="comment-form-container" id="commentFormContainer">
+                <textarea id="commentText" placeholder="Escribe tu comentario..." rows="3"></textarea>
+                <div class="comment-options">
+                    <label>
+                        <input type="checkbox" id="commentSpoiler"> ⚠️ Contiene spoiler
+                    </label>
+                    <button id="submitComment" class="btn-primary">Publicar</button>
+                </div>
+            </div>
+            
+            <div id="commentsList" class="comments-list"></div>
+            
+            <button id="loadMoreComments" class="btn-secondary" style="display: none;">Cargar más comentarios</button>
+        </section>
     </div>
 
     <!-- Datos del medio para carga asíncrona -->
@@ -78,7 +99,14 @@
          style="display: none;">
     </div>
 
+    <!-- Datos ocultos para el módulo de comentarios -->
+    <input type="hidden" id="userId" value="{{ session.get('user_id', 0) }}">
+    <input type="hidden" id="movieId" value="{{ movie_id }}">
+    <input type="hidden" id="movieTitle" value="{{ clean_title if clean_title is defined else sanitized_name }}">
+    <input type="hidden" id="tmdbId" value="">
+
     <script src="{{ url_for('static', filename='js/play/play.js') }}?v={{ get_file_version('js/play/play.js') }}" defer></script>
+    <script src="{{ url_for('static', filename='js/play/comments.js') }}?v={{ get_file_version('js/play/comments.js') }}" defer></script>
 
     <script>
     // 🚨 IMPORTANTE: El video debe empezar INMEDIATAMENTE
@@ -276,6 +304,10 @@
             section.innerHTML = html;
             section.style.display = 'block';
             if (noInfo) noInfo.style.display = 'none';
+            
+            // Mostrar sección de comentarios
+            var commentsSection = document.getElementById('commentsSection');
+            if (commentsSection) commentsSection.style.display = 'block';
         }
 
         function mostrarNoInfo() {

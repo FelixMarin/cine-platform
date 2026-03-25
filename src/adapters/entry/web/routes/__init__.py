@@ -60,6 +60,7 @@ from src.adapters.entry.web.routes.optimization_history import (
     history_bp,
     init_history_routes,
 )
+from src.adapters.entry.web.routes.comments import comments_bp
 
 
 def register_all_blueprints(
@@ -99,6 +100,7 @@ def register_all_blueprints(
     app.register_blueprint(history_bp)  # Historial de optimizaciones
     app.register_blueprint(sync_bp)  # Sincronización del catálogo
     app.register_blueprint(series_bp)  # Rutas de series (API)
+    app.register_blueprint(comments_bp)  # API de comentarios
 
     # Log de todas las rutas registradas
     logger.info("=== Rutas registradas ===")

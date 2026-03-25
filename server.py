@@ -186,6 +186,7 @@ def create_app():
         catalog_db_bp,
         init_catalog_db_routes,
         profile_bp,
+        comments_bp,
     )
 
     from src.adapters.entry.web.routes import series_bp, series_page_bp
@@ -261,6 +262,7 @@ def create_app():
     app.register_blueprint(profile_bp)  # Rutas de perfil de usuario
     app.register_blueprint(history_bp)  # Historial de optimizaciones
     app.register_blueprint(sync_bp)  # Sincronización del catálogo
+    app.register_blueprint(comments_bp)  # API de comentarios
 
 
     logger.info("[ROUTER] Blueprints registrados correctamente")

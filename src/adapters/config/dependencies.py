@@ -69,6 +69,16 @@ from src.core.use_cases.optimizer import (
     EstimateSizeUseCase
 )
 
+# Comments
+from src.core.use_cases.comments import (
+    AddCommentUseCase,
+    GetCommentsUseCase,
+    EditCommentUseCase,
+    DeleteCommentUseCase,
+    LikeCommentUseCase,
+    ReportCommentUseCase
+)
+
 # Auth
 from src.core.use_cases.auth import (
     LoginUseCase,
@@ -394,3 +404,36 @@ def get_database_thumbnail_service():
         _db_thumbnail_service = DatabaseThumbnailService(None)
     
     return _db_thumbnail_service
+
+
+# === REPOSITORIO DE COMENTARIOS ===
+
+def get_comment_repository():
+    """
+    Context manager para obtener el repositorio de comentarios.
+    
+    Yields:
+        CommentRepository: Instancia del repositorio de comentarios
+    
+    Ejemplo de uso:
+        with get_comment_repository() as repo:
+            comments, total = repo.get_comments_by_movie(movie_id, 20, 0)
+    """
+    from contextlib import contextmanager
+    from src.infrastructure.database.connection import get_session_maker
+    from src.adapters.outgoing.repositories.postgresql.comment_repository import CommentRepository
+    
+    @contextmanager
+    def _get_repo():
+        SessionMaker = get_session_maker()
+        session = SessionMaker()
+        try:
+            yield CommentRepository(session)
+            session.commit()
+        except Exception:
+            session.rollback()
+            raise
+        finally:
+            session.close()
+    
+    return _get_repo
