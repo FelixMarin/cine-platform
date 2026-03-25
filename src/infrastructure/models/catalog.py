@@ -275,3 +275,29 @@ class LocalContent(Base):
         except Exception as e:
             logger.error(f"Error en LocalContent.to_dict: {e}")
             return {"id": self.id, "error": "Error al serializar"}
+
+
+class MovieLike(Base):
+    """Modelo para los likes de usuarios en películas"""
+
+    __tablename__ = "movie_likes"
+
+    id = Column(Integer, primary_key=True)
+    app_user_id = Column(Integer, nullable=False)  # ID del usuario (sin FK)
+    movie_id = Column(Integer, nullable=True)  # ID de la película
+    tmdb_id = Column(Integer, nullable=True)
+    movie_title = Column(String(255), nullable=False)
+    like_type = Column(String(20), default="like")
+    created_at = Column(DateTime, server_default=func.now())
+
+    def to_dict(self):
+        """Convierte el modelo a diccionario"""
+        return {
+            "id": self.id,
+            "app_user_id": self.app_user_id,
+            "movie_id": self.movie_id,
+            "tmdb_id": self.tmdb_id,
+            "movie_title": self.movie_title,
+            "like_type": self.like_type,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }

@@ -31,6 +31,20 @@
                 </video>
 
                 <div class="video-controls">
+                    <!-- Botón Me Gusta -->
+                    <button id="likeButton" class="like-btn" title="Me gusta esta película" data-movie-id="{{ movie_id if movie_id else '' }}" data-media-path="{{ media_path if media_path else '' }}" data-title="{{ clean_title if clean_title else sanitized_name }}">
+                        <svg class="like-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"></path>
+                        </svg>
+                        <span class="like-text">Me gusta</span>
+                        <span class="like-spinner" style="display: none;">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="spinner-icon">
+                                <circle cx="12" cy="12" r="10" stroke-opacity="0.25"></circle>
+                                <path d="M12 2a10 10 0 0 1 10 10" stroke-linecap="round"></path>
+                            </svg>
+                        </span>
+                    </button>
+                    
                     {% if is_admin %}
                     <a href="/download/{{ filename }}" class="download-btn">⬇️ Descargar película</a>
                     {% else %}

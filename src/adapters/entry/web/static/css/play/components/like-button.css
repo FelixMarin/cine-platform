@@ -1,0 +1,216 @@
+/* ============================================
+   BOTÓN ME GUSTA - ESTILO OSCURO (COHERENTE CON TEMA)
+   ============================================ */
+
+/* Contenedor de acciones (alineación con botón descargar) */
+.movie-actions {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-top: 20px;
+    padding: 12px 0;
+    border-top: 1px solid var(--border-color);
+    border-bottom: 1px solid var(--border-color);
+}
+
+/* Botón de like */
+.like-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 24px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: 40px;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    font-family: inherit;
+    font-size: 0.95rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    outline: none;
+    position: relative;
+    overflow: hidden;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+/* Efecto de brillo al pasar el mouse */
+.like-btn::after {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: linear-gradient(
+        45deg,
+        transparent 0%,
+        rgba(255, 255, 255, 0.05) 50%,
+        transparent 100%
+    );
+    transform: rotate(45deg);
+    animation: likeShimmer 8s infinite;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+.like-btn:hover::after {
+    opacity: 1;
+}
+
+@keyframes likeShimmer {
+    0% { transform: translateX(-100%) rotate(45deg); }
+    20% { transform: translateX(100%) rotate(45deg); }
+    100% { transform: translateX(100%) rotate(45deg); }
+}
+
+/* Hover normal */
+.like-btn:hover {
+    background: var(--bg-secondary);
+    border-color: var(--accent-color);
+    color: var(--text-primary);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(229, 9, 20, 0.2);
+}
+
+.like-btn:active {
+    transform: translateY(0);
+}
+
+/* Estado liked (activo) */
+.like-btn.liked {
+    background: linear-gradient(135deg, var(--accent-color), var(--accent-hover));
+    border-color: var(--accent-hover);
+    color: white;
+    box-shadow: 0 4px 12px rgba(229, 9, 20, 0.4);
+}
+
+.like-btn.liked:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(229, 9, 20, 0.5);
+}
+
+/* Icono SVG */
+.like-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+}
+
+.like-icon svg {
+    width: 18px;
+    height: 18px;
+    display: block;
+    transition: transform 0.2s ease;
+    fill: currentColor;
+}
+
+.like-btn:hover .like-icon svg {
+    transform: scale(1.1);
+}
+
+.like-btn.liked .like-icon svg {
+    filter: drop-shadow(0 0 2px rgba(255, 255, 255, 0.5));
+}
+
+/* Texto del botón */
+.like-text {
+    font-weight: 500;
+}
+
+/* Estado de carga */
+.like-btn.loading {
+    opacity: 0.8;
+    cursor: wait;
+    pointer-events: none;
+    transform: none;
+}
+
+.like-btn.loading .like-icon svg {
+    animation: likeSpin 1s linear infinite;
+}
+
+@keyframes likeSpin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* Botón deshabilitado (no aplica directamente, pero por si acaso) */
+.like-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* ============================================
+   BOTÓN DESCARGAR (ADMIN) - COHERENTE CON TEMA
+   ============================================ */
+
+.download-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 24px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: 40px;
+    color: var(--text-secondary);
+    text-decoration: none;
+    font-size: 0.95rem;
+    font-weight: 500;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.download-btn:hover {
+    background: var(--bg-secondary);
+    border-color: var(--accent-color);
+    color: var(--text-primary);
+    transform: translateY(-2px);
+}
+
+.download-btn:active {
+    transform: translateY(0);
+}
+
+/* Estado deshabilitado para descarga (si no hay archivo) */
+.download-disabled {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 24px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: 40px;
+    color: var(--text-secondary);
+    font-size: 0.95rem;
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* ============================================
+   RESPONSIVE
+   ============================================ */
+
+@media (max-width: 768px) {
+    .movie-actions {
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+    
+    .like-btn,
+    .download-btn,
+    .download-disabled {
+        padding: 8px 20px;
+        font-size: 0.85rem;
+        white-space: nowrap;
+        flex-shrink: 0;
+    }
+    
+    .like-icon svg {
+        width: 16px;
+        height: 16px;
+    }
+}

@@ -18,7 +18,7 @@ import requests
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_, func
 
-from src.infrastructure.models.catalog import OmdbEntry, LocalContent
+from src.infrastructure.models.catalog import OmdbEntry, LocalContent, MovieLike
 from src.infrastructure.database.connection import get_session_maker
 
 
@@ -625,6 +625,97 @@ class CatalogRepository:
             db.rollback()
             logger.error(f"Error en migrate_local_storage_data: {e}")
             raise
+
+    # =====================
+    # MÉTODOS PARA MOVIE LIKES
+    # =====================
+
+    def get_movie_like(self, user_id: int, movie_id: int) -> Optional[MovieLike]:
+        """
+        Obtiene el like de un usuario para una película específica.
+
+        Args:
+            user_id: ID del usuario
+            movie_id: ID de la película
+
+        Returns:
+            MovieLike si existe, None en caso contrario
+        """
+        db = self._get_db()
+        return db.query(MovieLike).filter(
+            MovieLike.app_user_id == user_id,
+            MovieLike.movie_id == movie_id
+        ).first()
+
+    def add_movie_like(
+        self,
+        user_id: int,
+        movie_id: int,
+        movie_title: str,
+        tmdb_id: Optional[int] = None,
+        like_type: str = "like"
+    ) -> MovieLike:
+        """
+        Añade un like de usuario a una película.
+
+        Args:
+            user_id: ID del usuario
+            movie_id: ID de la película
+            movie_title: Título de la película
+            tmdb_id: ID de TMDB (opcional)
+            like_type: Tipo de like (default: "like")
+
+        Returns:
+            MovieLike: El like creado
+
+        Raises:
+            Exception: Si ya existe un like previo
+        """
+        db = self._get_db()
+
+        # Verificar si ya existe un like previo
+        existing_like = self.get_movie_like(user_id, movie_id)
+        if existing_like:
+            raise Exception("El usuario ya ha dado like a esta película")
+
+        like = MovieLike(
+            app_user_id=user_id,
+            movie_id=movie_id,
+            tmdb_id=tmdb_id,
+            movie_title=movie_title,
+            like_type=like_type
+        )
+
+        db.add(like)
+        db.flush()  # Flush para obtener el ID sin commit
+
+        logger.info(f"Like añadido: usuario {user_id}, película {movie_id}")
+
+        return like
+
+    def remove_movie_like(self, user_id: int, movie_id: int) -> bool:
+        """
+        Elimina el like de un usuario de una película.
+
+        Args:
+            user_id: ID del usuario
+            movie_id: ID de la película
+
+        Returns:
+            bool: True si se eliminó, False si no existía
+        """
+        db = self._get_db()
+
+        like = self.get_movie_like(user_id, movie_id)
+        if not like:
+            return False
+
+        db.delete(like)
+        db.flush()
+
+        logger.info(f"Like eliminado: usuario {user_id}, película {movie_id}")
+
+        return True
 
 
 @contextmanager
