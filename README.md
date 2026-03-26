@@ -3,10 +3,6 @@
 
 ---
 
-![Screen](https://raw.githubusercontent.com/FelixMarin/cine-platform/refs/heads/main/screen2.jpg)
-
----
-
 Plataforma unificada que combina **streaming de películas/series**, **optimización de vídeos** y un sistema de autenticación moderno basado en **OAuth2**, todo ello bajo una **Arquitectura Hexagonal** y completamente **Dockerizada**.
 
 ---
