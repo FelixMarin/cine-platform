@@ -24,6 +24,7 @@ La arquitectura queda así:
                     │  (PostgreSQL, Filesystem, OMDB...)  │
                     └─────────────────────────────────────┘
 """
+
 import os
 
 # Repositorios Filesystem
@@ -56,7 +57,14 @@ from src.adapters.outgoing.services.file_finder.transmission_finder import (
 )
 
 # Auth
-from src.application.use_cases.auth import LoginUseCase, LogoutUseCase
+from src.application.use_cases.auth import (
+    GetUserFromTokenUseCase,
+    LoginUseCase,
+    LoginWithOAuthTokenUseCase,
+    LogoutUseCase,
+    OAuthLoginUseCase,
+    VerifyTokenUseCase,
+)
 
 # === IMPORTS DE CASOS DE USO DEL CORE ===
 # Catálogo
@@ -68,7 +76,10 @@ from src.application.use_cases.catalog import (
 
 # Comments
 # Optimizer
-from src.application.use_cases.optimizer import EstimateSizeUseCase, OptimizeMovieUseCase
+from src.application.use_cases.optimizer import (
+    EstimateSizeUseCase,
+    OptimizeMovieUseCase,
+)
 
 # Player
 from src.application.use_cases.player import (
@@ -112,13 +123,18 @@ _optimize_movie_use_case = None
 _estimate_size_use_case = None
 _login_use_case = None
 _logout_use_case = None
+_oauth_login_use_case = None
+_verify_token_use_case = None
+_get_user_from_token_use_case = None
+_login_with_oauth_token_use_case = None
 
 # === INICIALIZACIÓN DE DEPENDENCIAS ===
+
 
 def get_database_connection():
     """
     Obtiene la conexión a PostgreSQL
-    
+
     Returns:
         Conexión a la base de datos o None si no está configurada
     """
@@ -137,7 +153,7 @@ def get_database_connection():
 def init_repositories(use_postgresql: bool = False):
     """
     Inicializa los repositorios
-    
+
     Args:
         use_postgresql: Si True usa PostgreSQL, si False usa Filesystem
     """
@@ -154,7 +170,7 @@ def init_repositories(use_postgresql: bool = False):
         _user_repository = None  # TODO: Implementar
     else:
         # Usar Filesystem (temporal/migración)
-        base_folder = os.environ.get('MOVIES_FOLDER')
+        base_folder = os.environ.get("MOVIES_FOLDER")
         _movie_repository = FilesystemMovieRepository(base_folder)
         _serie_repository = FilesystemSerieRepository(base_folder)
         _progress_repository = PostgresProgressRepository(None)  # Sin DB aún
@@ -191,44 +207,60 @@ def init_use_cases():
 
     # Catálogo
     _list_movies_use_case = ListMoviesUseCase(_movie_repository)
-    _list_series_use_case = ListSeriesUseCase(_serie_repository) if _serie_repository else None
-    _search_use_case = SearchUseCase(_movie_repository, _serie_repository) if _serie_repository else None
+    _list_series_use_case = (
+        ListSeriesUseCase(_serie_repository) if _serie_repository else None
+    )
+    _search_use_case = (
+        SearchUseCase(_movie_repository, _serie_repository)
+        if _serie_repository
+        else None
+    )
 
     # Player
     _file_finder = TransmissionFileFinder()
-    _stream_movie_use_case = StreamMovieUseCase(_movie_repository, _progress_repository, _file_finder)
-    _stream_episode_use_case = StreamEpisodeUseCase(_episode_repository, _progress_repository, _file_finder) if _episode_repository else None
+    _stream_movie_use_case = StreamMovieUseCase(
+        _movie_repository, _progress_repository, _file_finder
+    )
+    _stream_episode_use_case = (
+        StreamEpisodeUseCase(_episode_repository, _progress_repository, _file_finder)
+        if _episode_repository
+        else None
+    )
     _track_progress_use_case = TrackProgressUseCase(
-        _progress_repository,
-        _movie_repository,
-        _episode_repository
+        _progress_repository, _movie_repository, _episode_repository
     )
     _get_continue_watching_use_case = GetContinueWatchingUseCase(
-        _progress_repository,
-        _movie_repository,
-        _episode_repository
+        _progress_repository, _movie_repository, _episode_repository
     )
     _get_watched_content_use_case = GetWatchedContentUseCase(
-        _progress_repository,
-        _movie_repository,
-        _episode_repository
+        _progress_repository, _movie_repository, _episode_repository
     )
 
     # Optimizer
     # Inicializar cola de optimización
     _queue_service = get_optimization_queue()
-    _optimize_movie_use_case = OptimizeMovieUseCase(_queue_service, _encoder_service, _file_finder)
+    _optimize_movie_use_case = OptimizeMovieUseCase(
+        _queue_service, _encoder_service, _file_finder
+    )
     _estimate_size_use_case = EstimateSizeUseCase(_encoder_service)
 
     # Auth
     _login_use_case = LoginUseCase(_auth_service, _user_repository)
     _logout_use_case = LogoutUseCase(_auth_service)
+    _oauth_login_use_case = OAuthLoginUseCase(_user_repository)
+    _verify_token_use_case = VerifyTokenUseCase(_auth_service)
+    _get_user_from_token_use_case = GetUserFromTokenUseCase(_auth_service)
+    _login_with_oauth_token_use_case = LoginWithOAuthTokenUseCase(_auth_service)
+    _oauth_login_use_case = OAuthLoginUseCase(_user_repository)
+    _verify_token_use_case = VerifyTokenUseCase(_auth_service)
+    _get_user_from_token_use_case = GetUserFromTokenUseCase(_auth_service)
+    _login_with_oauth_token_use_case = LoginWithOAuthTokenUseCase(_auth_service)
 
 
 def init_all(use_postgresql: bool = False):
     """
     Inicializa todas las dependencias
-    
+
     Args:
         use_postgresql: Si True usa PostgreSQL, si False usa Filesystem
     """
@@ -339,23 +371,25 @@ def get_auth_service():
 
 # === SERVICIOS DE THUMBNAILS ===
 
+
 def get_thumbnail_cache_service():
     """
     Obtiene el servicio de caché de thumbnails.
-    
+
     Returns:
         Instancia de ThumbnailCacheService
     """
     from src.adapters.outgoing.services.thumbnails.cache_service import (
         get_thumbnail_cache_service as _get_service,
     )
+
     return _get_service()
 
 
 def get_omdb_thumbnail_provider():
     """
     Obtiene el proveedor de thumbnails de OMDB (singleton).
-    
+
     Returns:
         Instancia de OMDBThumbnailProvider
     """
@@ -365,6 +399,7 @@ def get_omdb_thumbnail_provider():
         from src.adapters.outgoing.services.omdb.thumbnail_provider import (
             OMDBThumbnailProvider,
         )
+
         _omdb_thumbnail_provider = OMDBThumbnailProvider()
 
     return _omdb_thumbnail_provider
@@ -373,7 +408,7 @@ def get_omdb_thumbnail_provider():
 def get_local_thumbnail_search():
     """
     Obtiene el servicio de búsqueda local de thumbnails (singleton).
-    
+
     Returns:
         Instancia de LocalThumbnailSearch
     """
@@ -383,6 +418,7 @@ def get_local_thumbnail_search():
         from src.adapters.outgoing.services.thumbnails.local_search import (
             LocalThumbnailSearch,
         )
+
         _local_thumbnail_search = LocalThumbnailSearch()
 
     return _local_thumbnail_search
@@ -391,10 +427,10 @@ def get_local_thumbnail_search():
 def get_database_thumbnail_service():
     """
     Obtiene el servicio de thumbnails de base de datos (singleton).
-    
+
     Returns:
         Instancia de DatabaseThumbnailService
-    
+
     Nota: El servicio ahora usa context manager internamente.
     """
     global _db_thumbnail_service
@@ -403,6 +439,7 @@ def get_database_thumbnail_service():
         from src.adapters.outgoing.services.thumbnails.database_service import (
             DatabaseThumbnailService,
         )
+
         # Ya no necesitamos crear el repo aquí - se crea una nueva sesión por operación
         _db_thumbnail_service = DatabaseThumbnailService(None)
 
@@ -411,13 +448,14 @@ def get_database_thumbnail_service():
 
 # === REPOSITORIO DE COMENTARIOS ===
 
+
 def get_comment_repository():
     """
     Context manager para obtener el repositorio de comentarios.
-    
+
     Yields:
         CommentRepository: Instancia del repositorio de comentarios
-    
+
     Ejemplo de uso:
         with get_comment_repository() as repo:
             comments, total = repo.get_comments_by_movie(movie_id, 20, 0)

@@ -1,6 +1,7 @@
 """
 Puerto - Interfaz para servicio de autenticación
 """
+
 from abc import ABC, abstractmethod
 from typing import Dict, Optional, Tuple
 
@@ -39,4 +40,14 @@ class IAuthService(ABC):
     @abstractmethod
     def create_token(self, user_id: int) -> Optional[str]:
         """Crea un token para un usuario"""
+        pass
+
+    @abstractmethod
+    def extract_roles_from_token(self, token: str) -> Tuple[str, list]:
+        """
+        Extrae los roles de un token JWT
+
+        Returns:
+            Tupla (primary_role, roles_list)
+        """
         pass

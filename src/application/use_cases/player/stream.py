@@ -1,6 +1,7 @@
 """
 Caso de uso - Streaming de video
 """
+
 from typing import Optional, Tuple
 
 from src.domain.ports.out.repositories.episode_repository import IEpisodeRepository
@@ -15,19 +16,20 @@ class StreamMovieUseCase:
     def __init__(
         self,
         movie_repository: IMovieRepository,
-        progress_repository: IProgressRepository = None,
-        file_finder: IFileFinder = None,
+        progress_repository: IProgressRepository,
+        file_finder: IFileFinder,
     ):
         self._movie_repository = movie_repository
         self._progress_repository = progress_repository
         self._file_finder = file_finder
 
-    def execute(self, movie_id: int) -> Optional[dict]:
+    def execute(self, movie_id: int, user_id: int) -> Optional[dict]:
         """
         Obtiene la información necesaria para reproducir una película
 
         Args:
             movie_id: ID de la película
+            user_id: ID del usuario
 
         Returns:
             Diccionario con información de reproducción
@@ -38,21 +40,13 @@ class StreamMovieUseCase:
             return None
 
         # Verificar que el archivo existe
-        if self._file_finder:
-            if not self._file_finder.file_exists(movie["path"]):
-                return None
-        else:
-            import os
+        if not self._file_finder.file_exists(movie["path"]):
+            return None
 
-            if not os.path.exists(movie["path"]):
-                return None
-
-        # Obtener progreso si está disponible
-        progress = None
-        if self._progress_repository:
-            progress = self._progress_repository.get_by_user_and_media(
-                0, "movie", movie_id
-            )
+        # Obtener progreso del usuario
+        progress = self._progress_repository.get_by_user_and_media(
+            user_id, "movie", movie_id
+        )
 
         return {
             "movie": movie,
@@ -72,16 +66,10 @@ class StreamMovieUseCase:
         if not movie:
             return None
 
-        if self._file_finder:
-            if not self._file_finder.file_exists(movie["path"]):
-                return None
-            file_size = self._file_finder.get_file_size(movie["path"])
-        else:
-            import os
+        if not self._file_finder.file_exists(movie["path"]):
+            return None
 
-            if not os.path.exists(movie["path"]):
-                return None
-            file_size = os.path.getsize(movie["path"])
+        file_size = self._file_finder.get_file_size(movie["path"])
 
         return movie["path"], file_size
 
@@ -92,19 +80,20 @@ class StreamEpisodeUseCase:
     def __init__(
         self,
         episode_repository: IEpisodeRepository,
-        progress_repository: IProgressRepository = None,
-        file_finder: IFileFinder = None,
+        progress_repository: IProgressRepository,
+        file_finder: IFileFinder,
     ):
         self._episode_repository = episode_repository
         self._progress_repository = progress_repository
         self._file_finder = file_finder
 
-    def execute(self, episode_id: int) -> Optional[dict]:
+    def execute(self, episode_id: int, user_id: int) -> Optional[dict]:
         """
         Obtiene la información necesaria para reproducir un episodio
 
         Args:
             episode_id: ID del episodio
+            user_id: ID del usuario
 
         Returns:
             Diccionario con información de reproducción
@@ -115,21 +104,13 @@ class StreamEpisodeUseCase:
             return None
 
         # Verificar que el archivo existe
-        if self._file_finder:
-            if not self._file_finder.file_exists(episode["path"]):
-                return None
-        else:
-            import os
+        if not self._file_finder.file_exists(episode["path"]):
+            return None
 
-            if not os.path.exists(episode["path"]):
-                return None
-
-        # Obtener progreso si está disponible
-        progress = None
-        if self._progress_repository:
-            progress = self._progress_repository.get_by_user_and_media(
-                0, "episode", episode_id
-            )
+        # Obtener progreso del usuario
+        progress = self._progress_repository.get_by_user_and_media(
+            user_id, "episode", episode_id
+        )
 
         return {
             "episode": episode,
@@ -149,15 +130,9 @@ class StreamEpisodeUseCase:
         if not episode:
             return None
 
-        if self._file_finder:
-            if not self._file_finder.file_exists(episode["path"]):
-                return None
-            file_size = self._file_finder.get_file_size(episode["path"])
-        else:
-            import os
+        if not self._file_finder.file_exists(episode["path"]):
+            return None
 
-            if not os.path.exists(episode["path"]):
-                return None
-            file_size = os.path.getsize(episode["path"])
+        file_size = self._file_finder.get_file_size(episode["path"])
 
         return episode["path"], file_size
