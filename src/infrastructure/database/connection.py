@@ -2,10 +2,10 @@
 Configuración de conexión a la base de datos PostgreSQL
 """
 
-import os
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import QueuePool
+
 from src.infrastructure.config.settings import settings
 
 _engine = None

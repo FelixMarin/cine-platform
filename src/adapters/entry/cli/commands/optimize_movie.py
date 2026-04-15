@@ -10,12 +10,11 @@ OPTIMIZE MOVIE — Versión auto-perfil + MKV streaming
 """
 
 import argparse
+import json
 import os
+import subprocess
 import sys
 import time
-import subprocess
-import json
-import tempfile
 
 # Configuración del contenedor FFmpeg
 FFMPEG_CONTAINER = "ffmpeg-cuda"
@@ -392,7 +391,7 @@ def check_container():
         r = subprocess.run(["docker", "ps", "--filter", f"name={FFMPEG_CONTAINER}", "--format", "{{.Names}}"],
                           capture_output=True, text=True)
         return FFMPEG_CONTAINER in r.stdout
-    except:
+    except Exception:
         return False
 
 

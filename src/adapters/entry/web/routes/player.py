@@ -6,29 +6,28 @@ Blueprint para streaming y seguimiento de progreso
 import os
 import re
 import urllib.parse
+
 from flask import (
     Blueprint,
     jsonify,
+    render_template,
     request,
     session,
-    Response,
-    stream_with_context,
-    render_template,
 )
+
 from src.adapters.entry.web.middleware.auth_middleware import require_auth
 from src.adapters.outgoing.services.translation import translate_plot_async
-from src.infrastructure.models.catalog import OmdbEntry, LocalContent
 
 # Importar casos de uso (se inicializan después)
-from src.core.use_cases.player import (
-    StreamMovieUseCase,
-    StreamEpisodeUseCase,
-    TrackProgressUseCase,
+from src.application.use_cases.player import (
     GetContinueWatchingUseCase,
     GetWatchedContentUseCase,
+    StreamEpisodeUseCase,
+    StreamMovieUseCase,
+    TrackProgressUseCase,
 )
-
 from src.infrastructure.logging import setup_logging
+from src.adapters.outgoing.repositories.postgresql.models.catalog import LocalContent, OmdbEntry
 
 logger = setup_logging(os.environ.get("LOG_FOLDER"))
 
@@ -88,8 +87,9 @@ def play_page(media_path):
 @player_page_bp.route("/play/id/<movie_id>")
 def play_page_by_id(movie_id):
     """Página de reproducción usando ID de película"""
-    from src.adapters.config.dependencies import get_movie_repository
     import logging
+
+    from src.adapters.config.dependencies import get_movie_repository
 
     logger = logging.getLogger(__name__)
 
@@ -147,7 +147,7 @@ def play_serie_episode(serie_id, season, episode):
     Construye la ruta del archivo basándose en la estructura normalizada.
     """
     import logging
-    from flask import redirect
+
 
     logger = logging.getLogger(__name__)
     logger.info(
@@ -168,7 +168,7 @@ def play_serie_episode(serie_id, season, episode):
                 OmdbEntry.id == serie_id,
                 OmdbEntry.type == "series"
             ).first()
-            
+
             if not serie:
                 # Fallback: buscar en local_content
                 repo = get_catalog_repository(db)
@@ -176,21 +176,21 @@ def play_serie_episode(serie_id, season, episode):
                 if not serie or serie.type != "series":
                     logger.warning(f"Serie no encontrada: {serie_id}")
                     return "Serie no encontrada", 404
-            
+
             # 2. Buscar la ruta física en local_content por título o imdb_id
             local_content = db.query(LocalContent).filter(
                 LocalContent.title == serie.title,
                 LocalContent.type == "series"
             ).first()
-            
+
             if not local_content and serie.imdb_id:
                 local_content = db.query(LocalContent).filter(
                     LocalContent.imdb_id == serie.imdb_id,
                     LocalContent.type == "series"
                 ).first()
-            
+
             serie_folder = local_content.file_path if local_content else None
-            
+
             if not serie_folder or not os.path.exists(serie_folder):
                 logger.error(f"Ruta de serie no válida: {serie_folder}")
                 return "Ruta de serie no válida", 404
@@ -253,7 +253,7 @@ def play_serie_episode(serie_id, season, episode):
 
             rel_path = rel_path.lstrip("/")
 
-            filename = os.path.basename(file_path)
+            os.path.basename(file_path)
             sanitized_name = f"{serie.title} - T{season:02d}E{episode:02d}"
 
             year = getattr(serie, "year", None)
@@ -423,27 +423,27 @@ def get_movie_like_status():
     user_id = get_user_id()
     if not user_id:
         return jsonify({"liked": False}), 200
-    
+
     movie_id = request.args.get("movie_id", type=int)
     tmdb_id = request.args.get("tmdb_id", type=int)
     title = request.args.get("title", "")
-    
+
     if not movie_id and not tmdb_id and not title:
         return jsonify({"error": "movie_id, tmdb_id o title requerido"}), 400
-    
+
     try:
         from src.adapters.outgoing.repositories.postgresql.catalog_repository import (
-            get_catalog_repository_session,
             get_catalog_repository,
+            get_catalog_repository_session,
         )
-        from src.infrastructure.models.catalog import LocalContent, MovieLike
-        
+        from src.adapters.outgoing.repositories.postgresql.models.catalog import LocalContent
+
         with get_catalog_repository_session() as db:
             repo = get_catalog_repository(db)
-            
+
             # Buscar el movie_id si no lo tenemos
             resolved_movie_id = movie_id
-            
+
             if not resolved_movie_id:
                 if tmdb_id:
                     try:
@@ -464,16 +464,16 @@ def get_movie_like_status():
                         local_content = None
                 else:
                     local_content = None
-                
+
                 if local_content:
                     resolved_movie_id = local_content.id
-            
+
             if not resolved_movie_id:
                 return jsonify({"liked": False}), 200
-            
+
             try:
                 like = repo.get_movie_like(user_id, resolved_movie_id)
-                
+
                 if like:
                     return jsonify({
                         "liked": True,
@@ -483,9 +483,9 @@ def get_movie_like_status():
                     })
             except Exception as e:
                 logger.warning(f"Error al buscar like: {e}")
-            
+
             return jsonify({"liked": False})
-            
+
     except Exception as e:
         logger.error(f"Error en get_movie_like_status: {e}")
         return jsonify({"liked": False, "error": str(e)}), 200  # Devolver liked:false en lugar de 500
@@ -505,26 +505,26 @@ def add_movie_like():
     user_id = get_user_id()
     if not user_id:
         return jsonify({"error": "No autenticado"}), 401
-    
+
     data = request.get_json()
     movie_id = data.get("movie_id")
     movie_title = data.get("movie_title")
     tmdb_id = data.get("tmdb_id")
     like_type = data.get("like_type", "like")
-    
+
     if not movie_id and not movie_title:
         return jsonify({"error": "movie_id o movie_title requerido"}), 400
-    
+
     try:
         from src.adapters.outgoing.repositories.postgresql.catalog_repository import (
-            get_catalog_repository_session,
             get_catalog_repository,
+            get_catalog_repository_session,
         )
-        from src.infrastructure.models.catalog import LocalContent, MovieLike
-        
+        from src.adapters.outgoing.repositories.postgresql.models.catalog import LocalContent
+
         # Buscar el movie_id si no lo tenemos
         resolved_movie_id = movie_id
-        
+
         if not resolved_movie_id and movie_title:
             with get_catalog_repository_session() as db:
                 try:
@@ -532,19 +532,19 @@ def add_movie_like():
                     local_content = db.query(LocalContent).filter(
                         LocalContent.title.ilike(f"%{clean_title}%")
                     ).first()
-                    
+
                     if local_content:
                         resolved_movie_id = local_content.id
                 except Exception as e:
                     logger.warning(f"Error buscando contenido por título: {e}")
-        
+
         if not resolved_movie_id:
             # No se encontró el contenido en el catálogo
             return jsonify({
                 "error": "Película no encontrada en el catálogo",
                 "message": "Esta película no está registrada en el sistema"
             }), 404
-        
+
         with get_catalog_repository_session() as db:
             repo = get_catalog_repository(db)
             like = repo.add_movie_like(
@@ -554,13 +554,13 @@ def add_movie_like():
                 tmdb_id=tmdb_id,
                 like_type=like_type
             )
-            
+
             return jsonify({
                 "success": True,
                 "like_id": like.id,
                 "message": "Like guardado"
             })
-            
+
     except Exception as e:
         logger.error(f"Error en add_movie_like: {e}")
         error_msg = str(e)
@@ -581,40 +581,43 @@ def remove_movie_like():
     user_id = get_user_id()
     if not user_id:
         return jsonify({"error": "No autenticado"}), 401
-    
+
     movie_id = request.args.get("movie_id", type=int)
     title = request.args.get("title", "")
-    
+
     if not movie_id and not title:
         return jsonify({"error": "movie_id o title requerido"}), 400
-    
+
     try:
         from src.adapters.outgoing.repositories.postgresql.catalog_repository import (
-            get_catalog_repository_session,
             get_catalog_repository,
+            get_catalog_repository_session,
         )
-        
+
         with get_catalog_repository_session() as db:
             repo = get_catalog_repository(db)
-            
+
+            # Usar movie_id como ID local si está disponible
+            local_content_id = movie_id
+
             # Buscar el contenido local si solo tenemos título
             if not local_content_id and title:
                 local_content = db.query(LocalContent).filter(
                     LocalContent.title.ilike(f"%{title}%")
                 ).first()
-                
+
                 if local_content:
                     local_content_id = local_content.id
-            
+
             if not local_content_id:
                 return jsonify({"error": "Contenido no encontrado"}), 404
-            
+
             success = repo.remove_movie_like(user_id, local_content_id)
-            
+
             if success:
                 return jsonify({"success": True, "message": "Like eliminado"})
             return jsonify({"error": "Like no encontrado"}), 404
-            
+
     except Exception as e:
         logger.error(f"Error en remove_movie_like: {e}")
         return jsonify({"error": str(e)}), 500

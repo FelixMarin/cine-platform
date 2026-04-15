@@ -3,15 +3,16 @@ Blueprint para endpoints de comentarios de películas
 """
 
 import logging
+
 from flask import Blueprint, jsonify, request, session
 
 from src.adapters.config.dependencies import get_comment_repository
-from src.core.use_cases.comments.add_comment import AddCommentUseCase
-from src.core.use_cases.comments.get_comments import GetCommentsUseCase
-from src.core.use_cases.comments.edit_comment import EditCommentUseCase
-from src.core.use_cases.comments.delete_comment import DeleteCommentUseCase
-from src.core.use_cases.comments.like_comment import LikeCommentUseCase
-from src.core.use_cases.comments.report_comment import ReportCommentUseCase
+from src.application.use_cases.comments.add_comment import AddCommentUseCase
+from src.application.use_cases.comments.delete_comment import DeleteCommentUseCase
+from src.application.use_cases.comments.edit_comment import EditCommentUseCase
+from src.application.use_cases.comments.get_comments import GetCommentsUseCase
+from src.application.use_cases.comments.like_comment import LikeCommentUseCase
+from src.application.use_cases.comments.report_comment import ReportCommentUseCase
 
 logger = logging.getLogger(__name__)
 
@@ -63,7 +64,7 @@ def get_movie_comments():
                 offset=offset,
                 include_hidden=is_admin()
             )
-            
+
             # Agregar información de likes del usuario actual
             if current_user_id > 0 and comments:
                 comment_ids = [c['id'] for c in comments]
@@ -289,7 +290,7 @@ def get_replies(comment_id):
                 limit=limit,
                 offset=offset
             )
-            
+
             current_user_id = get_user_id()
             if current_user_id > 0 and replies:
                 reply_ids = [r.id for r in replies]
@@ -298,7 +299,7 @@ def get_replies(comment_id):
                     reply.can_edit = reply.user_id == current_user_id
                     reply.can_delete = reply.user_id == current_user_id or is_admin()
                     reply.user_liked = reply.id in liked_ids
-            
+
             return jsonify({
                 "replies": [r.to_dict() for r in replies],
                 "total": len(replies)

@@ -11,9 +11,9 @@ Uso previsto:
 - Último recurso cuando BD y OMDB no tienen la imagen
 """
 
+import logging
 import os
 import re
-import logging
 from typing import Optional
 
 logger = logging.getLogger(__name__)
@@ -32,8 +32,8 @@ class LocalThumbnailSearch:
         self.thumbnail_folder = thumbnail_folder
 
     def search_local_thumbnail(
-        self, 
-        title: str, 
+        self,
+        title: str,
         filename: Optional[str] = None
     ) -> Optional[str]:
         """
@@ -70,7 +70,7 @@ class LocalThumbnailSearch:
 
         local_thumbnail_path = None
         found_filename = None
-        
+
         for search_name in search_names:
             local_path = os.path.join(self.thumbnail_folder, search_name)
             if os.path.exists(local_path):
@@ -81,7 +81,7 @@ class LocalThumbnailSearch:
         if local_thumbnail_path and found_filename:
             logger.info(f"✅ Thumbnail local encontrado: [{found_filename}]")
             return f"/thumbnails/{found_filename}"
-        
+
         logger.info(f"⚠️ No se encontró thumbnail local para [{title}]")
         return None
 
@@ -103,7 +103,7 @@ class LocalThumbnailSearch:
         base_name = re.sub(r'\s*\([^)]*\)\s*', ' ', base_name)
         # Limpiar espacios
         base_name = re.sub(r'\s+', ' ', base_name).strip()
-        
+
         return base_name
 
 

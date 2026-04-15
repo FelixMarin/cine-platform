@@ -64,3 +64,4 @@ migrations/
 scripts/update_poster*.py
 
 backup-cine-untracked.sh
+QWEN.md

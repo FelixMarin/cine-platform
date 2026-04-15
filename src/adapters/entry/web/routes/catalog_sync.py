@@ -2,11 +2,13 @@
 Funciones de sincronización del catálogo con el sistema de archivos
 """
 
+import logging
 import os
 import re
-import logging
-from typing import Optional, Dict, List
-from flask import Blueprint, jsonify, request
+from typing import Optional
+
+from flask import Blueprint, jsonify
+
 from src.adapters.entry.web.middleware.auth_middleware import require_auth
 from src.adapters.outgoing.repositories.postgresql.catalog_repository import (
     get_catalog_repository,

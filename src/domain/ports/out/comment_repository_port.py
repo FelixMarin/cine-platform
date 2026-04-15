@@ -3,7 +3,8 @@ Puerto de salida para operaciones con comentarios
 """
 
 from abc import ABC, abstractmethod
-from typing import Optional, List, Tuple
+from typing import List, Optional, Tuple
+
 from src.domain.models.comment import Comment
 
 
@@ -12,10 +13,10 @@ class CommentRepositoryPort(ABC):
 
     @abstractmethod
     def get_comments_by_movie(
-        self, 
-        movie_id: int, 
-        limit: int, 
-        offset: int, 
+        self,
+        movie_id: int,
+        limit: int,
+        offset: int,
         include_hidden: bool = False
     ) -> Tuple[List[Comment], int]:
         """Obtiene comentarios de una película con paginación"""
@@ -23,9 +24,9 @@ class CommentRepositoryPort(ABC):
 
     @abstractmethod
     def get_replies(
-        self, 
-        comment_id: int, 
-        limit: int, 
+        self,
+        comment_id: int,
+        limit: int,
         offset: int
     ) -> List[Comment]:
         """Obtiene respuestas a un comentario"""

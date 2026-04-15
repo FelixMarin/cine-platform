@@ -6,21 +6,17 @@ PATRÓN: Cada operación crea su propia sesión - NO usa singleton
 Usa context manager para garantizar cierre de sesiones
 """
 
-from datetime import datetime, timedelta
-from typing import List, Optional, Dict
-from io import BytesIO
 import logging
 import re
 from contextlib import contextmanager
+from datetime import datetime, timedelta
+from typing import Dict, List, Optional
 
-import requests
-
+from sqlalchemy import func
 from sqlalchemy.orm import Session
-from sqlalchemy import and_, or_, func
 
-from src.infrastructure.models.catalog import OmdbEntry, LocalContent, MovieLike
 from src.infrastructure.database.connection import get_session_maker
-
+from src.adapters.outgoing.repositories.postgresql.models.catalog import LocalContent, MovieLike, OmdbEntry
 
 logger = logging.getLogger(__name__)
 CACHE_EXPIRY_DAYS = 7
@@ -716,32 +712,6 @@ class CatalogRepository:
         logger.info(f"Like eliminado: usuario {user_id}, película {movie_id}")
 
         return True
-
-
-@contextmanager
-def get_catalog_repository_session():
-    """
-    Context manager para obtener una sesión de base de datos.
-    Garantiza que la sesión se cierre correctamente.
-
-    Uso:
-    ```python
-    with get_catalog_repository_session() as db:
-        repo = CatalogRepository(db)
-        entry = repo.get_exact_match(title, year)
-    # Sesión se cierra automáticamente
-    ```
-    """
-    SessionMaker = get_session_maker()
-    session = SessionMaker()
-    try:
-        yield session
-        session.commit()
-    except Exception:
-        session.rollback()
-        raise
-    finally:
-        session.close()
 
 
 def get_catalog_repository(db_session: Session = None) -> CatalogRepository:

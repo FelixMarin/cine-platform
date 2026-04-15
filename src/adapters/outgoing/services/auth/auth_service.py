@@ -4,18 +4,19 @@ Implementación básica que usa credenciales de entorno
 """
 import os
 import secrets
-from typing import Tuple, Optional, Dict, List
-from src.core.ports.services.auth_service import IAuthService
+from typing import Dict, List, Optional, Tuple
+
+from src.domain.ports.out.services.auth_service import IAuthService
 
 
 class AuthService(IAuthService):
     """Servicio de autenticación básico con credenciales de entorno"""
-    
+
     def __init__(self):
         self._valid_user = os.environ.get('APP_USER', 'default-user')
         self._valid_password = os.environ.get('APP_PASSWORD', 'default-user-password')
         self._tokens = {}  # Almacén temporal de tokens
-    
+
     def _determine_user_role(self, roles: List[str]) -> str:
         """
         Determina el rol del usuario basándose en los roles del token JWT.
@@ -29,7 +30,7 @@ class AuthService(IAuthService):
         if 'ROLE_ADMIN' in roles:
             return 'admin'
         return 'user'
-    
+
     def _decode_jwt_payload(self, token: str) -> Optional[Dict]:
         """
         Decodifica el payload de un JWT token.
@@ -67,7 +68,7 @@ class AuthService(IAuthService):
                 return None
         except Exception:
             return None
-    
+
     def extract_roles_from_token(self, token: str) -> Tuple[str, List[str]]:
         """
         Extrae los roles del token JWT y determina el rol del usuario.
@@ -81,23 +82,23 @@ class AuthService(IAuthService):
             - roles_list: Lista completa de roles del token
         """
         payload = self._decode_jwt_payload(token)
-        
+
         if not payload:
             # Si no se puede decodificar, por defecto es usuario
             return 'user', []
-        
+
         # Obtener roles del payload (puede venir como 'roles' o 'realm_access.roles')
         roles = payload.get('roles', [])
-        
+
         # Si viene como string, convertir a lista
         if isinstance(roles, str):
             roles = [roles]
-        
+
         # Determinar el rol del usuario
         user_role = self._determine_user_role(roles)
-        
+
         return user_role, roles
-    
+
     def login(self, email: str, password: str) -> Tuple[bool, Optional[Dict]]:
         """
         Inicia sesión con email y password
@@ -118,20 +119,20 @@ class AuthService(IAuthService):
             }
             return True, user_data
         return False, None
-    
+
     def logout(self, user_id: int) -> bool:
         """Cierra sesión"""
         # Limpiar tokens del usuario
         self._tokens = {k: v for k, v in self._tokens.items() if v.get('user_id') != user_id}
         return True
-    
+
     def verify_token(self, token: str) -> Optional[Dict]:
         """Verifica un token de autenticación"""
         if token in self._tokens:
             token_data = self._tokens[token]
             return token_data.get('user_data')
         return None
-    
+
     def refresh_token(self, token: str) -> Optional[str]:
         """Refresca un token de autenticación"""
         if token in self._tokens:
@@ -146,11 +147,11 @@ class AuthService(IAuthService):
             del self._tokens[token]
             return new_token
         return None
-    
+
     def get_user_from_token(self, token: str) -> Optional[Dict]:
         """Obtiene los datos del usuario desde un token"""
         return self.verify_token(token)
-    
+
     def create_token(self, user_id: int) -> Optional[str]:
         """Crea un token para un usuario"""
         token = secrets.token_urlsafe(32)

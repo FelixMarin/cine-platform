@@ -3,7 +3,7 @@ Constantes y modelos para Jackett
 """
 
 from dataclasses import dataclass
-from typing import Optional, List, Dict, Any
+from typing import Any, Dict, List, Optional
 
 CATEGORY_MAPPING = {
     "movies": "Películas",

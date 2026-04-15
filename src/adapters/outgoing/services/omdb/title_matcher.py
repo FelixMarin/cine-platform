@@ -4,9 +4,8 @@ Servicio de matching de títulos OMDB
 Maneja la lógica de comparación de títulos y años entre búsquedas y resultados de OMDB.
 """
 
-import re
 import logging
-from typing import Optional
+import re
 
 logger = logging.getLogger(__name__)
 

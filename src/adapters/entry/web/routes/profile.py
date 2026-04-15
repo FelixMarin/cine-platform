@@ -3,16 +3,16 @@ Adaptador de entrada - Rutas de perfil de usuario
 Blueprint para /api/profile
 """
 
-from flask import Blueprint, jsonify, request, session, current_app
-from src.core.services.UserSyncService import UserSyncService
-from src.adapters.outgoing.repositories.cine.app_user_repository import (
-    AppUserRepository,
-)
 import logging
 import os
 import uuid
-from flask import current_app
-from werkzeug.utils import secure_filename
+
+from flask import Blueprint, jsonify, request, session
+
+from src.adapters.outgoing.repositories.cine.app_user_repository import (
+    AppUserRepository,
+)
+from src.application.services.UserSyncService import UserSyncService
 
 logger = logging.getLogger(__name__)
 
@@ -232,6 +232,7 @@ def update_my_profile():
 def upload_avatar():
     """Sube una nueva imagen de avatar"""
     import os
+
     from flask import current_app
 
     app_user_id = session.get("app_user_id") or session.get("user_id")
@@ -262,7 +263,7 @@ def upload_avatar():
         )
 
     if not app_user_id:
-        logger.warning(f"[Avatar] Usuario no autenticado")
+        logger.warning("[Avatar] Usuario no autenticado")
         return jsonify({"success": False, "error": "Usuario no autenticado"}), 401
 
     if "avatar" not in request.files:
@@ -330,7 +331,7 @@ def upload_avatar():
             f"[Avatar] Permisos del archivo: {oct(os.stat(os.path.abspath(filepath)).st_mode)[-3:]}"
         )
     else:
-        logger.error(f"[Avatar] ❌ El archivo NO se guardó correctamente")
+        logger.error("[Avatar] ❌ El archivo NO se guardó correctamente")
 
     # LOG 6: URL generada
     avatar_url = f"/static/uploads/avatars/{filename}"

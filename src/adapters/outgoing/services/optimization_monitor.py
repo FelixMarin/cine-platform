@@ -6,9 +6,9 @@ Maneja el monitoreo del progreso de las optimizaciones en tiempo real.
 
 import logging
 import os
-import time
 import threading
-from typing import Optional, Callable, Dict
+import time
+from typing import Callable, Optional
 
 logger = logging.getLogger(__name__)
 

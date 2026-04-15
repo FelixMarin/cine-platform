@@ -1,9 +1,9 @@
 """
 Rutas de Proxy - Proxy de imágenes
 """
-from flask import Blueprint, request, redirect
-import requests
 from urllib.parse import unquote
+
+from flask import Blueprint, redirect, request
 
 proxy_bp = Blueprint('proxy', __name__, url_prefix='/proxy-image')
 
@@ -19,7 +19,7 @@ def proxy_image():
     url = request.args.get('url')
     if not url:
         return 'Missing url parameter', 400
-    
+
     try:
         # Redireccionar a la URL original
         return redirect(unquote(url))

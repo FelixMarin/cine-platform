@@ -3,13 +3,13 @@ Adaptador de salida - Servicio de codificación FFmpeg con aceleración NVIDIA
 Implementación de IEncoderService usando FFmpeg API externa con NVENC/CUDA
 """
 
-import os
-import json
 import logging
-import requests
-from typing import Dict, Optional, List
-from src.core.ports.services.encoder_service import IEncoderService
+import os
+from typing import Dict, List, Optional
 
+import requests
+
+from src.domain.ports.out.services.encoder_service import IEncoderService
 
 logger = logging.getLogger(__name__)
 

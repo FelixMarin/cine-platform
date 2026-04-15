@@ -3,16 +3,16 @@ Adaptador de salida - Repositorio de películas con Filesystem
 Implementación de IMovieRepository con sistema de caché eficiente
 """
 
+import hashlib
+import json
+import logging
 import os
 import re
-import time
-import json
-import hashlib
-import logging
 import threading
-from typing import List, Optional, Dict, Union
-from src.core.ports.repositories.movie_repository import IMovieRepository
+import time
+from typing import Dict, List, Optional, Union
 
+from src.domain.ports.out.repositories.movie_repository import IMovieRepository
 
 # Configurar logger
 logger = logging.getLogger(__name__)
@@ -271,7 +271,7 @@ class FilesystemMovieRepository(IMovieRepository):
                 mtime = os.path.getmtime(file_path)
                 days_ago = int((time.time() - mtime) / (24 * 3600))
                 is_new = days_ago <= 30
-            except:
+            except Exception:
                 days_ago = -1
                 is_new = False
 

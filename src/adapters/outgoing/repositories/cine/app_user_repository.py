@@ -1,9 +1,11 @@
 import logging
-from typing import Optional, Dict, List
+from typing import Dict, Optional
+
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
+
+from src.domain.ports.out.repositories.IAppUserRepository import IAppUserRepository
 from src.infrastructure.config import settings
-from src.core.ports.repositories.IAppUserRepository import IAppUserRepository
 
 logger = logging.getLogger(__name__)
 

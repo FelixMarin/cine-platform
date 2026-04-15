@@ -37,4 +37,4 @@ RESOLUTIONS = {
 }
 
 HDR_FORMATS = ['hdr10', 'hlg', 'dolbyvision']
-10BIT_FORMATS = ['yuv420p10le', 'yuv444p10le']
+TEN_BIT_FORMATS = ['yuv420p10le', 'yuv444p10le']

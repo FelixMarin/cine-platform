@@ -3,12 +3,13 @@ Adaptador de entrada - Rutas del optimizador
 Blueprint para /api/optimizer y /optimizer
 """
 import os
-from flask import Blueprint, jsonify, request, render_template
+
+from flask import Blueprint, jsonify, render_template, request
+
 from src.adapters.entry.web.middleware.auth_middleware import require_auth, require_role
-
-from src.core.use_cases.optimizer import OptimizeMovieUseCase, EstimateSizeUseCase
-
+from src.application.use_cases.optimizer import EstimateSizeUseCase, OptimizeMovieUseCase
 from src.infrastructure.logging import setup_logging
+
 logger = setup_logging(os.environ.get("LOG_FOLDER"))
 
 
@@ -83,28 +84,29 @@ def optimizer_profiles():
 @optimizer_page_bp.route('/process-file', methods=['POST'])
 def process_file():
     """Procesa un archivo de video para optimización"""
-    from flask import request, jsonify
     import os
-    
+
+    from flask import jsonify, request
+
     # Obtener la carpeta de uploads desde variables de entorno
     upload_folder = os.environ.get('UPLOAD_FOLDER', '/home/jetson/Public/cine-app/cine-platform/uploads')
-    
+
     if 'file' not in request.files:
         return jsonify({'error': 'No se ha proporcionado ningún archivo'}), 400
-    
+
     file = request.files['file']
     if file.filename == '':
         return jsonify({'error': 'No se ha seleccionado ningún archivo'}), 400
-    
+
     try:
         # Guardar el archivo
         filename = file.filename
         filepath = os.path.join(upload_folder, filename)
         file.save(filepath)
-        
+
         # Obtener perfil
         profile = request.form.get('profile', 'balanced')
-        
+
         # Notificar que el archivo está listo para procesar
         return jsonify({
             'success': True,
@@ -134,23 +136,23 @@ def init_optimizer_routes(
 def optimize_video():
     """Añade un video a la cola de optimización"""
     global _optimize_movie_use_case
-    
+
     if _optimize_movie_use_case is None:
         return jsonify({'error': 'Servicio no inicializado'}), 500
-    
+
     try:
         data = request.get_json()
-        
+
         file_path = data.get('file_path')
         profile = data.get('profile', 'balanced')
-        
+
         if not file_path:
             return jsonify({'error': 'file_path es requerido'}), 400
-        
+
         result = _optimize_movie_use_case.execute(file_path, profile)
-        
+
         return jsonify(result)
-    
+
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -159,23 +161,23 @@ def optimize_video():
 def optimize_folder():
     """Añade todos los videos de una carpeta a la cola"""
     global _optimize_movie_use_case
-    
+
     if _optimize_movie_use_case is None:
         return jsonify({'error': 'Servicio no inicializado'}), 500
-    
+
     try:
         data = request.get_json()
-        
+
         folder_path = data.get('folder_path')
         profile = data.get('profile', 'balanced')
-        
+
         if not folder_path:
             return jsonify({'error': 'folder_path es requerido'}), 400
-        
+
         result = _optimize_movie_use_case.process_folder(folder_path, profile)
-        
+
         return jsonify(result)
-    
+
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -184,7 +186,7 @@ def optimize_folder():
 def get_status():
     """Obtiene el estado actual del optimizador"""
     global _optimize_movie_use_case
-    
+
     # Si no hay caso de uso, devolver estado simple
     if _optimize_movie_use_case is None:
         return jsonify({
@@ -194,12 +196,12 @@ def get_status():
             'history': [],
             'message': 'Optimizador no disponible'
         })
-    
+
     try:
         status = _optimize_movie_use_case.get_status()
-        
+
         return jsonify(status)
-    
+
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -210,15 +212,15 @@ def get_status():
 def cancel_current():
     """Cancela el procesamiento actual"""
     global _optimize_movie_use_case
-    
+
     if _optimize_movie_use_case is None:
         return jsonify({'error': 'Servicio no inicializado'}), 500
-    
+
     try:
         success = _optimize_movie_use_case.cancel_current()
-        
+
         return jsonify({'success': success})
-    
+
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -227,15 +229,15 @@ def cancel_current():
 def get_profiles():
     """Obtiene los perfiles de optimización disponibles"""
     global _optimize_movie_use_case
-    
+
     if _optimize_movie_use_case is None:
         return jsonify({'error': 'Servicio no inicializado'}), 500
-    
+
     try:
         profiles = _optimize_movie_use_case.get_available_profiles()
-        
+
         return jsonify(profiles)
-    
+
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -244,25 +246,25 @@ def get_profiles():
 def estimate_size():
     """Estima el tamaño de un video optimizado"""
     global _estimate_size_use_case
-    
+
     if _estimate_size_use_case is None:
         return jsonify({'error': 'Servicio no inicializado'}), 500
-    
+
     try:
         data = request.get_json()
-        
+
         file_path = data.get('file_path')
         profile = data.get('profile', 'balanced')
-        
+
         if not file_path:
             return jsonify({'error': 'file_path es requerido'}), 400
-        
+
         estimate = _estimate_size_use_case.execute(file_path, profile)
-        
+
         if estimate:
             return jsonify(estimate)
         else:
             return jsonify({'error': 'No se pudo calcular la estimación'}), 400
-    
+
     except Exception as e:
         return jsonify({'error': str(e)}), 500

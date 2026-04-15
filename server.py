@@ -3,30 +3,30 @@ Cine Platform - Servidor Principal
 Arquitectura Hexagonal
 """
 
-from flask import Flask, request, session
-from datetime import timedelta
 import os
+from datetime import timedelta
+
 from dotenv import load_dotenv
-import logging
+from flask import Flask
+
+from src.adapters.config.dependencies import (
+    get_continue_watching_use_case,
+    get_estimate_size_use_case,
+    get_list_movies_use_case,
+    get_list_series_use_case,
+    get_login_use_case,
+    get_logout_use_case,
+    get_optimize_movie_use_case,
+    get_search_use_case,
+    get_track_progress_use_case,
+    init_all,
+)
 
 # ============================
 #  IMPORTS - ARQUITECTURA HEXAGONAL
 # ============================
-
 # Configuración
 from src.infrastructure.config.settings import settings
-from src.adapters.config.dependencies import (
-    init_all,
-    get_list_movies_use_case,
-    get_list_series_use_case,
-    get_search_use_case,
-    get_track_progress_use_case,
-    get_continue_watching_use_case,
-    get_optimize_movie_use_case,
-    get_estimate_size_use_case,
-    get_login_use_case,
-    get_logout_use_case,
-)
 
 # Logging
 from src.infrastructure.logging import setup_logging
@@ -153,51 +153,50 @@ def create_app():
 
     # Importar blueprints de la nueva arquitectura
     from src.adapters.entry.web.routes import (
-        catalog_bp,
-        init_catalog_routes,
-        player_bp,
-        player_page_bp,
-        init_player_routes,
-        auth_bp,
-        main_page_bp,
-        init_auth_routes,
-        optimizer_bp,
-        optimizer_page_bp,
-        init_optimizer_routes,
-        api_bp,
-        init_api_routes,
-        download_api_bp,
-        search_page_bp,
-        init_download_routes,
         admin_bp,
         admin_page_bp,
-        init_admin_routes,
-        outputs_bp,
-        init_outputs_routes,
-        proxy_bp,
-        init_proxy_routes,
-        streaming_bp,
-        stream_page_bp,
-        init_streaming_routes,
-        thumbnails_bp,
-        init_thumbnails_routes,
-        torrent_optimize_bp,
-        init_torrent_optimize_routes,
+        api_bp,
+        auth_bp,
+        catalog_bp,
         catalog_db_bp,
-        init_catalog_db_routes,
-        profile_bp,
         comments_bp,
+        download_api_bp,
+        init_admin_routes,
+        init_api_routes,
+        init_auth_routes,
+        init_catalog_db_routes,
+        init_catalog_routes,
+        init_download_routes,
+        init_optimizer_routes,
+        init_outputs_routes,
+        init_player_routes,
+        init_proxy_routes,
+        init_streaming_routes,
+        init_thumbnails_routes,
+        init_torrent_optimize_routes,
+        main_page_bp,
+        optimizer_bp,
+        optimizer_page_bp,
+        outputs_bp,
+        player_bp,
+        player_page_bp,
+        profile_bp,
+        proxy_bp,
+        search_page_bp,
+        series_bp,
+        series_page_bp,
+        stream_page_bp,
+        streaming_bp,
+        thumbnails_bp,
+        torrent_optimize_bp,
     )
 
-    from src.adapters.entry.web.routes import series_bp, series_page_bp
- 
     # Importar blueprint de sincronización del catálogo
     from src.adapters.entry.web.routes.catalog_sync import sync_bp
 
     # Importar blueprint de historial de optimizaciones
     from src.adapters.entry.web.routes.optimization_history import (
         history_bp,
-        init_history_routes,
     )
 
     # Inicializar rutas
@@ -240,7 +239,7 @@ def create_app():
     # Registrar blueprints
     app.register_blueprint(main_page_bp)  # Página principal y favicon
     app.register_blueprint(series_page_bp)
-    app.register_blueprint(series_bp)    
+    app.register_blueprint(series_bp)
     app.register_blueprint(catalog_bp)
     app.register_blueprint(player_bp)
     app.register_blueprint(player_page_bp)  # Página de reproducción
@@ -280,8 +279,8 @@ def create_app():
     @app.context_processor
     def utility_processor():
         """Proveedor de utilidades para las plantillas"""
-        import os
         import hashlib
+        import os
 
         def get_file_version(filepath):
             """Genera un hash del archivo para versionado de assets"""
@@ -293,7 +292,7 @@ def create_app():
             try:
                 with open(full_path, "rb") as f:
                     return hashlib.md5(f.read()).hexdigest()[:8]
-            except:
+            except Exception:
                 return (
                     str(int(os.path.getmtime(full_path)))
                     if os.path.exists(full_path)

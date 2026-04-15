@@ -2,8 +2,8 @@
 Utilidades para el reproductor
 """
 
-import re
 import os
+import re
 
 
 def clean_filename(filename):

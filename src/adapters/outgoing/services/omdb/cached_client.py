@@ -3,19 +3,17 @@ Servicio de metadatos OMDB con caché en base de datos
 Extiende el cliente OMDB básico con caché en PostgreSQL
 """
 
-import io
-import os
 import logging
-import requests
-from typing import Optional, Dict, List
 from datetime import datetime, timedelta
+from typing import Dict, List, Optional
 
-from src.adapters.outgoing.services.omdb.client import OMDBMetadataService
+import requests
+
 from src.adapters.outgoing.repositories.postgresql.catalog_repository import (
-    CatalogRepository,
     get_catalog_repository,
     get_catalog_repository_session,
 )
+from src.adapters.outgoing.services.omdb.client import OMDBMetadataService
 
 logger = logging.getLogger(__name__)
 CACHE_EXPIRY_DAYS = 7
@@ -47,17 +45,17 @@ class OMDBMetadataServiceCached(OMDBMetadataService):
         """Verifica si la entrada ha expirado"""
         if not entry:
             return True
-        
+
         # Verificar cached_at primero
         if hasattr(entry, 'cached_at') and entry.cached_at is not None:
             expiry_date = entry.cached_at + timedelta(days=CACHE_EXPIRY_DAYS)
             return datetime.utcnow() > expiry_date
-        
+
         # Fallback: usar updated_at si cached_at no existe o es None
         if entry.updated_at is not None:
             expiry_date = entry.updated_at + timedelta(days=CACHE_EXPIRY_DAYS)
             return datetime.utcnow() > expiry_date
-        
+
         return True
 
     def get_movie_metadata(
@@ -77,14 +75,14 @@ class OMDBMetadataServiceCached(OMDBMetadataService):
         import time
         start_time = time.time()
         cache_status = "MISS"
-        
+
         # Usar context manager para garantizar cierre de sesión
         with get_catalog_repository_session() as db:
             repo = get_catalog_repository(db)
-            
+
             # Buscar por título y año en la BD
             existing = repo.get_exact_match(title, year)
-            
+
             if existing and not force_refresh:
                 if not self._is_cache_expired(existing):
                     cache_status = "HIT"
@@ -92,14 +90,14 @@ class OMDBMetadataServiceCached(OMDBMetadataService):
                     elapsed = (time.time() - start_time) * 1000
                     logger.info(f"🎬 [OMDB CACHE] {cache_status} para '{title}' ({year}) - {elapsed:.0f}ms")
                     return existing.full_response
-            
+
             # Cache MISS o expirado - llamar a OMDB
             elapsed = (time.time() - start_time) * 1000
             logger.info(f"🎬 [OMDB CACHE] {cache_status} para '{title}' ({year}) - {elapsed:.0f}ms - Consultando OMDB...")
-            
+
             # Llamar al método del padre (no cacheado)
             omdb_data = super().get_movie_metadata(title, year)
-            
+
             if not omdb_data or omdb_data.get("Response") == "False":
                 if existing:
                     # Devolver datos existentes aunque estén expirados
@@ -109,16 +107,16 @@ class OMDBMetadataServiceCached(OMDBMetadataService):
                 elapsed = (time.time() - start_time) * 1000
                 logger.warning(f"🎬 [OMDB CACHE] No se encontraron datos para '{title}' ({year})")
                 return None
-            
+
             # Descargar póster si está disponible
             poster_bytes = None
             poster_url = omdb_data.get("Poster")
             if poster_url and poster_url != "N/A":
                 poster_bytes = self._download_poster(poster_url)
-            
+
             # Guardar en la BD
             entry = repo.create_or_update_omdb_entry(omdb_data, poster_bytes)
-            
+
             # Actualizar cached_at (si la columna existe)
             try:
                 if entry and hasattr(entry, 'cached_at'):
@@ -126,10 +124,10 @@ class OMDBMetadataServiceCached(OMDBMetadataService):
                     db.commit()
             except Exception as e:
                 logger.warning(f"⚠️ No se pudo actualizar cached_at: {e}")
-            
+
             elapsed = (time.time() - start_time) * 1000
             logger.info(f"🎬 [OMDB CACHE] SAVED para '{title}' ({year}) - {elapsed:.0f}ms")
-            
+
             return omdb_data
 
     def get_serie_metadata(
@@ -148,14 +146,14 @@ class OMDBMetadataServiceCached(OMDBMetadataService):
         import time
         start_time = time.time()
         cache_status = "MISS"
-        
+
         # Usar context manager para garantizar cierre de sesión
         with get_catalog_repository_session() as db:
             repo = get_catalog_repository(db)
-            
+
             # Buscar por título en la BD (sin año para series)
             existing = repo.get_exact_match(serie_name, None)
-            
+
             if existing and not force_refresh:
                 if not self._is_cache_expired(existing):
                     cache_status = "HIT"
@@ -163,14 +161,14 @@ class OMDBMetadataServiceCached(OMDBMetadataService):
                     elapsed = (time.time() - start_time) * 1000
                     logger.info(f"📺 [OMDB CACHE] {cache_status} para '{serie_name}' - {elapsed:.0f}ms")
                     return existing.full_response
-            
+
             # Cache MISS o expirado - llamar a OMDB
             elapsed = (time.time() - start_time) * 1000
             logger.info(f"📺 [OMDB CACHE] {cache_status} para '{serie_name}' - {elapsed:.0f}ms - Consultando OMDB...")
-            
+
             # Llamar al método del padre (no cacheado)
             omdb_data = super().get_serie_metadata(serie_name)
-            
+
             if not omdb_data or omdb_data.get("Response") == "False":
                 if existing:
                     # Devolver datos existentes aunque estén expirados
@@ -180,16 +178,16 @@ class OMDBMetadataServiceCached(OMDBMetadataService):
                 elapsed = (time.time() - start_time) * 1000
                 logger.warning(f"📺 [OMDB CACHE] No se encontraron datos para '{serie_name}'")
                 return None
-            
+
             # Descargar póster si está disponible
             poster_bytes = None
             poster_url = omdb_data.get("Poster")
             if poster_url and poster_url != "N/A":
                 poster_bytes = self._download_poster(poster_url)
-            
+
             # Guardar en la BD
             entry = repo.create_or_update_omdb_entry(omdb_data, poster_bytes)
-            
+
             # Actualizar cached_at (si la columna existe)
             try:
                 if entry and hasattr(entry, 'cached_at'):
@@ -197,10 +195,10 @@ class OMDBMetadataServiceCached(OMDBMetadataService):
                     db.commit()
             except Exception as e:
                 logger.warning(f"⚠️ No se pudo actualizar cached_at: {e}")
-            
+
             elapsed = (time.time() - start_time) * 1000
             logger.info(f"📺 [OMDB CACHE] SAVED para '{serie_name}' - {elapsed:.0f}ms")
-            
+
             return omdb_data
 
     def get_movie_by_imdb_id(
@@ -305,7 +303,7 @@ class OMDBMetadataServiceCached(OMDBMetadataService):
 
         with get_catalog_repository_session() as db:
             repo = get_catalog_repository(db)
-            entry = repo.create_or_update_omdb_entry(omdb_data, poster_bytes)
+            repo.create_or_update_omdb_entry(omdb_data, poster_bytes)
 
         # Devolver los datos crudos de OMDB (claves en mayúsculas)
         return omdb_data
@@ -364,8 +362,8 @@ class OMDBMetadataServiceCached(OMDBMetadataService):
 
         Primero busca en la BBDD local (filtrando por type='series'), luego en OMDB si no hay resultados
         """
-        from src.infrastructure.models.catalog import OmdbEntry
-        
+        from src.adapters.outgoing.repositories.postgresql.models.catalog import OmdbEntry
+
         with get_catalog_repository_session() as db:
             # Buscar localmente entradas que sean series
             if year:
@@ -386,7 +384,7 @@ class OMDBMetadataServiceCached(OMDBMetadataService):
                     .all()
                 )
                 series_results = [r for r in local_results if r.type == 'series']
-            
+
             if len(series_results) >= limit:
                 return [r.to_dict() for r in series_results]
 

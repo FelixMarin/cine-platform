@@ -3,20 +3,21 @@ Adaptador de entrada - Rutas de catálogo con base de datos
 Blueprint para /api/omdb, /api/catalog y endpoints relacionados
 """
 
-import os
-import io
-import re
 import base64
+import io
+import os
+import re
+
 from flask import Blueprint, jsonify, request, send_file
+
 from src.adapters.entry.web.middleware.auth_middleware import require_auth
 from src.adapters.outgoing.repositories.postgresql.catalog_repository import (
     get_catalog_repository,
     get_catalog_repository_session,
 )
 from src.adapters.outgoing.services.omdb.cached_client import get_omdb_service_cached
-from src.adapters.entry.web.routes.catalog_sync import _clean_omdb_value
-from src.infrastructure.models.catalog import OmdbEntry, LocalContent
 from src.infrastructure.logging import setup_logging
+from src.adapters.outgoing.repositories.postgresql.models.catalog import OmdbEntry
 
 logger = setup_logging(os.environ.get("LOG_FOLDER"))
 
@@ -322,8 +323,8 @@ def get_catalog_series():
 
                     # Escanear series del filesystem
                     from src.adapters.entry.web.routes.catalog_sync import (
-                        _scan_series_from_filesystem,
                         _get_omdb_service,
+                        _scan_series_from_filesystem,
                     )
 
                     series_on_disk = _scan_series_from_filesystem()
@@ -345,7 +346,7 @@ def get_catalog_series():
                                 omdb_data = omdb_service.get_serie_metadata(serie_name)
 
                                 if omdb_data and omdb_data.get("Response") != "False":
-                                    total_seasons = (
+                                    (
                                         omdb_data.get("totalSeasons")
                                         or serie_data["seasons_found"]
                                     )
@@ -361,7 +362,7 @@ def get_catalog_series():
                                             )
                                             if poster_response.status_code == 200:
                                                 poster_bytes = poster_response.content
-                                        except:
+                                        except Exception:
                                             pass
 
                                     repo.create_or_update_omdb_entry(

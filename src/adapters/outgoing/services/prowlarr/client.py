@@ -8,12 +8,13 @@ Este cliente proporciona métodos para buscar películas y obtener información 
 import logging
 import os
 import re
-import requests
-from typing import Optional, List, Dict, Any
 from dataclasses import dataclass
-from datetime import datetime, timedelta
-from src.infrastructure.config.settings import settings
+from datetime import datetime
+from typing import Any, Dict, List, Optional
 
+import requests
+
+from src.infrastructure.config.settings import settings
 
 logger = logging.getLogger(__name__)
 

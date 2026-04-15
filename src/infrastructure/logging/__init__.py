@@ -1,8 +1,8 @@
 """
 Logging - Configuración de logging
 """
-import os
 import logging
+import os
 from logging.handlers import RotatingFileHandler
 
 
@@ -18,14 +18,14 @@ def setup_logging(log_folder=None):
     """
     if log_folder is None:
         log_folder = os.environ.get('LOG_FOLDER', './logs')
-    
+
     # Crear carpeta de logs
     os.makedirs(log_folder, exist_ok=True)
-    
+
     # Configurar el logger raíz para que capture todo
     root_logger = logging.getLogger()
     root_logger.setLevel(logging.INFO)
-    
+
     # Configurar el logger de la aplicación
     logger = logging.getLogger('cine-platform')
     logger.setLevel(logging.INFO)
@@ -59,7 +59,7 @@ def setup_logging(log_folder=None):
     # Asegurar que los loggers hijos propaguen al raíz
     logging.getLogger('src').setLevel(logging.INFO)
     logging.getLogger('src').propagate = True
-    
+
     logger.info(f"Logging configurado. Carpeta: {log_folder}")
 
     return logger

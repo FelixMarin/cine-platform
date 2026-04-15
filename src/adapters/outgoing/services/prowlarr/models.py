@@ -3,7 +3,7 @@ Constantes y modelos para Prowlarr
 """
 
 from dataclasses import dataclass
-from typing import Optional, List, Dict, Any
+from typing import Any, Dict, List, Optional
 
 CATEGORY_MAPPING = {
     2070: "Películas",

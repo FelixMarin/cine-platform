@@ -8,22 +8,24 @@ Proporciona endpoints para:
 - Gestionar optimizaciones con GPU
 """
 
+import asyncio
 import logging
 import os
-import asyncio
 import uuid
+
 import requests
 from flask import (
     Blueprint,
     jsonify,
-    request,
-    render_template,
-    session,
     redirect,
+    render_template,
+    request,
+    session,
     url_for,
 )
-from src.infrastructure.config.settings import settings
+
 from src.adapters.entry.web.middleware.auth_middleware import require_auth, require_role
+from src.infrastructure.config.settings import settings
 
 logger = logging.getLogger(__name__)
 
@@ -244,7 +246,7 @@ def download_torrent():
         return jsonify({"success": False, "error": "Cuerpo de la petición vacío"}), 400
 
     url = data.get("url", "").strip()
-    result_id = data.get("result_id", "")
+    data.get("result_id", "")
     category = data.get("category", "")
 
     if not url:
@@ -465,7 +467,7 @@ def follow_indexer_redirect(url, max_redirects=5):
         # HEAD request es más ligero
         response = session.head(url, allow_redirects=True, timeout=10)
         return response.url
-    except:
+    except Exception:
         # Si HEAD falla, intentar GET
         try:
             response = session.get(url, allow_redirects=True, timeout=10, stream=True)
@@ -807,7 +809,7 @@ def gpu_status():
                 if response.status_code == 200:
                     data = response.json()
                     gpu_name = data.get("gpu_name")
-            except:
+            except Exception:
                 pass
 
         return jsonify(

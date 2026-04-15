@@ -7,13 +7,11 @@ Implementa:
 - Lock para evitar traducciones duplicadas
 - Logging para monitoreo
 """
-import os
-import logging
 import hashlib
+import logging
 import threading
 import time
-from typing import Optional, Dict, Tuple
-from functools import lru_cache
+from typing import Dict, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -53,13 +51,13 @@ def _acquire_translation_lock(title: str) -> Tuple[bool, threading.Lock]:
     Retorna (éxito, lock)
     """
     lock_key = _get_title_lock_key(title)
-    
+
     with _locks_lock:
         if lock_key not in _translation_locks:
             _translation_locks[lock_key] = threading.Lock()
-        
+
         lock = _translation_locks[lock_key]
-    
+
     # Intentar adquirir el lock sin bloquear
     acquired = lock.acquire(blocking=False)
     return acquired, lock
@@ -68,7 +66,7 @@ def _acquire_translation_lock(title: str) -> Tuple[bool, threading.Lock]:
 def _release_translation_lock(title: str):
     """Libera el lock de traducción"""
     lock_key = _get_title_lock_key(title)
-    
+
     with _locks_lock:
         if lock_key in _translation_locks:
             try:
@@ -84,12 +82,12 @@ def _get_cached_translation(plot: str, title: str = None) -> Optional[str]:
     Returns None si no hay traducción cacheada.
     """
     cache_key = _get_cache_key(plot, title)
-    
+
     if cache_key in _translated_cache:
         text_hash = _get_text_hash(plot)
         logger.info(f"✅ Translation cache HIT para '{title}' (hash: {text_hash})")
         return _translated_cache[cache_key]
-    
+
     return None
 
 
@@ -106,12 +104,14 @@ def _save_translation_to_database(title: str, translated_plot: str):
     Guarda la traducción en la base de datos (tabla omdb_entries, campo plot_es).
     """
     try:
-        from src.adapters.outgoing.repositories.postgresql.catalog_repository import CatalogRepository
-        
+        from src.adapters.outgoing.repositories.postgresql.catalog_repository import (
+            CatalogRepository,
+        )
+
         repo = CatalogRepository()
         # Buscar por título para encontrar el imdb_id
         entries = repo.search_omdb_entries(title, limit=1)
-        
+
         if entries:
             # Usar el primer resultado (más relevante)
             entry = entries[0]
@@ -122,7 +122,7 @@ def _save_translation_to_database(title: str, translated_plot: str):
                 logger.warning(f"⚠️ [DB] Entry '{title}' no tiene imdb_id, no se puede guardar plot_es")
         else:
             logger.warning(f"⚠️ [DB] No se encontró entrada en BD para '{title}'")
-            
+
     except Exception as e:
         logger.error(f"❌ [DB] Error guardando plot_es en BD: {e}")
         # No fallar la traducción por error de BD
@@ -135,33 +135,35 @@ def _translate_in_background(plot: str, title: str):
     """
     start_time = time.time()
     text_hash = _get_text_hash(plot)
-    
+
     try:
         logger.info(f"🔄 [BACKGROUND] Iniciando traducción asíncrona de '{title}' (hash: {text_hash})")
-        
+
         # Importar el servicio de traducción existente
-        from src.adapters.outgoing.services.translation.translation_service import get_translation_service
-        
+        from src.adapters.outgoing.services.translation.translation_service import (
+            get_translation_service,
+        )
+
         service = get_translation_service()
         translated_plot, was_translated = service.translate(plot, title)
-        
+
         elapsed = time.time() - start_time
-        
+
         if was_translated and translated_plot:
             # Guardar en caché en memoria
             _save_translation_to_cache(plot, translated_plot, title)
-            
+
             # Guardar en BD (persistencia)
             _save_translation_to_database(title, translated_plot)
-            
+
             logger.info(f"✅ [BACKGROUND] Traducción completada para '{title}' en {elapsed:.2f}s")
         else:
             logger.warning(f"⚠️ [BACKGROUND] Traducción no realizada para '{title}' (was_translated={was_translated})")
-        
+
     except Exception as e:
         elapsed = time.time() - start_time
         logger.error(f"❌ [BACKGROUND] Error en traducción asíncrona de '{title}': {e} (tiempo: {elapsed:.2f}s)")
-    
+
     finally:
         # Siempre liberar el lock
         _release_translation_lock(title)
@@ -180,20 +182,22 @@ def get_plot_es_from_database(title: str) -> Optional[str]:
         Plot traducido al español o None si no existe
     """
     try:
-        from src.adapters.outgoing.repositories.postgresql.catalog_repository import CatalogRepository
-        
+        from src.adapters.outgoing.repositories.postgresql.catalog_repository import (
+            CatalogRepository,
+        )
+
         repo = CatalogRepository()
         entries = repo.search_omdb_entries(title, limit=5)
-        
+
         # Buscar una entrada que tenga plot_es
         for entry in entries:
             # Verificar que la columna existe y tiene valor
             if hasattr(entry, 'plot_es') and entry.plot_es:
                 logger.info(f"✅ [DB] plot_es encontrado en BD para '{title}' (id: {entry.id})")
                 return entry.plot_es
-        
+
         return None
-        
+
     except Exception as e:
         logger.error(f"❌ [DB] Error obteniendo plot_es de BD: {e}")
         return None
@@ -222,7 +226,7 @@ def translate_plot_async(plot: str, title: str = None) -> Tuple[str, bool, bool]
     # Validaciones iniciales
     if not plot or len(plot.strip()) < 10:
         return plot, False, False
-    
+
     # 1. Verificar si hay traducción en BD (prioridad máxima - persistente)
     if title:
         db_translation = get_plot_es_from_database(title)
@@ -230,16 +234,16 @@ def translate_plot_async(plot: str, title: str = None) -> Tuple[str, bool, bool]
             # Guardar en caché para futuras referencias
             _save_translation_to_cache(plot, db_translation, title)
             return db_translation, True, False
-    
+
     # 2. Verificar si hay traducción en caché en memoria
     cached_translation = _get_cached_translation(plot, title)
     if cached_translation:
         return cached_translation, True, False
-    
+
     # 3. Intentar adquirir lock para iniciar traducción
     if title:
         acquired, lock = _acquire_translation_lock(title)
-        
+
         if acquired:
             # Somos responsables de iniciar la traducción
             # Iniciar hilo daemon (no bloqueante)
@@ -249,9 +253,9 @@ def translate_plot_async(plot: str, title: str = None) -> Tuple[str, bool, bool]
                 daemon=True  # El hilo morirá cuando el proceso principal muera
             )
             thread.start()
-            
+
             logger.info(f"🚀 [ASYNC] Hilo de traducción iniciado para '{title}'")
-            
+
             # Retornar plot original mientras la traducción ocurre en background
             return plot, False, True
         else:

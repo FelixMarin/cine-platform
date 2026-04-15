@@ -1,9 +1,11 @@
 """
 Rutas de Outputs - Archivos de salida
 """
-from flask import Blueprint, send_from_directory, jsonify, redirect, url_for, session
-from src.adapters.entry.web.middleware.auth_middleware import require_auth, require_role
 import os
+
+from flask import Blueprint, jsonify, redirect, send_from_directory, url_for
+
+from src.adapters.entry.web.middleware.auth_middleware import require_role
 
 outputs_bp = Blueprint('outputs', __name__, url_prefix='/outputs')
 

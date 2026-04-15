@@ -3,32 +3,35 @@ Adaptador de entrada - Rutas de autenticación
 Blueprint para /api/auth y login
 """
 
+import base64
+import hashlib
+import os
+import secrets
+from urllib.parse import urlencode
+
+import requests
 from flask import (
     Blueprint,
     jsonify,
+    redirect,
+    render_template,
     request,
     session,
-    render_template,
-    redirect,
     url_for,
 )
-from src.core.services.role_service import RoleService
-from src.core.services.UserSyncService import UserSyncService
+
+from src.adapters.config.dependencies import get_oauth_service
+from src.adapters.entry.web.middleware.auth_middleware import require_auth
 from src.adapters.outgoing.repositories.cine.app_user_repository import (
     AppUserRepository,
 )
-import os
-import base64
-import json
-import secrets
-import hashlib
-import requests
-from urllib.parse import urlencode
+from src.application.services.role_service import RoleService
+from src.application.services.UserSyncService import UserSyncService
+from src.adapters.outgoing.services.auth.jwt_token_decoder import JWTTokenDecoder
 
-from src.core.use_cases.auth import LoginUseCase, LogoutUseCase
-from src.adapters.entry.web.middleware.auth_middleware import require_auth
-from src.adapters.config.dependencies import get_oauth_service, get_auth_service
-
+# RoleService instance with injected token decoder
+_role_service = RoleService(JWTTokenDecoder())
+from src.application.use_cases.auth import LoginUseCase, LogoutUseCase
 from src.infrastructure.logging import setup_logging
 
 logger = setup_logging(os.environ.get("LOG_FOLDER"))
@@ -108,7 +111,7 @@ def login_page():
         code_verifier = _generate_code_verifier()
         session["oauth_code_verifier"] = code_verifier
         session["oauth_state"] = oauth_state
-        logger.info(f"[LOGIN_PAGE] Code verifier guardado para OAuth")
+        logger.info("[LOGIN_PAGE] Code verifier guardado para OAuth")
 
     return render_template(
         "pages/auth/login.html",
@@ -302,7 +305,7 @@ def login():
             }
 
             # 🔴 USAR ROLE SERVICE PARA PROCESAR ROLES
-            user_session = RoleService.process_user_data(user_info)
+            user_session = _role_service.process_user_data(user_info)
 
             # Guardar en sesión
             session.permanent = True
@@ -507,7 +510,7 @@ def exchange_token():
             logger.warning(f"[EXCHANGE_TOKEN] Error obteniendo userinfo: {e}")
 
         # 🔴 USAR ROLE SERVICE PARA PROCESAR ROLES
-        user_session = RoleService.process_user_data(user_info, access_token)
+        user_session = _role_service.process_user_data(user_info, access_token)
 
         # Guardar en sesión
         session.permanent = True
@@ -553,7 +556,7 @@ def exchange_token():
                     f"[EXCHANGE_TOKEN] Datos OAuth extraídos: {oauth_user_data}"
                 )
 
-                logger.info(f"[EXCHANGE_TOKEN] Sincronizando usuario con app DB")
+                logger.info("[EXCHANGE_TOKEN] Sincronizando usuario con app DB")
 
                 app_user = _user_sync_service.sync_user(oauth_user_data)
 
@@ -665,15 +668,15 @@ def userinfo():
 
         userinfo_data = userinfo_response.json()
 
-        # Intentar obtener roles del token almacenado usando RoleService
+        # Intentar obtener roles del token almacenado
         roles = []
         if token:
             try:
-                import jwt
-
-                jwt_payload = jwt.decode(token, options={"verify_signature": False})
+                jwt_payload = _role_service._token_decoder.decode(
+                    token, options={"verify_signature": False}
+                )
                 roles = jwt_payload.get("roles", [])
-            except:
+            except Exception:
                 pass
 
         # Añadir roles a la respuesta si los tenemos
@@ -704,7 +707,7 @@ def revoke_token():
         )
 
         # Hacer petición de revocación
-        revoke_response = requests.post(
+        requests.post(
             f"{oauth2_url}/oauth2/revoke", data={"token": token}
         )
 
@@ -732,12 +735,12 @@ def start_oauth2_flow():
     """
     try:
         # Verificar que no hay sesión activa (para evitar accesos no autorizados)
-        logger.info(f"[OAUTH_START] Iniciando flujo OAuth2")
+        logger.info("[OAUTH_START] Iniciando flujo OAuth2")
 
         # Si ya hay una sesión activa, no permitir iniciar OAuth2
         if is_logged_in():
             logger.warning(
-                f"[OAUTH_START] Usuario ya logueado, redirigiendo a página principal"
+                "[OAUTH_START] Usuario ya logueado, redirigiendo a página principal"
             )
             return jsonify(
                 {"success": False, "error": "Ya hay una sesión activa", "redirect": "/"}
@@ -794,14 +797,14 @@ def _complete_oauth_flow(code_challenge: str, state: str = None):
     """
     try:
         logger.info(
-            f"[OAUTH_FLOW] Iniciando flujo OAuth2"
+            "[OAUTH_FLOW] Iniciando flujo OAuth2"
         )
 
         code_verifier = session.get("oauth_code_verifier")
         if not code_verifier:
             code_verifier = _generate_code_verifier()
             session["oauth_code_verifier"] = code_verifier
-            logger.info(f"[OAUTH_FLOW] Code verifier generado")
+            logger.info("[OAUTH_FLOW] Code verifier generado")
 
         oauth2_url = os.environ.get(
             "PUBLIC_OAUTH2_URL", "http://localhost:8080"
@@ -893,7 +896,7 @@ def oauth_callback():
         user_info = oauth_service.get_userinfo(access_token)
 
         # 🔴 USAR ROLE SERVICE PARA PROCESAR ROLES
-        user_session = RoleService.process_user_data(user_info, access_token)
+        user_session = _role_service.process_user_data(user_info, access_token)
 
         # Guardar en sesión
         session.permanent = True
@@ -932,7 +935,7 @@ def oauth_callback():
             }
 
             logger.info(f"[OAUTH_CALLBACK] Datos OAuth extraídos: {oauth_user_data}")
-            logger.info(f"[OAUTH_CALLBACK] Sincronizando usuario con app DB")
+            logger.info("[OAUTH_CALLBACK] Sincronizando usuario con app DB")
 
             app_user = _user_sync_service.sync_user(oauth_user_data)
 
@@ -987,7 +990,7 @@ def logout_page():
     """Página de logout"""
     from flask import current_app, make_response
 
-    logger.info(f"[LOGOUT] Iniciando logout")
+    logger.info("[LOGOUT] Iniciando logout")
 
     try:
         oauth_token = session.get("oauth_token")
@@ -1001,8 +1004,8 @@ def logout_page():
 
     logger.info("[LOGOUT] Usuario cerró sesión")
 
-    session_keys = list(session.keys())
-    logger.info(f"[LOGOUT] Limpiando sesión")
+    list(session.keys())
+    logger.info("[LOGOUT] Limpiando sesión")
     session.clear()
 
     session.modified = True
@@ -1039,7 +1042,7 @@ def logout_page():
 @auth_bp.route("/logout-check", methods=["GET"])
 def logout_check():
     """Endpoint para verificar el estado del logout"""
-    logger.info(f"[LOGOUT_CHECK] Verificando estado de logout")
+    logger.info("[LOGOUT_CHECK] Verificando estado de logout")
     return jsonify(
         {
             "logged_in": is_logged_in(),

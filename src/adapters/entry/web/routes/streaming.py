@@ -2,9 +2,9 @@
 Rutas de Streaming - Reproducción de video
 """
 
-from flask import Blueprint, send_file, request, Response, jsonify
 import os
-import mimetypes
+
+from flask import Blueprint, Response, jsonify, request, send_file
 
 streaming_bp = Blueprint("streaming", __name__, url_prefix="/api/streaming")
 
@@ -26,8 +26,8 @@ def init_streaming_routes():
 @streaming_bp.route("/<path:filename>")
 def stream_video(filename):
     """Stream de video con soporte para Range requests"""
-    import time
     import logging
+    import time
 
     logger = logging.getLogger(__name__)
 
@@ -141,11 +141,12 @@ def stream_video_by_path(file_path):
         file_path: Ruta relativa al archivo (ej: data/movies/series/Doom Patrol/S01/...)
                    o ruta absoluta (/mnt/DATA_2TB/audiovisual/...)
     """
-    import time
     import logging
+    import time
     import urllib.parse
-    from flask import send_file, request, Response
-    from src.infrastructure.config.settings import settings
+
+    from flask import Response, request, send_file
+
 
     logger = logging.getLogger(__name__)
     start_total = time.time()
@@ -273,13 +274,14 @@ def stream_serie_by_slug(slug: str, season: int, episode: int):
         season: Número de temporada
         episode: Número de episodio
     """
-    import time
     import logging
     import re
-    from flask import send_file, request, Response
+    import time
+
+    from flask import Response, request, send_file
 
     logger = logging.getLogger(__name__)
-    start_total = time.time()
+    time.time()
 
     BUFFER_SIZE = 1024 * 1024  # 1MB buffer
 
@@ -383,10 +385,10 @@ def stream_serie_by_slug(slug: str, season: int, episode: int):
 @streaming_bp.route("/id/<movie_id>")
 def stream_video_by_id(movie_id):
     """Streaming de video usando ID de película (desde caché) - Optimizado para NAS"""
-    import time
     import logging
-    import urllib.parse
-    from flask import send_file, request, Response
+    import time
+
+    from flask import Response, request, send_file
 
     logger = logging.getLogger(__name__)
     start_total = time.time()
@@ -475,24 +477,24 @@ def stream_video_by_id(movie_id):
         logger.info(f"⏱️ Full request TOTAL: {total_time:.3f}s")
 
         # Enviar archivo completo
-        ext = os.path.splitext(full_path)[1].lower()
+        ext = os.path.splitext(file_path)[1].lower()
         mimetype = "video/x-matroska" if ext == ".mkv" else "video/mp4"
 
         return send_file(
-            full_path,
+            file_path,
             mimetype=mimetype,
             as_attachment=False,
-            download_name=os.path.basename(full_path),
+            download_name=os.path.basename(file_path),
         )
 
 
 @streaming_bp.route("/episode/<episode_id>")
 def stream_episode_by_id(episode_id):
     """Streaming de video usando ID de episodio"""
-    import time
     import logging
-    import urllib.parse
-    from flask import send_file, request, Response
+    import time
+
+    from flask import Response, request, send_file
 
     logger = logging.getLogger(__name__)
     start_total = time.time()
@@ -629,12 +631,12 @@ def stream_episode_by_id(episode_id):
         logger.info(f"⏱️ Full request TOTAL: {total_time:.3f}s")
 
         # Enviar archivo completo
-        ext = os.path.splitext(full_path)[1].lower()
+        ext = os.path.splitext(file_path)[1].lower()
         mimetype = "video/x-matroska" if ext == ".mkv" else "video/mp4"
 
         return send_file(
-            full_path,
+            file_path,
             mimetype=mimetype,
             as_attachment=False,
-            download_name=os.path.basename(full_path),
+            download_name=os.path.basename(file_path),
         )

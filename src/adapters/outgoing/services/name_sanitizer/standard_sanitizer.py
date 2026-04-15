@@ -2,13 +2,12 @@
 Implementación de INameSanitizer para sanitizar nombres de archivos
 """
 
-import re
-import os
 import logging
+import os
+import re
 import unicodedata
 
-from src.core.ports.services.INameSanitizer import INameSanitizer
-
+from src.domain.ports.out.services.INameSanitizer import INameSanitizer
 
 logger = logging.getLogger(__name__)
 

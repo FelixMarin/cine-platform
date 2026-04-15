@@ -5,15 +5,16 @@ Transmission es un cliente BitTorrent que proporciona una API RPC.
 Este cliente permite añadir torrents, obtener estado de descargas y gestionar archivos.
 """
 
-import logging
-import uuid
-import os
 import base64
-import requests
-from typing import Optional, List, Dict, Any
+import logging
+import os
+import uuid
 from dataclasses import dataclass, field
-from src.infrastructure.config.settings import settings
+from typing import Any, Dict, List, Optional
 
+import requests
+
+from src.infrastructure.config.settings import settings
 
 logger = logging.getLogger(__name__)
 
@@ -291,11 +292,11 @@ class TransmissionClient:
                 )
 
             response.raise_for_status()
-            
+
             # Verificar que la respuesta no esté vacía
             if not response.text or len(response.text.strip()) == 0:
                 raise TransmissionError(f"Respuesta vacía de Transmission para {method}")
-            
+
             try:
                 data = response.json()
             except Exception as e:
@@ -352,7 +353,7 @@ class TransmissionClient:
         source = source.strip()
 
         # Debug con logger (no print para que funcione en producción)
-        logger.info(f"[Transmission] ===== ADD TORRENT =====")
+        logger.info("[Transmission] ===== ADD TORRENT =====")
 
         # Obtener categorías válidas del sistema de archivos
         valid_cats = get_valid_categories()
@@ -673,10 +674,10 @@ class TransmissionClient:
         # Usar delete_data si se proporciona, sinon usar delete_files
         if delete_data is not None:
             delete_files = delete_data
-            
+
         logger.info(f"[Transmission] Eliminando torrent {torrent_id} (delete_files={delete_files})")
         arguments = {"ids": [torrent_id], "delete-local-data": delete_files}
-        
+
         try:
             self._make_request("torrent-remove", arguments)
             logger.info(f"[Transmission] ✅ Torrent {torrent_id} eliminado correctamente")
@@ -684,7 +685,7 @@ class TransmissionClient:
         except TransmissionError as e:
             # Si el torrent no existe (quizás ya fue eliminado manualmente), no es un error crítico
             if "torrent not found" in str(e.message).lower() or "invalid id" in str(e.message).lower():
-                logger.warning(f"[Transmission] Torrent {torrent_id} no encontrado en Transmission (puede que ya estuviera eliminado)")              
+                logger.warning(f"[Transmission] Torrent {torrent_id} no encontrado en Transmission (puede que ya estuviera eliminado)")
                 return True  # Consideramos éxito porque el resultado final es el mismo
             logger.error(f"[Transmission] ❌ Error eliminando torrent {torrent_id}: {e.message}")
             raise
@@ -769,16 +770,16 @@ class TransmissionClient:
         )
         logger.info(f"[Transmission] Archivos del torrent: {[f.get('name') for f in torrent.files]}")
         logger.info(f"[Transmission] BUSCANDO en rutas: {self.TORRENT_SEARCH_PATHS}")
-        
+
         # Si no se proporciona filename, usar el nombre del torrent
         if not filename:
             filename = torrent.name
-        
+
         # Buscar en las rutas correctas usando la estrategia de 3 niveles
         result = self._search_torrent_file_in_correct_paths(filename, torrent.files)
         if result:
             return result
-        
+
         # Si no se encontró, intentar con archivos del torrent
         if torrent.files:
             for f in torrent.files:
@@ -787,7 +788,7 @@ class TransmissionClient:
                     result = self._search_torrent_file_in_correct_paths(file_name, torrent.files)
                     if result:
                         return result
-        
+
         # Debug: listar contenido de las carpetas de búsqueda
         for base_path in self.TORRENT_SEARCH_PATHS:
             if os.path.exists(base_path):
@@ -796,7 +797,7 @@ class TransmissionClient:
                     logger.info(f"[Transmission] Contenido de {base_path}: {contents[:10]}...")
                 except Exception as e:
                     logger.warning(f"[Transmission] Error listando {base_path}: {e}")
-        
+
         return None
 
     def _search_torrent_file_in_correct_paths(
@@ -821,22 +822,22 @@ class TransmissionClient:
         base_name = filename
         for ext in ['.mkv', '.mp4', '.avi', '.mov', '.webm', '.m4v', '.wmv', '.flv', '.ts', '.m2ts']:
             base_name = base_name.replace(ext, '')
-        
+
         logger.info(f"[Transmission] _search_torrent_file_in_correct_paths: filename={filename}, base_name={base_name}")
-        
+
         for base_path in self.TORRENT_SEARCH_PATHS:
             if not os.path.exists(base_path):
                 logger.info(f"[Transmission] Ruta no existe: {base_path}")
                 continue
-                
+
             logger.info(f"[Transmission] Buscando en: {base_path}")
-            
+
             # ========== ESTRATEGIA 1: Búsqueda directa ==========
             direct_path = os.path.join(base_path, filename)
             if os.path.exists(direct_path) and os.path.isfile(direct_path):
                 logger.info(f"[Transmission] ✅ Encontrado (directo): {direct_path}")
                 return direct_path
-            
+
             # ========== ESTRATEGIA 2: Buscar en subdirectorios del base_path ==========
             try:
                 for item in os.listdir(base_path):
@@ -847,7 +848,7 @@ class TransmissionClient:
                         if os.path.exists(subdir_file) and os.path.isfile(subdir_file):
                             logger.info(f"[Transmission] ✅ Encontrado (subdir): {subdir_file}")
                             return subdir_file
-                        
+
                         # Buscar cualquier archivo de video que contenga el nombre base
                         for file in os.listdir(item_path):
                             if file.lower().endswith(VIDEO_EXTENSIONS):
@@ -857,7 +858,7 @@ class TransmissionClient:
                                     return full_path
             except Exception as e:
                 logger.warning(f"[Transmission] Error listando {base_path}: {e}")
-            
+
             # ========== ESTRATEGIA 3: Buscar recursivamente cualquier .mkv que contenga el nombre ==========
             try:
                 for root, dirs, files in os.walk(base_path):
@@ -869,7 +870,7 @@ class TransmissionClient:
                                 return full_path
             except Exception as e:
                 logger.warning(f"[Transmission] Error en walk {base_path}: {e}")
-        
+
         logger.warning(f"[Transmission] ❌ No se encontró archivo: {filename}")
         return None
 

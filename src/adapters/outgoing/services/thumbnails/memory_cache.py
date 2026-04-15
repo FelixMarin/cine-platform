@@ -5,11 +5,11 @@ Responsabilidad: Almacenar thumbnails en memoria RAM para evitar
 saturación del pool de conexiones a la base de datos.
 """
 
+import logging
 import re
 import time
-import logging
 from threading import Lock
-from typing import Optional, Dict
+from typing import Dict, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +19,7 @@ class MemoryThumbnailCache:
     Caché en memoria para thumbnails con TTL.
     Reduce drásticamente las consultas a base de datos.
     """
-    
+
     def __init__(self, ttl_seconds: int = 3600):
         """
         Inicializa el caché en memoria.
@@ -33,7 +33,7 @@ class MemoryThumbnailCache:
         self.hits = 0
         self.misses = 0
         logger.info(f"✅ MemoryThumbnailCache inicializado con TTL={ttl_seconds}s")
-        
+
     def get_cache_key(self, title: str, year: Optional[str]) -> str:
         """
         Genera clave de caché normalizada.
@@ -51,10 +51,10 @@ class MemoryThumbnailCache:
         clean_title = re.sub(r'_+', '_', clean_title)
         # Quitar guiones bajos al inicio y final
         clean_title = clean_title.strip('_')
-        
+
         year_str = str(year) if year else 'unknown'
         return f"{clean_title}_{year_str}"
-        
+
     def get(self, title: str, year: Optional[str]) -> Optional[bytes]:
         """
         Obtiene thumbnail de caché si existe y no ha expirado.
@@ -67,7 +67,7 @@ class MemoryThumbnailCache:
             Datos binarios del thumbnail o None si no está en caché
         """
         key = self.get_cache_key(title, year)
-        
+
         with self.lock:
             entry = self.cache.get(key)
             if entry:
@@ -79,11 +79,11 @@ class MemoryThumbnailCache:
                     # Expirado, eliminar
                     del self.cache[key]
                     logger.info(f"⏰ Caché EXPIRADO para {title} ({year})")
-            
+
             self.misses += 1
             logger.info(f"❌ Caché MISS para {title} ({year})")
             return None
-            
+
     def set(self, title: str, year: Optional[str], data: bytes):
         """
         Guarda thumbnail en caché.
@@ -94,7 +94,7 @@ class MemoryThumbnailCache:
             data: Datos binarios del thumbnail
         """
         key = self.get_cache_key(title, year)
-        
+
         with self.lock:
             self.cache[key] = {
                 'data': data,
@@ -103,7 +103,7 @@ class MemoryThumbnailCache:
                 'year': year
             }
             logger.info(f"💾 Caché SET para {title} ({year}) - {len(data)} bytes")
-            
+
     def clear(self):
         """Limpia toda la caché (útil para tests o mantenimiento)"""
         with self.lock:
@@ -111,7 +111,7 @@ class MemoryThumbnailCache:
             self.hits = 0
             self.misses = 0
             logger.info("🧹 Caché limpiada manualmente")
-            
+
     def get_stats(self) -> dict:
         """
         Obtiene estadísticas de uso del caché.
@@ -127,20 +127,20 @@ class MemoryThumbnailCache:
                 'misses': self.misses,
                 'hit_ratio': self.hits / total if total > 0 else 0
             }
-    
+
     def cleanup_expired(self):
         """Elimina entradas expiradas del caché."""
         current_time = time.time()
         expired_keys = []
-        
+
         with self.lock:
             for key, entry in self.cache.items():
                 if current_time - entry['timestamp'] >= self.ttl:
                     expired_keys.append(key)
-            
+
             for key in expired_keys:
                 del self.cache[key]
-        
+
         if expired_keys:
             logger.info(f"🧹 Eliminadas {len(expired_keys)} entradas expiradas del caché")
 

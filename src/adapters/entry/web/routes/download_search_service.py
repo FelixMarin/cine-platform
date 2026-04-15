@@ -6,7 +6,7 @@ Maneja la búsqueda paralela en múltiples indexadores (Prowlarr, Jackett).
 
 import asyncio
 import logging
-from typing import List, Dict, Any, Tuple
+from typing import Any, Dict, List, Tuple
 
 logger = logging.getLogger(__name__)
 

@@ -6,8 +6,9 @@ Maneja las operaciones de OAuth2: exchange token, refresh, userinfo.
 
 import logging
 import os
+from typing import Any, Dict, Optional
+
 import requests
-from typing import Optional, Dict, Any
 
 logger = logging.getLogger(__name__)
 

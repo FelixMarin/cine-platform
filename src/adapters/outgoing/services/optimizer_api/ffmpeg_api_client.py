@@ -2,13 +2,13 @@
 Implementación de IOptimizerAPI para comunicarse con FFmpeg API
 """
 
-import os
 import logging
+import os
+from typing import Any, Dict, Optional
+
 import requests
-from typing import Optional, Dict, Any
 
-from src.core.ports.services.IOptimizerAPI import IOptimizerAPI
-
+from src.domain.ports.out.services.IOptimizerAPI import IOptimizerAPI
 
 logger = logging.getLogger(__name__)
 
@@ -82,8 +82,8 @@ class FFmpegAPIClient(IOptimizerAPI):
         # Esto permite que la API tenga tiempo de procesar archivos grandes
         # La conexión se cierra cuando la API termina el trabajo
         response = requests.post(
-            f"{self.api_url}/optimize", 
-            json=payload, 
+            f"{self.api_url}/optimize",
+            json=payload,
             timeout=600  # 10 minutos
         )
 

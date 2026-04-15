@@ -6,61 +6,63 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-from src.adapters.entry.web.routes.catalog import catalog_bp, init_catalog_routes
-from src.adapters.entry.web.routes.catalog_movies import catalog_movies_bp
-from src.adapters.entry.web.routes.player import (
-    player_bp,
-    player_page_bp,
-    init_player_routes,
-)
-from src.adapters.entry.web.routes.auth import auth_bp, main_page_bp, init_auth_routes
-from src.adapters.entry.web.routes.optimizer import (
-    optimizer_bp,
-    optimizer_page_bp,
-    init_optimizer_routes,
-)
-from src.adapters.entry.web.routes.api import api_bp, init_api_routes
-from src.adapters.entry.web.routes.download import (
-    download_api_bp,
-    search_page_bp,
-    init_download_routes,
-)
-from src.adapters.entry.web.routes.torrent_optimize import (
-    torrent_optimize_bp,
-    init_torrent_optimize_routes,
-)
 from src.adapters.entry.web.routes.admin import (
     admin_bp,
     admin_page_bp,
     init_admin_routes,
 )
-from src.adapters.entry.web.routes.outputs import (
-    outputs_bp,
-    init_outputs_routes,
-    download_bp as outputs_download_bp,
-)
-from src.adapters.entry.web.routes.proxy import proxy_bp, init_proxy_routes
-from src.adapters.entry.web.routes.streaming import (
-    streaming_bp,
-    stream_page_bp,
-    init_streaming_routes,
-)
-from src.adapters.entry.web.routes.thumbnails import (
-    thumbnails_bp,
-    init_thumbnails_routes,
-)
-from src.adapters.entry.web.routes.profile import profile_bp
+from src.adapters.entry.web.routes.api import api_bp, init_api_routes
+from src.adapters.entry.web.routes.auth import auth_bp, init_auth_routes, main_page_bp
+from src.adapters.entry.web.routes.catalog import catalog_bp, init_catalog_routes
 from src.adapters.entry.web.routes.catalog_db import (
     catalog_db_bp,
     init_catalog_db_routes,
 )
+from src.adapters.entry.web.routes.catalog_movies import catalog_movies_bp
 from src.adapters.entry.web.routes.catalog_sync import sync_bp
-from src.adapters.entry.web.routes.series import series_bp, series_page_bp
+from src.adapters.entry.web.routes.comments import comments_bp
+from src.adapters.entry.web.routes.download import (
+    download_api_bp,
+    init_download_routes,
+    search_page_bp,
+)
 from src.adapters.entry.web.routes.optimization_history import (
     history_bp,
     init_history_routes,
 )
-from src.adapters.entry.web.routes.comments import comments_bp
+from src.adapters.entry.web.routes.optimizer import (
+    init_optimizer_routes,
+    optimizer_bp,
+    optimizer_page_bp,
+)
+from src.adapters.entry.web.routes.outputs import (
+    download_bp as outputs_download_bp,
+)
+from src.adapters.entry.web.routes.outputs import (
+    init_outputs_routes,
+    outputs_bp,
+)
+from src.adapters.entry.web.routes.player import (
+    init_player_routes,
+    player_bp,
+    player_page_bp,
+)
+from src.adapters.entry.web.routes.profile import profile_bp
+from src.adapters.entry.web.routes.proxy import init_proxy_routes, proxy_bp
+from src.adapters.entry.web.routes.series import series_bp, series_page_bp
+from src.adapters.entry.web.routes.streaming import (
+    init_streaming_routes,
+    stream_page_bp,
+    streaming_bp,
+)
+from src.adapters.entry.web.routes.thumbnails import (
+    init_thumbnails_routes,
+    thumbnails_bp,
+)
+from src.adapters.entry.web.routes.torrent_optimize import (
+    init_torrent_optimize_routes,
+    torrent_optimize_bp,
+)
 
 
 def register_all_blueprints(

@@ -3,16 +3,16 @@ Adaptador de entrada - Rutas de catálogo de películas
 Blueprint para /api/movies con metadata de OMDB
 """
 
+import logging
 import os
 import re
-import base64
-import logging
-from flask import Blueprint, jsonify, request
+
+from flask import Blueprint, jsonify
 
 from src.adapters.entry.web.middleware.auth_middleware import require_auth
 from src.adapters.outgoing.repositories.postgresql.catalog_repository import (
-    get_catalog_repository,
     CatalogRepository,
+    get_catalog_repository,
 )
 from src.adapters.outgoing.services.omdb.client import OMDBMetadataService
 from src.infrastructure.config.settings import settings
@@ -107,7 +107,7 @@ def _get_omdb_entry(db: CatalogRepository, title: str, year: int):
 
 def _get_local_content(db: CatalogRepository, title: str, year: int):
     """Busca en local_content por título EXACTO + año EXACTO"""
-    from src.infrastructure.models.catalog import LocalContent
+    from src.adapters.outgoing.repositories.postgresql.models.catalog import LocalContent
 
     db_session = db._get_db()
     return (

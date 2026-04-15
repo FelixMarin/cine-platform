@@ -2,10 +2,11 @@
 Post-procesamiento de optimización - Mover archivos a su ubicación final
 """
 
+import logging
 import os
 import shutil
-import logging
-from typing import Optional, Dict
+from typing import Dict
+
 from src.infrastructure.config.settings import settings
 
 logger = logging.getLogger(__name__)
@@ -90,7 +91,7 @@ class PostProcessor:
         # Mover archivo
         try:
             shutil.move(source_path, final_path)
-            logger.info(f"[PostProcess] Archivo movido exitosamente")
+            logger.info("[PostProcess] Archivo movido exitosamente")
 
             return {
                 "success": True,
@@ -152,7 +153,7 @@ class PostProcessor:
             file_path: Ruta del archivo principal
             related_files: Lista de archivos relacionados a eliminar
         """
-        logger.info(f"[PostProcess] Limpiando archivos temporales")
+        logger.info("[PostProcess] Limpiando archivos temporales")
 
         cleaned = []
         errors = []

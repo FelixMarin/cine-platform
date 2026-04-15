@@ -2,12 +2,14 @@
 Rutas API para el historial de optimizaciones
 """
 
-from flask import Blueprint, request, jsonify
-from sqlalchemy import desc
-from src.infrastructure.database.connection import get_session_maker
-from src.infrastructure.models.optimization_history import OptimizationHistory
-from src.adapters.entry.web.middleware.auth_middleware import require_auth
 import logging
+
+from flask import Blueprint, jsonify, request
+from sqlalchemy import desc
+
+from src.adapters.entry.web.middleware.auth_middleware import require_auth
+from src.infrastructure.database.connection import get_session_maker
+from src.adapters.outgoing.repositories.postgresql.models.optimization_history import OptimizationHistory
 
 logger = logging.getLogger(__name__)
 history_bp = Blueprint("history", __name__, url_prefix="/api/optimization-history")

@@ -14,14 +14,12 @@ Endpoints:
 
 import logging
 import os
-import subprocess
-import logging
-from flask import redirect, Blueprint, jsonify, request, session
-from src.infrastructure.config.settings import settings
-from src.adapters.entry.web.middleware.auth_middleware import require_auth, require_role
+
+from flask import Blueprint, jsonify, request, session
+
+from src.adapters.entry.web.middleware.auth_middleware import require_role
 from src.adapters.outgoing.services.ffmpeg import TorrentOptimizer
 from src.adapters.outgoing.services.transmission import TransmissionClient
-
 
 logger = logging.getLogger(__name__)
 
@@ -78,7 +76,7 @@ def optimize_torrent():
     torrent_id = data.get("torrent_id")
     category = data.get("category", "action")
     filename = data.get("filename")
-    
+
     logger.info(f"[API] Datos recibidos: {data}")
 
     # Validar parámetros
@@ -100,15 +98,15 @@ def optimize_torrent():
         # El TorrentOptimizer busca el archivo directamente en las carpetas de Transmission
         # No necesitamos validar con Transmission aquí, el botón GPU Optimize
         # solo aparece cuando el torrent está completado (100%)
-        
+
         # Obtener filename si se proporciona (opcional, para buscar directamente)
         filename = data.get("filename")
-        
+
         # Obtener user_id de la sesión
         user_id = session.get('user_id')
         if not user_id:
             logger.warning("[API] No hay user_id en sesión, la optimización no tendrá usuario asignado")
-        
+
         # Iniciar optimización directamente
         process_id = _torrent_optimizer.start_optimization(
             torrent_id=torrent_id,
@@ -157,7 +155,7 @@ def get_optimize_status(process_id):
     """
     try:
         logger.info(f"[API] get_optimize_status - Consultando estado para process_id={process_id}")
-        
+
         progress = _torrent_optimizer.get_progress(process_id)
 
         if not progress:
@@ -185,7 +183,7 @@ def get_optimize_status(process_id):
             "eta_seconds": eta,
             "error": progress.error_message,
         }
-        
+
         logger.info(f"[API] get_optimize_status - Respuesta para {process_id}: {response_data}")
 
         return jsonify(response_data)
@@ -251,11 +249,11 @@ def check_gpu_status():
     try:
         # Usar TorrentOptimizer que consulta la API de FFmpeg
         gpu_info = _torrent_optimizer.check_gpu_available()
-        
+
         gpu_available = gpu_info.get("available", False)
         gpu_name = gpu_info.get("gpu_name")
         error = gpu_info.get("error")
-        
+
         if error:
             logger.warning(f"[API] Error verificando GPU: {error}")
             return jsonify({
@@ -264,7 +262,7 @@ def check_gpu_status():
                 "gpu_name": None,
                 "error": error
             }), 500
-        
+
         if gpu_available and gpu_name:
             logger.info(f"[API] ✅ GPU detectada: {gpu_name}")
             return jsonify({

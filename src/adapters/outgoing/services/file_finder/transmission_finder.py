@@ -2,12 +2,11 @@
 Implementación de IFileFinder para buscar archivos de Transmission
 """
 
-import os
 import logging
-from typing import Optional, List
+import os
+from typing import List, Optional
 
-from src.core.ports.services.IFileFinder import IFileFinder
-
+from src.domain.ports.out.services.IFileFinder import IFileFinder
 
 logger = logging.getLogger(__name__)
 
@@ -58,24 +57,31 @@ class TransmissionFileFinder(IFileFinder):
 
     def list_files(self, directory: str) -> List[str]:
         """
-        Lista archivos en un directorio
+        Lista archivos en un directorio (recursivo)
 
         Args:
             directory: Ruta del directorio
 
         Returns:
-            Lista de nombres de archivos
+            Lista de rutas completas de archivos
         """
+        result = []
         try:
             if os.path.exists(directory):
-                return [
-                    f
-                    for f in os.listdir(directory)
-                    if os.path.isfile(os.path.join(directory, f))
-                ]
+                for root, _, files in os.walk(directory):
+                    for f in files:
+                        result.append(os.path.join(root, f))
         except Exception as e:
             logger.error(f"[TransmissionFileFinder] Error listando {directory}: {e}")
-        return []
+        return result
+
+    def file_exists(self, path: str) -> bool:
+        """Verifica si un archivo existe"""
+        return os.path.exists(path)
+
+    def get_file_size(self, path: str) -> int:
+        """Obtiene el tamaño de un archivo en bytes"""
+        return os.path.getsize(path)
 
     def _log_available_files(self):
         """Registra los archivos disponibles en las carpetas de búsqueda"""

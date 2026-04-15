@@ -3,13 +3,14 @@ Adaptador de salida - Repositorio de progreso con PostgreSQL
 Implementación de IProgressRepository usando PostgreSQL
 Este repositorio es CRÍTICO para la funcionalidad de "Seguir viendo"
 """
-from typing import List, Optional, Dict
-from src.core.ports.repositories.progress_repository import IProgressRepository
+from typing import Dict, List, Optional
+
+from src.domain.ports.out.repositories.progress_repository import IProgressRepository
 
 
 class PostgresProgressRepository(IProgressRepository):
     """Repositorio de progreso usando PostgreSQL"""
-    
+
     def __init__(self, db_connection=None):
         """
         Inicializa el repositorio
@@ -18,12 +19,12 @@ class PostgresProgressRepository(IProgressRepository):
             db_connection: Conexión a la base de datos PostgreSQL
         """
         self._db = db_connection
-    
+
     def _get_db(self):
         """Obtiene la conexión a la base de datos"""
         # TODO: Implementar conexión real a PostgreSQL
         return self._db
-    
+
     def get_by_user_and_media(
         self,
         user_id: int,
@@ -44,12 +45,12 @@ class PostgresProgressRepository(IProgressRepository):
         db = self._get_db()
         if db is None:
             return None
-        
+
         # TODO: Implementar query real
-        # SELECT * FROM progress 
+        # SELECT * FROM progress
         # WHERE user_id = ? AND media_type = ? AND media_id = ?
         return None
-    
+
     def get_by_user(self, user_id: int) -> List[Dict]:
         """
         Obtiene todo el progreso de un usuario
@@ -63,12 +64,12 @@ class PostgresProgressRepository(IProgressRepository):
         db = self._get_db()
         if db is None:
             return []
-        
+
         # TODO: Implementar query real
         # SELECT * FROM progress WHERE user_id = ?
         # ORDER BY last_watched DESC
         return []
-    
+
     def get_continue_watching(
         self,
         user_id: int,
@@ -89,14 +90,14 @@ class PostgresProgressRepository(IProgressRepository):
         db = self._get_db()
         if db is None:
             return []
-        
+
         # TODO: Implementar query real
-        # SELECT * FROM progress 
+        # SELECT * FROM progress
         # WHERE user_id = ? AND is_completed = false
         # ORDER BY last_watched DESC
         # LIMIT ?
         return []
-    
+
     def get_completed(
         self,
         user_id: int,
@@ -115,14 +116,14 @@ class PostgresProgressRepository(IProgressRepository):
         db = self._get_db()
         if db is None:
             return []
-        
+
         # TODO: Implementar query real
-        # SELECT * FROM progress 
+        # SELECT * FROM progress
         # WHERE user_id = ? AND is_completed = true
         # ORDER BY last_watched DESC
         # LIMIT ?
         return []
-    
+
     def save(self, progress_data: Dict) -> Dict:
         """
         Guarda o actualiza el progreso
@@ -136,13 +137,13 @@ class PostgresProgressRepository(IProgressRepository):
         db = self._get_db()
         if db is None:
             return progress_data
-        
+
         # TODO: Implementar INSERT/UPDATE real
         # Verificar si existe el registro
         # Si existe: UPDATE
         # Si no existe: INSERT
         return progress_data
-    
+
     def update_position(
         self,
         user_id: int,
@@ -165,9 +166,9 @@ class PostgresProgressRepository(IProgressRepository):
         db = self._get_db()
         if db is None:
             return {}
-        
+
         # TODO: Implementar UPDATE real
-        # UPDATE progress 
+        # UPDATE progress
         # SET position = ?, last_watched = NOW(), updated_at = NOW()
         # WHERE user_id = ? AND media_type = ? AND media_id = ?
         return {
@@ -176,7 +177,7 @@ class PostgresProgressRepository(IProgressRepository):
             'media_id': media_id,
             'position': position
         }
-    
+
     def mark_completed(
         self,
         user_id: int,
@@ -197,9 +198,9 @@ class PostgresProgressRepository(IProgressRepository):
         db = self._get_db()
         if db is None:
             return {}
-        
+
         # TODO: Implementar UPDATE real
-        # UPDATE progress 
+        # UPDATE progress
         # SET is_completed = true, position = duration, updated_at = NOW()
         # WHERE user_id = ? AND media_type = ? AND media_id = ?
         return {
@@ -208,7 +209,7 @@ class PostgresProgressRepository(IProgressRepository):
             'media_id': media_id,
             'is_completed': True
         }
-    
+
     def delete(self, progress_id: int) -> bool:
         """
         Elimina un registro de progreso
@@ -222,11 +223,11 @@ class PostgresProgressRepository(IProgressRepository):
         db = self._get_db()
         if db is None:
             return False
-        
+
         # TODO: Implementar DELETE real
         # DELETE FROM progress WHERE id = ?
         return False
-    
+
     def delete_by_media(
         self,
         media_type: str,
@@ -245,11 +246,11 @@ class PostgresProgressRepository(IProgressRepository):
         db = self._get_db()
         if db is None:
             return False
-        
+
         # TODO: Implementar DELETE real
         # DELETE FROM progress WHERE media_type = ? AND media_id = ?
         return False
-    
+
     def increment_watch_count(
         self,
         user_id: int,
@@ -270,9 +271,9 @@ class PostgresProgressRepository(IProgressRepository):
         db = self._get_db()
         if db is None:
             return {}
-        
+
         # TODO: Implementar UPDATE real
-        # UPDATE progress 
+        # UPDATE progress
         # SET watch_count = watch_count + 1, last_watched = NOW()
         # WHERE user_id = ? AND media_type = ? AND media_id = ?
         return {

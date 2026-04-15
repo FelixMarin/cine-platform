@@ -9,12 +9,12 @@ Utiliza aiohttp para realizar peticiones asíncronas.
 import logging
 import os
 import re
-import aiohttp
-from typing import Optional, List, Dict, Any
 from dataclasses import dataclass
-from datetime import datetime
-from src.infrastructure.config.settings import settings
+from typing import Any, Dict, List, Optional
 
+import aiohttp
+
+from src.infrastructure.config.settings import settings
 
 logger = logging.getLogger(__name__)
 

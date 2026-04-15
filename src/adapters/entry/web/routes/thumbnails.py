@@ -1,8 +1,9 @@
 """
 Rutas de Thumbnails - Miniaturas
 """
-from flask import Blueprint, send_from_directory, jsonify, abort, current_app
 import os
+
+from flask import Blueprint, current_app, jsonify, send_from_directory
 
 thumbnails_bp = Blueprint('thumbnails', __name__, url_prefix='/thumbnails')
 
@@ -18,12 +19,12 @@ def get_thumbnail(filename):
     from src.infrastructure.config.settings import Settings
     settings = Settings()
     thumbnail_folder = settings.THUMBNAIL_FOLDER
-    
+
     # Buscar en la carpeta de thumbnails
     path = os.path.join(thumbnail_folder, filename)
     if os.path.exists(path):
         return send_from_directory(thumbnail_folder, filename)
-    
+
     # Si no existe, retornar imagen por defecto
     return send_from_directory(
         os.path.join(current_app.static_folder, 'images'),
@@ -37,7 +38,7 @@ def list_thumbnails():
     from src.infrastructure.config.settings import Settings
     settings = Settings()
     thumbnail_folder = settings.THUMBNAIL_FOLDER
-    
+
     files = []
     if os.path.exists(thumbnail_folder):
         files = [f for f in os.listdir(thumbnail_folder) if f.endswith(('.jpg', '.png', '.webp'))]

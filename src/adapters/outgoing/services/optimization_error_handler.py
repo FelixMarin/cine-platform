@@ -38,8 +38,8 @@ class OptimizationErrorHandler:
         try:
             original_filename = pending.get("original_filename", "desconocido")
             shared_input = pending.get("shared_input")
-            source_path = pending.get("source_path")
-            torrent_id = pending.get("torrent_id")
+            pending.get("source_path")
+            pending.get("torrent_id")
 
             if shared_input and os.path.exists(shared_input):
                 try:

@@ -12,27 +12,24 @@ Flujo de optimización:
 5. Limpia archivos temporales
 """
 
-import os
 import logging
+import os
 import shutil
 import threading
 import time
 import uuid
-import requests
-from typing import Optional, Dict, Callable, List
 from dataclasses import dataclass
+from typing import Callable, Dict, List, Optional
 
-from src.infrastructure.config.settings import settings
-from src.adapters.outgoing.services.optimization_history_service import (
-    OptimizationHistoryService,
-)
 from src.adapters.outgoing.services.catalog_update_service import CatalogUpdateService
-from src.adapters.outgoing.services.optimization_monitor import OptimizationMonitor
 from src.adapters.outgoing.services.optimization_error_handler import (
     OptimizationErrorHandler,
 )
-from src.adapters.outgoing.services.torrent_file_finder import TorrentFileFinder
-
+from src.adapters.outgoing.services.optimization_history_service import (
+    OptimizationHistoryService,
+)
+from src.adapters.outgoing.services.optimization_monitor import OptimizationMonitor
+from src.infrastructure.config.settings import settings
 
 logger = logging.getLogger(__name__)
 
@@ -198,7 +195,7 @@ class TorrentOptimizer:
                 f"[TorrentOptimizer] _add_to_history - Traceback:\n{traceback.format_exc()}"
             )
             logger.warning(
-                f"[TorrentOptimizer] _add_to_history - CONTINUANDO a pesar del error (el archivo ya está movido)"
+                "[TorrentOptimizer] _add_to_history - CONTINUANDO a pesar del error (el archivo ya está movido)"
             )
 
     def _get_cleanup_service(self):
@@ -271,7 +268,7 @@ class TorrentOptimizer:
                     return candidate
 
         # Búsqueda en subdirectorios
-        logger.info(f"[TorrentOptimizer] Buscando en subdirectorios...")
+        logger.info("[TorrentOptimizer] Buscando en subdirectorios...")
         for base in search_paths:
             if not os.path.exists(base):
                 continue
@@ -297,7 +294,7 @@ class TorrentOptimizer:
 
         # Si aún no se encuentra, listar archivos en las carpetas para debug
         logger.error(
-            f"[TorrentOptimizer] ✗ Archivo no encontrado después de probar extensiones"
+            "[TorrentOptimizer] ✗ Archivo no encontrado después de probar extensiones"
         )
         for base in search_paths:
             if os.path.exists(base):
@@ -633,13 +630,13 @@ class TorrentOptimizer:
             # Verificar si hay un error
             if progress.status == "error":
                 logger.warning(
-                    f"[TorrentOptimizer] Optimización marcada como error antes de iniciar"
+                    "[TorrentOptimizer] Optimización marcada como error antes de iniciar"
                 )
                 return
 
             # Timeout esperando el api_process_id
             if time.time() - wait_start > max_wait_for_api:
-                logger.error(f"[TorrentOptimizer] Timeout esperando api_process_id")
+                logger.error("[TorrentOptimizer] Timeout esperando api_process_id")
                 with self._lock:
                     progress.status = "error"
                     progress.error_message = "Timeout esperando respuesta de API"
@@ -827,9 +824,9 @@ class TorrentOptimizer:
                 return
 
             # Añadir al historial de optimizaciones
-            logger.info(f"[TorrentOptimizer] ===== LLAMANDO _add_to_history() =====")
+            logger.info("[TorrentOptimizer] ===== LLAMANDO _add_to_history() =====")
             self._add_to_history(process_id, final_path, pending, "completed")
-            logger.info(f"[TorrentOptimizer] ===== _add_to_history() RETORNÓ =====")
+            logger.info("[TorrentOptimizer] ===== _add_to_history() RETORNÓ =====")
 
             # Actualizar la base de datos del catálogo
             try:
@@ -905,7 +902,7 @@ class TorrentOptimizer:
                 )
             else:
                 logger.warning(
-                    f"[TorrentOptimizer] get_progress - Proceso NO encontrado en _processes"
+                    "[TorrentOptimizer] get_progress - Proceso NO encontrado en _processes"
                 )
             return progress
 

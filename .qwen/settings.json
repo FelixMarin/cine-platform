@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git log *)",
+      "Bash(git show *)",
+      "Bash(git *)",
+      "Bash(python3 *)",
+      "Bash(python *)",
+      "Bash(./venv_cine/bin/pip *)",
+      "Bash(./venv_cine/bin/ruff *)",
+      "Bash(./venv_cine/bin/flake8 *)",
+      "Bash(sed *)"
+    ]
+  },
+  "$version": 3
+}

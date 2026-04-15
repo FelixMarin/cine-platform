@@ -5,9 +5,9 @@ Responsabilidad: Almacenar y recuperar thumbnails del sistema de archivos.
 Proporciona una capa de caché para evitar descargas repetidas de OMDB.
 """
 
+import logging
 import os
 import re
-import logging
 from typing import Optional
 
 logger = logging.getLogger(__name__)
@@ -54,11 +54,11 @@ class ThumbnailCacheService:
             Ruta al archivo de caché si existe, None en caso contrario
         """
         cache_path = self.get_cache_path(title, year)
-        
+
         if os.path.exists(cache_path):
             logger.info(f"CACHE: Sirviendo poster para [{title}] desde archivo caché")
             return cache_path
-        
+
         return None
 
     def save_thumbnail(self, title: str, year: Optional[str], data: bytes) -> Optional[str]:
@@ -76,13 +76,13 @@ class ThumbnailCacheService:
         try:
             os.makedirs(self.cache_dir, exist_ok=True)
             cache_path = self.get_cache_path(title, year)
-            
+
             with open(cache_path, 'wb') as f:
                 f.write(data)
-            
+
             logger.info(f"CACHE: Guardado poster en [{cache_path}]")
             return cache_path
-            
+
         except Exception as e:
             logger.error(f"CACHE: Error guardando en caché: {e}")
             return None

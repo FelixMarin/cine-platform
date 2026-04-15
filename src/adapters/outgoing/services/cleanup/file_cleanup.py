@@ -2,12 +2,11 @@
 Implementación de ICleanupService para limpiar archivos temporales
 """
 
-import os
 import logging
-from typing import Dict, Any, Optional
+import os
+from typing import Any, Dict, Optional
 
-from src.core.ports.services.ICleanupService import ICleanupService
-
+from src.domain.ports.out.services.ICleanupService import ICleanupService
 
 logger = logging.getLogger(__name__)
 
@@ -71,7 +70,7 @@ class FileCleanupService(ICleanupService):
             os.environ.get("DELETE_TORRENT_AFTER_OPTIMIZATION", "true").lower()
             == "true"
         )
-        
+
         # Eliminar el torrent de Transmission solo si la optimización fue exitosa
         if delete_torrent and transmission_client and torrent_id:
             try:

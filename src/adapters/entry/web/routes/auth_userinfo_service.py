@@ -6,9 +6,11 @@ Maneja la obtención de información del usuario desde el servidor OAuth2.
 
 import logging
 import os
-import jwt
+from typing import Any, Dict, Optional
+
 import requests
-from typing import Optional, Dict, Any
+
+from src.adapters.outgoing.services.auth.jwt_token_decoder import JWTTokenDecoder
 
 logger = logging.getLogger(__name__)
 
@@ -20,6 +22,7 @@ class OAuth2UserInfoService:
         self.oauth2_url = os.environ.get(
             "OAUTH2_URL", "http://oauth2-server:8080"
         ).rstrip("/")
+        self._token_decoder = JWTTokenDecoder()
 
     def get_userinfo(self, token: str) -> Optional[Dict[str, Any]]:
         """
@@ -56,20 +59,14 @@ class OAuth2UserInfoService:
             return None
 
     def _extract_roles_from_token(self, token: str) -> list:
-        """
-        Extrae los roles del token JWT.
-
-        Args:
-            token: Token de acceso
-
-        Returns:
-            Lista de roles
-        """
+        """Extrae los roles del token JWT usando el decoder inyectado."""
         try:
-            jwt_payload = jwt.decode(token, options={"verify_signature": False})
+            jwt_payload = self._token_decoder.decode(
+                token, options={"verify_signature": False}
+            )
             return jwt_payload.get("roles", [])
         except Exception as e:
-            logger.info(f"[OAuth2UserInfoService] Error decoding JWT: {e}")
+            logger.info("[OAuth2UserInfoService] Error decoding JWT: %s", e)
             return []
 
     def revoke_token(self, token: str) -> bool:

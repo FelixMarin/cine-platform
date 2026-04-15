@@ -6,11 +6,11 @@ Maneja el registro de optimizaciones en la base de datos.
 
 import logging
 import os
-from typing import Optional
 from datetime import datetime
+from typing import Optional
 
 from src.infrastructure.database.connection import get_session_maker
-from src.infrastructure.models.optimization_history import OptimizationHistory
+from src.adapters.outgoing.repositories.postgresql.models.optimization_history import OptimizationHistory
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +40,7 @@ class OptimizationHistoryService:
             transmission_client: Cliente de Transmission para obtener info de torrents
             progress: Objeto OptimizationProgress con datos de tiempo
         """
-        logger.info(f"[HistoryService] ===== add_entry() INICIADO =====")
+        logger.info("[HistoryService] ===== add_entry() INICIADO =====")
         logger.info(
             f"[HistoryService] process_id={process_id}, final_path={final_path}"
         )
@@ -158,7 +158,7 @@ class OptimizationHistoryService:
             if not history_data["category"]:
                 history_data["category"] = "unknown"
                 logger.warning(
-                    f"[HistoryService] ⚠️ category es None, usando fallback: unknown"
+                    "[HistoryService] ⚠️ category es None, usando fallback: unknown"
                 )
 
             # Validar status (es NOT NULL en el modelo)
@@ -204,9 +204,9 @@ class OptimizationHistoryService:
                 f"category={entry.category}, status={entry.status}"
             )
 
-            logger.info(f"[HistoryService] 🔄 Ejecutando db.commit()...")
+            logger.info("[HistoryService] 🔄 Ejecutando db.commit()...")
             db.commit()
-            logger.info(f"[HistoryService] ✅ db.commit() completado exitosamente")
+            logger.info("[HistoryService] ✅ db.commit() completado exitosamente")
 
             logger.info(
                 f"[HistoryService] ✅ Entrada añadida al historial (id={entry.id}, process_id={process_id})"
@@ -224,24 +224,24 @@ class OptimizationHistoryService:
             logger.error(f"[HistoryService] 🔍 Stack trace: {traceback.print_stack()}")
             if db:
                 try:
-                    logger.error(f"[HistoryService] 🔄 Ejecutando rollback...")
+                    logger.error("[HistoryService] 🔄 Ejecutando rollback...")
                     db.rollback()
-                    logger.error(f"[HistoryService] ✅ Rollback completado")
+                    logger.error("[HistoryService] ✅ Rollback completado")
                 except Exception as rollback_err:
                     logger.error(f"[HistoryService] Error en rollback: {rollback_err}")
             logger.error(
-                f"[HistoryService] ❌ Re-lanzando excepción para que el caller la maneje"
+                "[HistoryService] ❌ Re-lanzando excepción para que el caller la maneje"
             )
             # Re-lanzar la excepción para que el caller pueda manejarla
             raise
         finally:
-            logger.info(f"[HistoryService] finally: cerrando conexión a BD")
+            logger.info("[HistoryService] finally: cerrando conexión a BD")
             if db:
                 try:
                     db.close()
-                    logger.info(f"[HistoryService] ✅ Conexión cerrada")
+                    logger.info("[HistoryService] ✅ Conexión cerrada")
                 except Exception as close_err:
                     logger.error(
                         f"[HistoryService] Error cerrando conexión: {close_err}"
                     )
-            logger.info(f"[HistoryService] ===== add_entry() FINALIZADO =====")
+            logger.info("[HistoryService] ===== add_entry() FINALIZADO =====")

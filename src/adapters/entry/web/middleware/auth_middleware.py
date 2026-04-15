@@ -4,7 +4,8 @@ Protege las rutas que requieren autenticación
 """
 import logging
 from functools import wraps
-from flask import session, redirect, url_for, jsonify, request
+
+from flask import jsonify, redirect, request, session
 
 # Logger para este módulo
 logger = logging.getLogger(__name__)
@@ -20,12 +21,12 @@ def require_auth(f):
         # Solo loggear si hay error de autenticación
         if request.path == '/login':
             return f(*args, **kwargs)
-        
+
         if not session.get('logged_in', False):
             if request.is_json or request.path.startswith('/api/'):
                 return jsonify({'error': 'Autenticación requerida', 'code': 'AUTH_REQUIRED'}), 401
             return redirect('/login')
-        
+
         return f(*args, **kwargs)
     return decorated_function
 
@@ -44,14 +45,14 @@ def require_role(*roles):
                 if request.is_json or request.path.startswith('/api/'):
                     return jsonify({'error': 'Autenticación requerida', 'code': 'AUTH_REQUIRED'}), 401
                 return redirect('/login')
-            
+
             user_role = session.get('user_role', '')
-            
+
             if user_role not in roles:
                 if request.is_json or request.path.startswith('/api/'):
                     return jsonify({'error': 'Permisos insuficientes', 'code': 'FORBIDDEN'}), 403
                 return redirect('/login')
-            
+
             return f(*args, **kwargs)
         return decorated_function
     return decorator

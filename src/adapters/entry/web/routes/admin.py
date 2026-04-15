@@ -1,7 +1,8 @@
 """
 Rutas de Administración
 """
-from flask import Blueprint, render_template, jsonify
+from flask import Blueprint, jsonify, render_template
+
 from src.adapters.entry.web.middleware.auth_middleware import require_auth, require_role
 
 admin_bp = Blueprint('admin', __name__, url_prefix='/api/admin')

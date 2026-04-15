@@ -4,10 +4,11 @@ Implementación de IMetadataService usando la API de OMDB
 """
 
 import os
-import re
+from typing import Dict, List, Optional
+
 import requests
-from typing import Optional, Dict, List
-from src.core.ports.services import IMetadataService
+
+from src.domain.ports.out.services import IMetadataService
 
 
 class OMDBMetadataService(IMetadataService):

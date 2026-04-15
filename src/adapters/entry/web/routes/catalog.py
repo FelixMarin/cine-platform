@@ -3,17 +3,15 @@ Adaptador de entrada - Rutas de catálogo
 Blueprint para /api/movies y endpoints relacionados
 """
 
-import unicodedata
 import os
-from flask import Blueprint, jsonify, request
-from src.adapters.entry.web.middleware.auth_middleware import require_auth
 
-from src.core.use_cases.catalog import (
+from flask import Blueprint, jsonify, request
+
+from src.application.use_cases.catalog import (
     ListMoviesUseCase,
     ListSeriesUseCase,
     SearchUseCase,
 )
-
 from src.infrastructure.logging import setup_logging
 
 logger = setup_logging(os.environ.get("LOG_FOLDER"))
@@ -74,7 +72,7 @@ def search_content():
 
         results = _search_use_case.execute(query)
 
-        return jsonify(normalize_dict(results))
+        return jsonify(results)
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -101,8 +99,9 @@ def get_movie_thumbnail_by_title():
     El servicio DatabaseThumbnailService es la fuente primaria que busca
     directamente en el campo poster_image de las tablas omdb_entries y local_content.
     """
-    import logging
     import io
+    import logging
+
     from flask import send_file
 
     logger = logging.getLogger(__name__)

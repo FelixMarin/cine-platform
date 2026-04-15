@@ -4,15 +4,16 @@ Rutas para series - Endpoints para obtener temporadas y episodios
 
 import os
 import re
-from flask import Blueprint, jsonify, request, render_template
-from src.adapters.entry.web.middleware.auth_middleware import require_auth
+
+from flask import Blueprint, jsonify, render_template, request
+
 from src.adapters.outgoing.repositories.postgresql.catalog_repository import (
     get_catalog_repository,
     get_catalog_repository_session,
 )
-from src.infrastructure.models.catalog import OmdbEntry, LocalContent
-from src.infrastructure.logging import setup_logging
 from src.infrastructure.config.settings import settings
+from src.infrastructure.logging import setup_logging
+from src.adapters.outgoing.repositories.postgresql.models.catalog import LocalContent, OmdbEntry
 
 logger = setup_logging(os.environ.get("LOG_FOLDER"))
 
@@ -107,7 +108,7 @@ def get_serie_seasons(serie_id):
     try:
         with get_catalog_repository_session() as db:
             # 1. Buscar la serie en omdb_entries por ID
-            logger.info(f"[get_serie_seasons] Buscando en omdb_entries...")
+            logger.info("[get_serie_seasons] Buscando en omdb_entries...")
             serie = (
                 db.query(OmdbEntry)
                 .filter(OmdbEntry.id == serie_id, OmdbEntry.type == "series")
@@ -117,7 +118,7 @@ def get_serie_seasons(serie_id):
 
             if not serie:
                 logger.info(
-                    f"[get_serie_seasons] No encontrado en omdb_entries, buscando en local_content..."
+                    "[get_serie_seasons] No encontrado en omdb_entries, buscando en local_content..."
                 )
                 # Fallback: buscar en local_content si no está en omdb_entries
                 repo = get_catalog_repository(db)
@@ -127,7 +128,7 @@ def get_serie_seasons(serie_id):
                 )
                 if not serie or serie.type != "series":
                     logger.error(
-                        f"[get_serie_seasons] Serie no encontrada en local_content"
+                        "[get_serie_seasons] Serie no encontrada en local_content"
                     )
                     return jsonify({"error": "Serie no encontrada"}), 404
 
@@ -136,7 +137,7 @@ def get_serie_seasons(serie_id):
 
             # 2. Buscar la ruta física en local_content por título o imdb_id
             logger.info(
-                f"[get_serie_seasons] Buscando file_path en local_content por titulo..."
+                "[get_serie_seasons] Buscando file_path en local_content por titulo..."
             )
             local_content = (
                 db.query(LocalContent)
@@ -172,7 +173,7 @@ def get_serie_seasons(serie_id):
                 )
             else:
                 logger.info(
-                    f"[get_serie_seasons] No hay local_content.file_path, usando fallback..."
+                    "[get_serie_seasons] No hay local_content.file_path, usando fallback..."
                 )
                 series_base = getattr(
                     settings, "SERIES_FOLDER", "/mnt/DATA_2TB/audiovisual/series"
@@ -191,7 +192,7 @@ def get_serie_seasons(serie_id):
                 )
                 return jsonify({"error": "Ruta de serie no valida en disco"}), 404
 
-            logger.info(f"[get_serie_seasons] Escaneando carpetas de temporada...")
+            logger.info("[get_serie_seasons] Escaneando carpetas de temporada...")
             season_pattern = re.compile(r"^S(\d+)$", re.IGNORECASE)
             seasons = []
 

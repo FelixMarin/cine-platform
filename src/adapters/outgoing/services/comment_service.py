@@ -2,9 +2,9 @@
 Servicios auxiliares para comentarios
 """
 
-from typing import Optional, List, Dict, Any
 import re
 from datetime import datetime, timedelta
+from typing import List, Optional
 
 
 class CommentService:
@@ -46,13 +46,13 @@ class CommentService:
         """Formatea el texto del comentario (limpia espacios extra, etc.)"""
         # Eliminar espacios extra al inicio y final
         text = text.strip()
-        
+
         # Reemplazar múltiples espacios con uno solo
         text = re.sub(r' +', ' ', text)
-        
+
         # Reemplazar múltiples saltos de línea con uno solo
         text = re.sub(r'\n+', '\n', text)
-        
+
         return text
 
     @staticmethod
@@ -92,10 +92,10 @@ class CommentService:
             "'": '&#x27;',
             '/': '&#x2F;',
         }
-        
+
         for char, replacement in replacements.items():
             text = text.replace(char, replacement)
-        
+
         return text
 
     @staticmethod
