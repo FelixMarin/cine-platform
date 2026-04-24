@@ -53,6 +53,11 @@ def clean_filename(filename):
 @require_auth
 def play_page(media_path):
     """Página de reproducción de video"""
+    # Si la ruta es de tipo "/play/id/<movie_id>", delegar a play_page_by_id
+    if '/' in media_path:
+        prefix, rest = media_path.split('/', 1)
+        if prefix == 'id':
+            return play_page_by_id(rest)
     # URL decode the path
     filename = urllib.parse.unquote(media_path)
 
@@ -75,6 +80,57 @@ def play_page(media_path):
     clean_title = re.sub(r"\.(mkv|mp4|avi|mov)$", "", clean_title, flags=re.IGNORECASE)
     clean_title = re.sub(r"[._-]", " ", clean_title).strip()
 
+    # Intentar obtener movie_id de la base de datos
+    movie_id = None
+    try:
+        from src.adapters.outgoing.repositories.postgresql.catalog_repository import (
+            get_catalog_repository,
+            get_catalog_repository_session,
+        )
+        from src.adapters.outgoing.repositories.postgresql.models.catalog import LocalContent
+        from src.infrastructure.config.settings import settings
+
+        with get_catalog_repository_session() as db:
+            repo = get_catalog_repository(db)
+            
+            # Preparar posibles rutas absolutas para buscar
+            candidates = []
+            # MOVIES_FOLDER es el prefijo que se strip en JS para obtener ruta relativa
+            movies_folder = getattr(settings, 'MOVIES_FOLDER', '')
+            if movies_folder:
+                candidates.append(os.path.join(movies_folder, filename))
+            # MOVIES_BASE_PATH como alternativa
+            movies_base = getattr(settings, 'MOVIES_BASE_PATH', '')
+            if movies_base and movies_base != movies_folder:
+                candidates.append(os.path.join(movies_base, filename))
+            # También incluir filename tal cual (por si ya es absoluto)
+            candidates.append(filename)
+            
+            # Buscar por rutas exactas
+            for path in candidates:
+                local_content = repo.get_local_content_by_file_path(path)
+                if local_content:
+                    movie_id = local_content.id
+                    break
+            
+            # Si no encuentra, búsqueda por patrón de ruta (like)
+            if not movie_id:
+                local_content = db.query(LocalContent).filter(
+                    LocalContent.file_path.ilike(f"%{filename}")
+                ).first()
+                if local_content:
+                    movie_id = local_content.id
+            
+            # Si aún no, búsqueda por título
+            if not movie_id and clean_title:
+                local_content = db.query(LocalContent).filter(
+                    LocalContent.title.ilike(f"%{clean_title}%")
+                ).first()
+                if local_content:
+                    movie_id = local_content.id
+    except Exception as e:
+        logger.warning(f"No se pudo obtener movie_id: {e}")
+
     return render_template(
         "pages/movies/play.html",
         filename=filename,
@@ -84,6 +140,7 @@ def play_page(media_path):
         year=year,
         is_admin=is_admin,
         use_direct_path=True,
+        movie_id=movie_id,
     )
 
 
@@ -118,6 +175,29 @@ def play_page_by_id(movie_id):
 
         logger.info(f"✅ Reproduciendo: {clean_title} ({year})")
 
+        # Intentar obtener el ID entero de la BD para comentarios
+        display_movie_id = movie_id  # Fallback al ID original (puede ser string)
+        try:
+            from src.adapters.outgoing.repositories.postgresql.catalog_repository import (
+                get_catalog_repository,
+                get_catalog_repository_session,
+            )
+            from src.adapters.outgoing.repositories.postgresql.models.catalog import LocalContent
+
+            with get_catalog_repository_session() as db:
+                repo_cat = get_catalog_repository(db)
+                # Buscar por ruta absoluta
+                local_content = repo_cat.get_local_content_by_file_path(filename)
+                if not local_content:
+                    # Fallback: búsqueda por título
+                    local_content = db.query(LocalContent).filter(
+                        LocalContent.title.ilike(f"%{clean_title}%")
+                    ).first()
+                if local_content:
+                    display_movie_id = local_content.id
+        except Exception as e:
+            logger.warning(f"No se pudo obtener movie_id entero: {e}")
+
         return render_template(
             "pages/movies/play.html",
             filename=filename,
@@ -125,7 +205,7 @@ def play_page_by_id(movie_id):
             media_path=movie_id,
             clean_title=clean_title,
             year=year,
-            movie_id=movie_id,
+            movie_id=display_movie_id,
             is_admin=is_admin,
             use_direct_path=True,
         )
@@ -143,6 +223,7 @@ def play_page_root():
         filename="",
         sanitized_name="Reproducción",
         media_path="",
+        movie_id=None,
     )
 
 
@@ -283,6 +364,7 @@ def play_serie_episode(serie_id, season, episode):
                 season=season,
                 episode=episode,
                 use_direct_path=True,
+                movie_id=None,  # Series usan comentarios de episodio (futuro)
             )
 
     except Exception as e:

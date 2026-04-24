@@ -68,6 +68,8 @@
                 var isPaused = sv === 'stopped' || sv === 0 || sv === 'paused';
                 var pp = p > 100 ? 100 : p;
                 var btns = '';
+                var sizeTotal = d.size_total || d.sizeTotal || 0;
+                var sizeDisplay = sizeTotal ? window.formatBytes(sizeTotal) : '';
                 // Si está pausado, mostrar botón de reanudar
                 if (isPaused && !ic && !if_) {
                     btns += '<button class="btn-process btn-pause" onclick="resumeDownload(\''+d.id+'\')">▶️ Reanudar</button>';
@@ -88,7 +90,7 @@
                     else btns += '<button class="btn-process btn-optimize" data-torrent-id="'+d.id+'" data-torrent-name="'+encodeURIComponent(d.title)+'" data-torrent-size="'+(d.size_total||d.sizeTotal||0)+'">🚀 GPU Optimize</button>';
                 }
                 if (isc) { btns += '<button class="btn-process btn-remove" onclick="removeTorrent(\''+d.id+'\',false)" title="Eliminar">🗑️ Eliminar</button><button class="btn-process btn-remove-files" onclick="removeTorrent(\''+d.id+'\',true)" title="Eliminar todo">🗑️📁 Eliminar todo</button>'; }
-                return '<div class="process-card" data-id="'+d.id+'"><div class="process-header"><h3 class="process-title">'+(d.title||'Descarga')+'</h3><span class="process-status '+sc+'">'+sd+'</span></div><div class="process-meta"><span class="process-meta-item">📊 '+(typeof pp==='number'?pp.toFixed(1):0)+'%</span><span class="process-meta-item">⬇️ '+window.formatBytes(ds)+'/s</span><span class="process-meta-item">⬆️ '+window.formatBytes(us)+'/s</span><span class="process-meta-item">⏱️ '+ef+'</span><span class="process-meta-item">📁 '+(d.category||'N/A')+'</span></div><div class="process-progress"><div class="progress-container"><div class="progress-bar" style="width:'+(typeof pp==='number'?pp:0)+'%"></div></div></div><div class="process-actions">'+btns+'</div></div>';
+                return '<div class="process-card" data-id="'+d.id+'"><div class="process-header"><h3 class="process-title">'+(d.title||'Descarga')+'</h3><span class="process-status '+sc+'">'+sd+'</span></div><div class="process-meta"><span class="process-meta-item">📊 '+(typeof pp==='number'?pp.toFixed(1):0)+'%</span><span class="process-meta-item">⬇️ '+window.formatBytes(ds)+'/s</span><span class="process-meta-item">⬆️ '+window.formatBytes(us)+'/s</span><span class="process-meta-item">⏱️ '+ef+'</span><span class="process-meta-item">📁 '+(d.category||'N/A')+'</span></div><div class="process-progress"><div class="progress-container"><div class="progress-bar" style="width:'+(typeof pp==='number'?pp:0)+'%"></div></div>' + (sizeDisplay ? '<span class="progress-size">'+sizeDisplay+'</span>' : '') + '</div><div class="process-actions">'+btns+'</div></div>';
             }).join('');
         }
         window.updateHeaderStats();

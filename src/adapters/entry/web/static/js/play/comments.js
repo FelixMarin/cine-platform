@@ -5,7 +5,7 @@
 
 class CommentsModule {
     constructor(movieId, movieTitle, tmdbId = null) {
-        this.movieId = movieId;
+        this.movieId = movieId || null;
         this.movieTitle = movieTitle;
         this.tmdbId = tmdbId;
         this.currentPage = 0;
@@ -747,20 +747,30 @@ document.addEventListener('DOMContentLoaded', () => {
     const movieTitleElement = document.getElementById('movieTitle');
     
     if (movieIdElement && movieTitleElement) {
+        const movieId = movieIdElement.value ? parseInt(movieIdElement.value, 10) : null;
+        
+        if (!movieId) {
+            console.warn('movieId no está disponible, las funciones de comentarios estarán limitadas');
+        }
+        
         window.commentsModule = new CommentsModule(
-            parseInt(movieIdElement.value),
+            movieId,
             movieTitleElement.value,
             document.getElementById('tmdbId')?.value || null
         );
         
-        // Cargar comentarios iniciales
-        window.commentsModule.loadComments();
+        // Cargar comentarios iniciales solo si tenemos movieId
+        if (movieId) {
+            window.commentsModule.loadComments();
+        }
         
         // Configurar botón de cargar más
         const loadMoreBtn = document.getElementById('loadMoreComments');
         if (loadMoreBtn) {
             loadMoreBtn.addEventListener('click', () => {
-                window.commentsModule.loadComments(true);
+                if (movieId) {
+                    window.commentsModule.loadComments(true);
+                }
             });
         }
         
@@ -776,6 +786,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 if (text.length < 3) {
                     window.commentsModule.showError('El comentario debe tener al menos 3 caracteres');
+                    return;
+                }
+                
+                if (!movieId) {
+                    window.commentsModule.showError('No se pueden publicar comentarios sin ID de película');
                     return;
                 }
                 
