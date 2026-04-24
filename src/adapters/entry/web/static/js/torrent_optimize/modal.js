@@ -24,30 +24,36 @@
                     '<button class="modal-close" onclick="TorrentOptimize.closeModal()">&times;</button>' +
                 '</div>' +
                 '<div class="modal-body">' +
-                    '<div class="torrent-info">' +
-                        '<p><strong>Archivo:</strong> <span id="optimize-torrent-name">-</span></p>' +
-                        '<p><strong>Tamaño:</strong> <span id="optimize-torrent-size">-</span></p>' +
-                        '<p><strong>GPU:</strong> <span id="optimize-gpu-status">Verificando...</span></p>' +
-                    '</div>' +
-                    
-                    '<div class="form-group">' +
-                        '<label for="optimize-category">Categoría:</label>' +
-                        '<select id="optimize-category" class="form-control">' +
-                            '<option value="action">Acción</option>' +
-                            '<option value="comedia">Comedia</option>' +
-                            '<option value="drama">Drama</option>' +
-                            '<option value="terror">Terror</option>' +
-                            '<option value="sci_fi">Ciencia Ficción</option>' +
-                            '<option value="animacion">Animación</option>' +
-                            '<option value="documental">Documental</option>' +
-                            '<option value="otro">Otro</option>' +
-                            '<option value="aventura">Aventura</option>' +
-                            '<option value="familia">Familia</option>' +
-                            '<option value="fantasia">Fantasía</option>' +
-                            '<option value="suspense">Suspense</option>' +
-                            '<option value="romance">Romance</option>' +
-                        '</select>' +
-                    '</div>' +
+                '<div class="torrent-info">' +
+                    '<p><strong>Archivo original:</strong> <span id="optimize-torrent-name">-</span></p>' +
+                    '<p><strong>Tamaño:</strong> <span id="optimize-torrent-size">-</span></p>' +
+                    '<p><strong>GPU:</strong> <span id="optimize-gpu-status">Verificando...</span></p>' +
+                '</div>' +
+                
+                '<div class="form-group">' +
+                    '<label for="optimize-category">Categoría:</label>' +
+                    '<select id="optimize-category" class="form-control">' +
+                        '<option value="action">Acción</option>' +
+                        '<option value="comedia">Comedia</option>' +
+                        '<option value="drama">Drama</option>' +
+                        '<option value="terror">Terror</option>' +
+                        '<option value="sci_fi">Ciencia Ficción</option>' +
+                        '<option value="animacion">Animación</option>' +
+                        '<option value="documental">Documental</option>' +
+                        '<option value="otro">Otro</option>' +
+                        '<option value="aventura">Aventura</option>' +
+                        '<option value="familia">Familia</option>' +
+                        '<option value="fantasia">Fantasía</option>' +
+                        '<option value="suspense">Suspense</option>' +
+                        '<option value="romance">Romance</option>' +
+                    '</select>' +
+                '</div>' +
+
+                '<div class="form-group">' +
+                    '<label for="optimize-output-filename">Nombre de salida:</label>' +
+                    '<input type="text" id="optimize-output-filename" class="form-control" placeholder="Nombre del archivo optimizado">' +
+                    '<small class="form-text text-muted" id="extension-hint"></small>' +
+                '</div>' +
                     
                     '<input type="hidden" id="optimize-torrent-id">' +
                     
@@ -91,11 +97,26 @@
         var nameEl = document.getElementById('optimize-torrent-name');
         var sizeEl = document.getElementById('optimize-torrent-size');
         var idEl = document.getElementById('optimize-torrent-id');
+        var filenameInput = document.getElementById('optimize-output-filename');
         
         var sizeValue = parseInt(torrent.size, 10) || 0;
         if (nameEl) nameEl.textContent = decodedName || 'Sin nombre';
         if (sizeEl) sizeEl.textContent = (window.TorrentOptimize.formatSize ? window.TorrentOptimize.formatSize(sizeValue) : sizeValue + ' B');
         if (idEl) idEl.value = torrent.id;
+        
+        // Establecer nombre de archivo de salida por defecto (sin extensión, se añadirá después)
+        if (filenameInput) {
+            // Eliminar extensión existente si la tiene
+            var baseName = decodedName.replace(/\.[^/.]+$/, '');
+            filenameInput.value = baseName;
+            filenameInput.placeholder = decodedName;
+        }
+        
+        // Mostrar sugerencia de extensión automática
+        var extensionHint = document.getElementById('extension-hint');
+        if (extensionHint) {
+            extensionHint.textContent = 'Se añadirá la extensión .mkv automáticamente';
+        }
 
         // Mostrar modal (no bloqueante - permite scroll)
         modal.classList.add('active');
@@ -179,31 +200,26 @@
         
         var torrentIdEl = document.getElementById('optimize-torrent-id');
         var categoryEl = document.getElementById('optimize-category');
-        var nameEl = document.getElementById('optimize-torrent-name');
+        var filenameInput = document.getElementById('optimize-output-filename');
         
         var torrentId = torrentIdEl ? torrentIdEl.value : '';
         var category = categoryEl ? categoryEl.value : 'other';
-        var filename = nameEl ? nameEl.textContent : '';
-
-        
+        var filename = filenameInput ? filenameInput.value.trim() : '';
 
         if (!torrentId) {
             alert('ID de torrent inválido');
             return;
         }
 
-        // Si filename no tiene extensión, añadirla según el torrent_id
-        // Esto es un mapeo temporal hasta que el frontend envíe la extensión correcta
+        if (!filename) {
+            alert('Por favor, ingresa un nombre para el archivo de salida');
+            filenameInput.focus();
+            return;
+        }
+
+        // Siempre añade extensión .mkv si no la tiene
         if (filename && filename.indexOf('.') === -1) {
-            var extensions = {
-                1: '.mp4',  // Spaceman
-                2: '.mkv'   // TRON
-            };
-            var ext = extensions[torrentId];
-            if (ext) {
-                filename = filename + ext;
-                
-            }
+            filename = filename + '.mkv';
         }
 
         
