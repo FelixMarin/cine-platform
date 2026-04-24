@@ -20,7 +20,7 @@
 
             <div class="video-wrapper">
                 <!-- Usar media_id para streaming (soporta películas y episodios) -->
-                <video controls preload="auto" id="videoPlayer">
+                <video controls preload="auto" id="videoPlayer" controlsList="nodownload" oncontextmenu="return false;">
                     {% if use_direct_path and filename %}
                         <source src="/api/streaming/path/{{ filename }}">
                     {% elif media_id %}
